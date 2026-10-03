@@ -3,14 +3,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from threading import RLock
-from typing import Any, TypeVar, cast
+from types import TracebackType
+from typing import Any, cast
 from uuid import uuid4
 
 from aavc.jobs.cancellation import CancellationToken, JobCancelledError
 from aavc.jobs.job import BackgroundJob, JobSnapshot, JobState
 
-T = TypeVar("T")
-JobFunction = Callable[[CancellationToken], T]
+type JobFunction[T] = Callable[[CancellationToken], T]
 
 
 class JobManager:
@@ -23,7 +23,7 @@ class JobManager:
         self._lock = RLock()
         self._closed = False
 
-    def submit(self, name: str, function: JobFunction[T]) -> BackgroundJob[T]:
+    def submit[T](self, name: str, function: JobFunction[T]) -> BackgroundJob[T]:
         if not name.strip():
             raise ValueError("job name must not be empty")
         with self._lock:
@@ -83,11 +83,16 @@ class JobManager:
     def __enter__(self) -> JobManager:
         return self
 
-    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         del exc_type, exc, traceback
         self.shutdown()
 
-    def _run_job(self, job: BackgroundJob[T], function: JobFunction[T]) -> T | None:
+    def _run_job[T](self, job: BackgroundJob[T], function: JobFunction[T]) -> T | None:
         with self._lock:
             if job.token.is_cancelled:
                 job.state = JobState.CANCELLED
