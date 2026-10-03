@@ -3,12 +3,12 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from aavc.providers.base import ProviderFailureKind
 
 
-class KeyState(str, Enum):
+class KeyState(StrEnum):
     READY = "ready"
     COOLDOWN = "cooldown"
     DISABLED = "disabled"
