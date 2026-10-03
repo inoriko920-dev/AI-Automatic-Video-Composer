@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, cast
+from typing import Any, Protocol, cast
 from urllib import error, parse, request
 
 from aavc.providers.base import ProviderError, ProviderRequest, ProviderResponse
@@ -38,7 +39,7 @@ class UrllibJsonTransport:
         encoded = json.dumps(body).encode("utf-8")
         req = request.Request(url, data=encoded, headers=dict(headers), method="POST")
         try:
-            with request.urlopen(req, timeout=timeout_seconds) as response:  # noqa: S310
+            with request.urlopen(req, timeout=timeout_seconds) as response:
                 raw = response.read().decode("utf-8")
                 payload = cast(dict[str, Any], json.loads(raw)) if raw else {}
                 return JsonHttpResponse(
