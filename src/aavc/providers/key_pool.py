@@ -35,6 +35,14 @@ class NoEligibleKeyError(RuntimeError):
 
 
 class ProviderKeyPool:
+    """Store opaque credential references without aggregating provider quota.
+
+    The active credential is sticky. Additional references are backups for an
+    unusable/invalid credential, not a mechanism for bypassing rate or quota
+    limits. Rate-limit, quota, and transient failures put the active reference
+    into cooldown and block automatic failover until that cooldown expires.
+    """
+
     def __init__(
         self,
         references: Iterable[str] = (),
@@ -71,13 +79,22 @@ class ProviderKeyPool:
         now = self._clock()
         self._refresh(now)
         total = len(self._records)
-        for offset in range(total):
+        self._cursor %= total
+        active = self._records[self._cursor]
+
+        if active.state is KeyState.READY:
+            return active.reference
+        if active.state is KeyState.COOLDOWN:
+            raise NoEligibleKeyError("active provider credential is cooling down")
+
+        # Only an explicitly disabled credential may advance to a backup.
+        for offset in range(1, total + 1):
             index = (self._cursor + offset) % total
             record = self._records[index]
             if record.state is KeyState.READY:
-                self._cursor = (index + 1) % total
+                self._cursor = index
                 return record.reference
-        raise NoEligibleKeyError("provider key pool has no eligible key")
+        raise NoEligibleKeyError("provider key pool has no eligible backup credential")
 
     def mark_success(self, reference: str) -> None:
         record = self._find(reference)
@@ -106,6 +123,7 @@ class ProviderKeyPool:
         record.state = KeyState.READY
         record.cooldown_until = 0.0
         record.failures = 0
+        self._cursor = self._records.index(record)
 
     def snapshot(self) -> tuple[KeySnapshot, ...]:
         now = self._clock()
