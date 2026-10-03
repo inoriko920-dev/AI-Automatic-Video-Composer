@@ -13,10 +13,21 @@ if (-not (Test-Path $marker)) { throw "Foundation smoke marker tidak dibuat" }
 $smoke = Get-Content $marker -Raw
 if ($smoke -notmatch "AAVC_FOUNDATION_SMOKE_OK") { throw "Foundation smoke token tidak valid: $smoke" }
 
-$schema = Get-ChildItem $dist -Recurse -File -Filter "project.schema.json" | Select-Object -First 1
-if (-not $schema) { throw "project.schema.json tidak ditemukan dalam portable artifact" }
-$releaseNotes = Get-ChildItem $dist -Recurse -File -Filter "RELEASE_NOTES_RC1.md" | Select-Object -First 1
-if (-not $releaseNotes) { throw "RELEASE_NOTES_RC1.md tidak ditemukan dalam portable artifact" }
+$requiredNames = @(
+  "project.schema.json",
+  "RELEASE_NOTES_0.1.0.md",
+  "MAINTENANCE.md",
+  "BACKUP_AND_RECOVERY.md"
+)
+foreach ($requiredName in $requiredNames) {
+  $found = Get-ChildItem $dist -Recurse -File -Filter $requiredName | Select-Object -First 1
+  if (-not $found) { throw "$requiredName tidak ditemukan dalam portable artifact" }
+}
+
+$ffmpegReadme = Get-ChildItem $dist -Recurse -File -Filter "README.md" | Where-Object {
+  $_.FullName -match 'tools\\ffmpeg'
+} | Select-Object -First 1
+if (-not $ffmpegReadme) { throw "FFmpeg runtime policy README tidak ditemukan" }
 
 $forbidden = Get-ChildItem $dist -Recurse -File | Where-Object {
   $_.Name -match '(^\.env|\.key$|\.pem$|autosave|recovery)' -or $_.FullName -match '\\cache\\|\\logs\\|\\user_data\\'
@@ -25,4 +36,4 @@ if ($forbidden) { throw "Forbidden runtime/user file ditemukan dalam artifact: $
 
 Write-Host "PORTABLE_SMOKE_OK"
 Write-Host "EXE=$exe"
-Write-Host "SCHEMA=$($schema.FullName)"
+Write-Host "FINAL_RELEASE_DOCS_OK"
