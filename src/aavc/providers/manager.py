@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
-from typing import Mapping
 
 from aavc.platform.credentials import CredentialStore
 from aavc.providers.base import (
