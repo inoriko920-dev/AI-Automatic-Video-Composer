@@ -4,7 +4,9 @@ datas = [
     ('resources', 'resources'),
     ('schemas', 'schemas'),
     ('LICENSES', 'LICENSES'),
-    ('RELEASE_NOTES_RC1.md', '.'),
+    ('RELEASE_NOTES_0.1.0.md', '.'),
+    ('MAINTENANCE.md', '.'),
+    ('BACKUP_AND_RECOVERY.md', '.'),
     ('tools/ffmpeg/README.md', 'tools/ffmpeg'),
 ]
 
