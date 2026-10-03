@@ -21,6 +21,14 @@ def _arg_value(args: list[str], flag: str, default: str | None = None) -> str | 
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     services = build_foundation_services()
+
+    smoke_file = _arg_value(args, "--foundation-smoke-file")
+    if smoke_file is not None:
+        target = Path(smoke_file)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(FOUNDATION_SMOKE_TOKEN, encoding="utf-8")
+        return 0
+
     if "--foundation-smoke" in args:
         print(FOUNDATION_SMOKE_TOKEN)
         return 0
