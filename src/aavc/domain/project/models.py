@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 SceneMode = Literal["SINGLE", "DOUBLE"]
 AssetStatus = Literal["READY", "MISSING", "CORRUPT", "DUPLICATE"]
@@ -105,7 +105,7 @@ class ProjectState:
     def ready(self) -> bool:
         return all(binding.status == "READY" for binding in self.bindings)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def output_default(self, project_path: Path) -> Path:

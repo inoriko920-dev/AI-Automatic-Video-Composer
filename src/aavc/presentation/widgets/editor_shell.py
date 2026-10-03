@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from aavc.presentation.design_tokens import COLORS, METRICS
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
@@ -8,16 +9,16 @@ from aavc.presentation.widgets.common import make_primary_button, muted_label, s
 
 @dataclass(slots=True)
 class EditorShellParts:
-    root: object
-    left_tabs: object
-    preview_frame: object
-    preview_label: object
-    right_tabs: object
-    timeline: object
-    status_label: object
+    root: Any
+    left_tabs: Any
+    preview_frame: Any
+    preview_label: Any
+    right_tabs: Any
+    timeline: Any
+    status_label: Any
 
 
-def _asset_grid():
+def _asset_grid() -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
@@ -59,7 +60,7 @@ def _asset_grid():
     return container
 
 
-def _scene_list():
+def _scene_list() -> Any:
     from PySide6.QtWidgets import QListWidget, QListWidgetItem
 
     widget = QListWidget()
@@ -75,7 +76,7 @@ def _scene_list():
     return widget
 
 
-def _preview_widget(mode: str):
+def _preview_widget(mode: str) -> tuple[Any, Any, Any]:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
         QFrame,
@@ -138,7 +139,7 @@ def _preview_widget(mode: str):
     return outer, frame, canvas
 
 
-def _layout_inspector(mode: str):
+def _layout_inspector(mode: str) -> Any:
     from PySide6.QtWidgets import (
         QComboBox,
         QFormLayout,
@@ -178,7 +179,7 @@ def _layout_inspector(mode: str):
     return widget
 
 
-def _subtitle_inspector():
+def _subtitle_inspector() -> Any:
     from PySide6.QtWidgets import (
         QCheckBox,
         QFormLayout,
@@ -228,7 +229,7 @@ def _subtitle_inspector():
     return tabs
 
 
-def _ai_placeholder():
+def _ai_placeholder() -> Any:
     from PySide6.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
     widget = QWidget()
@@ -247,7 +248,7 @@ def _ai_placeholder():
     return widget
 
 
-def _timeline_widget():
+def _timeline_widget() -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout
 

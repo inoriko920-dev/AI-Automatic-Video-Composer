@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from typing import Any
+
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 
 
-def create_export_dialog(parent=None):
+def create_export_dialog(parent: Any = None) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
         QCheckBox,

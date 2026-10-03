@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.presentation.design_tokens import METRICS, app_stylesheet
 from aavc.presentation.navigation import UiRoute, parse_route
@@ -19,14 +21,14 @@ class MainWindow:
         self.window.setStyleSheet(app_stylesheet())
         self.stack = QStackedWidget()
         self.window.setCentralWidget(self.stack)
-        self._route_widgets: dict[UiRoute, object] = {}
-        self._active_dialog = None
+        self._route_widgets: dict[UiRoute, Any] = {}
+        self._active_dialog: Any | None = None
         self._build_menu(QAction)
         self._build_toolbar(QToolBar, QAction)
         self._build_pages()
         self.show_route(parse_route(initial_state))
 
-    def _build_menu(self, action_type) -> None:
+    def _build_menu(self, action_type: Any) -> None:
         menu_bar = self.window.menuBar()
         for name in [
             "File",
@@ -60,7 +62,7 @@ class MainWindow:
             else:
                 menu.addAction(f"{name} — menu")
 
-    def _build_toolbar(self, toolbar_type, action_type) -> None:
+    def _build_toolbar(self, toolbar_type: Any, action_type: Any) -> None:
         toolbar = toolbar_type("Utama", self.window)
         toolbar.setMovable(False)
         toolbar.setFixedHeight(METRICS.toolbar_h)
@@ -139,13 +141,13 @@ class MainWindow:
     def resize(self, width: int, height: int) -> None:
         self.window.resize(width, height)
 
-    def grab(self):
+    def grab(self) -> Any:
         return self.window.grab()
 
     def close(self) -> None:
         self.window.close()
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self.window, name)
 
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
 
-def make_primary_button(text: str):
+
+def make_primary_button(text: str) -> Any:
     from PySide6.QtWidgets import QPushButton
 
     button = QPushButton(text)
@@ -9,7 +11,7 @@ def make_primary_button(text: str):
     return button
 
 
-def section_title(text: str):
+def section_title(text: str) -> Any:
     from PySide6.QtGui import QFont
     from PySide6.QtWidgets import QLabel
 
@@ -21,7 +23,7 @@ def section_title(text: str):
     return label
 
 
-def muted_label(text: str):
+def muted_label(text: str) -> Any:
     from PySide6.QtWidgets import QLabel
 
     label = QLabel(text)

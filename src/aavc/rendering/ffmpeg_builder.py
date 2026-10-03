@@ -29,14 +29,16 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
     filters: list[str] = []
     scene_outputs: list[str] = []
     scale_flags = plan.quality.scale_algorithm
-    for sidx, (scene, indices) in enumerate(zip(plan.scenes, asset_input_indices, strict=True)):
+    for sidx, (scene, scene_indices) in enumerate(
+        zip(plan.scenes, asset_input_indices, strict=True)
+    ):
         duration = scene.duration_seconds
         bg = f"bg{sidx}"
         filters.append(
             f"color=c=0xF4F7FB:s={plan.width}x{plan.height}:r={plan.fps}:d={duration}[{bg}]"
         )
-        if len(indices) == 1:
-            inp = indices[0]
+        if len(scene_indices) == 1:
+            inp = scene_indices[0]
             scaled = f"sc{sidx}_0"
             max_h = int(plan.height * 0.84)
             max_w = int(plan.width * 0.72)
@@ -53,7 +55,7 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
             max_w = int(plan.width * 0.46)
             max_h = int(plan.height * 0.66)
             scaled_names: list[str] = []
-            for aidx, inp in enumerate(indices):
+            for aidx, inp in enumerate(scene_indices):
                 scaled = f"sc{sidx}_{aidx}"
                 scaled_names.append(scaled)
                 filters.append(

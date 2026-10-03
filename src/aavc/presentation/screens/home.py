@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 
 
-def create_home_screen(on_new_project, on_open_editor):
+def create_home_screen(
+    on_new_project: Callable[[], None],
+    on_open_editor: Callable[[], None],
+) -> Any:
     from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
     root = QWidget()

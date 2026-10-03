@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from aavc.presentation.widgets.common import make_primary_button, muted_label
 
 
-def create_new_project_screen(on_back, on_continue):
+def create_new_project_screen(
+    on_back: Callable[[], None],
+    on_continue: Callable[[], None],
+) -> Any:
     from PySide6.QtWidgets import (
         QFileDialog,
         QFrame,
