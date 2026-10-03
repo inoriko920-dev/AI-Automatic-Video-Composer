@@ -1,16 +1,16 @@
 # ACTIVE FACTORY TASKS
 
-## STEP 13 — Hardening & QA
+## STEP 13 — Hardening & QA — COMPLETE
 - S13-T01 — Secret redaction + structured diagnostics: DONE.
 - S13-T02 — Redacted support bundle: DONE.
 - S13-T03 — Cancellable background-job lifecycle: DONE.
 - S13-T04 — Process timeout/launch error normalization: DONE.
 - S13-T05 — Render preflight/output validation: DONE.
-- S13-T06 — Provider credential policy: quota/rate/transient must not auto-hop credentials: DONE.
+- S13-T06 — Provider credential policy: quota/rate/transient do not auto-hop credentials: DONE.
 - S13-T07 — Canonical QA evidence pack: DONE.
-- S13-T08 — Final Windows CI on closing SHA: PENDING.
+- S13-T08 — Windows CI gate: PASS (run #139 on the pre-close implementation/evidence SHA).
 
-## STEP 14 — Release Candidate & Packaging (next after S13-T08 PASS)
+## STEP 14 — Release Candidate & Packaging — ACTIVE NEXT
 1. S14-T01 — Branch `release/step14-rc1` from exact STEP 13 closing SHA and freeze RC identity.
 2. S14-T02 — Upgrade Windows package workflow to exact RC artifact naming/version/SHA.
 3. S14-T03 — Build manifest + SHA-256 checksum + build provenance.
