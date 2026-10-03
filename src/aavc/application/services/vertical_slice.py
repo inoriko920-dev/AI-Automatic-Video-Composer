@@ -8,7 +8,12 @@ from aavc.domain.project.models import ProjectState
 from aavc.importing.assets import bind_assets
 from aavc.importing.docx_scene import parse_scene_docx
 from aavc.persistence.serializer import save_project
-from aavc.rendering import build_ffmpeg_command, build_render_plan, execute_ffmpeg
+from aavc.rendering import (
+    build_ffmpeg_command,
+    build_render_plan,
+    execute_ffmpeg,
+    validate_render_plan,
+)
 from aavc.subtitles import compile_srt_to_ass
 
 
@@ -38,7 +43,7 @@ def create_project_state(
         width=width,
         height=height,
         fps=fps,
-        metadata={"vertical_slice": "STEP10", "feature_wave": "STEP11"},
+        metadata={"vertical_slice": "STEP10", "feature_wave": "STEP11", "hardening": "STEP13"},
     )
 
 
@@ -83,6 +88,11 @@ def run_vertical_slice(
         output_dir / "step10_demo.mp4",
         str(ass_path) if ass_path else None,
     )
+    preflight = validate_render_plan(render_plan)
+    if not preflight.ok:
+        errors = [issue.message for issue in preflight.issues if issue.severity.value == "ERROR"]
+        raise ValueError(f"Render preflight gagal: {'; '.join(errors)}")
+
     plan_path = output_dir / "render_plan.json"
     plan_path.write_text(
         json.dumps(asdict(render_plan), ensure_ascii=False, indent=2),

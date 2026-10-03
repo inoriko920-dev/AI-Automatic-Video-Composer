@@ -7,7 +7,7 @@ from threading import Event
 
 from aavc.diagnostics import redact_text, write_diagnostics_bundle
 from aavc.domain.project.models import RenderQualitySettings
-from aavc.jobs import JobManager, JobStatus
+from aavc.jobs import CancellationToken, JobManager, JobStatus
 from aavc.rendering import (
     PreflightSeverity,
     RenderPlan,
@@ -92,18 +92,12 @@ def test_job_manager_completes_and_cancels_cooperatively() -> None:
 
         started = Event()
 
-        def blocking(token: object) -> None:
-            raise AssertionError("unreachable")
-
-        from aavc.jobs import CancellationToken
-
         def cancellable(token: CancellationToken) -> None:
             started.set()
             while not token.is_cancelled:
                 time.sleep(0.01)
             token.raise_if_cancelled()
 
-        _ = blocking
         cancel_id = manager.submit("cancel-me", cancellable)
         assert started.wait(1.0)
         assert manager.cancel(cancel_id)
