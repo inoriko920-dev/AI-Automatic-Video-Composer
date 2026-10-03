@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Mapping
+from collections.abc import Mapping
 
 from aavc.providers import ContextBuilder, ProviderError, ProviderRequest
 from aavc.providers.adapters import GeminiProvider, JsonHttpResponse
