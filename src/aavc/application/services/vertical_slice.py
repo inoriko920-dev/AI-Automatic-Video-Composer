@@ -8,6 +8,7 @@ from aavc.domain.project.models import ProjectState
 from aavc.importing.assets import bind_assets
 from aavc.importing.docx_scene import parse_scene_docx
 from aavc.persistence.serializer import save_project
+from aavc.platform.tool_registry import resolve_ffmpeg
 from aavc.rendering import (
     build_ffmpeg_command,
     build_render_plan,
@@ -43,7 +44,12 @@ def create_project_state(
         width=width,
         height=height,
         fps=fps,
-        metadata={"vertical_slice": "STEP10", "feature_wave": "STEP11", "hardening": "STEP13"},
+        metadata={
+            "vertical_slice": "STEP10",
+            "feature_wave": "STEP11",
+            "hardening": "STEP13",
+            "release": "STEP15",
+        },
     )
 
 
@@ -55,7 +61,7 @@ def run_vertical_slice(
     output_directory: str | Path,
     narration_audio: str | Path | None = None,
     subtitle_srt: str | Path | None = None,
-    ffmpeg: str = "ffmpeg",
+    ffmpeg: str | None = None,
     default_scene_duration: float = 3.0,
 ) -> dict[str, str]:
     output_dir = Path(output_directory)
@@ -98,7 +104,8 @@ def run_vertical_slice(
         json.dumps(asdict(render_plan), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    command = build_ffmpeg_command(render_plan, ffmpeg=ffmpeg)
+    ffmpeg_path = ffmpeg or resolve_ffmpeg().path
+    command = build_ffmpeg_command(render_plan, ffmpeg=ffmpeg_path)
     command_path = output_dir / "ffmpeg_command.txt"
     command_path.write_text(" ".join(command), encoding="utf-8")
     result = execute_ffmpeg(command)
