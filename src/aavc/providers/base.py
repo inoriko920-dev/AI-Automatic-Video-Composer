@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Mapping, Protocol
+from enum import StrEnum
+from typing import Any, Protocol
 
 
-class ProviderFailureKind(str, Enum):
+class ProviderFailureKind(StrEnum):
     AUTH = "auth"
     RATE_LIMIT = "rate_limit"
     QUOTA = "quota"
