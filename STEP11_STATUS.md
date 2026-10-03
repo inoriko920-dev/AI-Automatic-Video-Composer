@@ -1,6 +1,8 @@
-# STEP 11 Feature Implementation Waves
+# STEP 11 — Feature Implementation Waves
 
-Technical wave set implemented:
+Status: **PASS**
+
+Implemented wave set:
 - command-based project edits with undo/redo
 - asset relink + project validation model
 - canonical 21-effect visual animation registry
@@ -13,10 +15,13 @@ Technical wave set implemented:
 Verification:
 - Windows CI compile: PASS
 - Ruff: PASS
-- strict mypy across 96 source files: PASS
+- strict mypy: PASS
 - cheap pytest suite: PASS
+- Qt screenshot capture/verification: PASS
 - local verification previously recorded: 27 pytest tests PASS including FFmpeg integration
 
-STEP 11 technical gate: PASS.
-Remote CI quality gate is now green on the STEP 11 branch.
-Formal project progression still remains constrained by the upstream STEP 09 actual Windows Qt screenshot-parity gate until that visual evidence is accepted.
+Gate decision:
+- STEP 09 upstream visual gate is now PASS.
+- STEP 10 formal gate is PASS.
+- STEP 11 technical and formal gates are PASS.
+- The repository may proceed to STEP 12 — Integration & External Services.
