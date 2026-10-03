@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from aavc.presentation.design_tokens import COLORS, METRICS
+from aavc.presentation.visual_mock import asset_pixmap, scene_pixmap
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 
 
@@ -49,15 +50,14 @@ def _asset_grid() -> Any:
         if asset_id == "A014":
             card.setStyleSheet("QFrame {border:2px solid #2563EB; border-radius:6px;}")
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(3)
-        thumb = QLabel(subject.upper())
+        thumb = QLabel()
         thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        thumb.setMinimumHeight(48)
-        thumb.setStyleSheet(
-            "background:#EEF4FB; color:#315A84; border:1px solid #D8E2EE; "
-            "font-size:9px; font-weight:700;"
-        )
+        thumb.setMinimumHeight(54)
+        thumb.setPixmap(asset_pixmap(subject))
+        thumb.setScaledContents(True)
+        thumb.setStyleSheet("border:1px solid #D8E2EE; background:#F8FAFD;")
         info = QLabel(f"{asset_id}  ·  {status}")
         info.setStyleSheet(
             "color:#16A34A; font-size:9px;"
@@ -119,46 +119,13 @@ def _preview_widget(mode: str) -> tuple[Any, Any, Any]:
         f"background:{COLORS.monitor_matte}; border:1px solid #111827;"
     )
     frame_layout = QVBoxLayout(frame)
-    frame_layout.setContentsMargins(54, 30, 54, 30)
+    frame_layout.setContentsMargins(42, 24, 42, 24)
     canvas = QLabel()
     canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
     canvas.setMinimumSize(640, 360)
-
-    if mode == "single":
-        text = "A014\n\nKUCING — SINGLE\n\nAset independen · skala 84% · tengah"
-        style = (
-            "background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #BFE4FF,stop:1 #DDF3D2); "
-            "color:#17324D; font-size:20px; font-weight:700; border:1px solid #CBD5E1;"
-        )
-    elif mode == "double":
-        text = "A032                         A033\n\nKUCING          +          ANJING\n\nDOUBLE · dua aset independen"
-        style = (
-            "background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #BFE4FF,stop:1 #DDF3D2); "
-            "color:#17324D; font-size:19px; font-weight:700; border:1px solid #CBD5E1;"
-        )
-    elif mode == "subtitle":
-        text = (
-            "SCENE DOKUMENTER — BROMO\n\nVisual + background + A014\n\n\n"
-            "Pagi yang cerah di desa Bromo,\nseekor kucing kecil berjalan di taman."
-        )
-        style = (
-            "background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #B7DDFC,stop:1 #CFE8BE); "
-            "color:#111827; font-size:18px; font-weight:650; border:1px solid #CBD5E1;"
-        )
-    else:
-        text = (
-            "INDONESIA\n"
-            "NEGERI KEPULAUAN\n\n"
-            "RIBUAN PULAU, SATU SEMANGAT\n"
-            "UNTUK MASA DEPAN YANG LEBIH BAIK\n\n"
-            "[ Dokumenter Indonesia · Scene 01 ]"
-        )
-        style = (
-            "background:#F8F6EF; color:#12395E; font-size:22px; font-weight:750; "
-            "border:1px solid #D8D3C6;"
-        )
-    canvas.setText(text)
-    canvas.setStyleSheet(style)
+    canvas.setPixmap(scene_pixmap(mode, 1280, 720))
+    canvas.setScaledContents(True)
+    canvas.setStyleSheet("border:1px solid #CBD5E1; background:#F8FAFD;")
     frame_layout.addWidget(canvas, 1)
     layout.addWidget(frame, 1)
 
