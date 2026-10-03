@@ -65,6 +65,8 @@ class ProviderManager:
             try:
                 secret = self._credential_store.get_secret(reference)
             except KeyError:
+                # Missing/invalid credentials may legitimately fall back to a
+                # configured backup reference. This is not quota aggregation.
                 pool.mark_failure(reference, ProviderFailureKind.AUTH)
                 last_kind = ProviderFailureKind.AUTH
                 continue
@@ -74,11 +76,14 @@ class ProviderManager:
             except ProviderCallError as exc:
                 last_kind = exc.kind
                 pool.mark_failure(reference, exc.kind)
-                if exc.kind is ProviderFailureKind.INVALID_REQUEST:
-                    raise
-                if not exc.retryable and exc.kind is not ProviderFailureKind.AUTH:
-                    raise
-                continue
+                if exc.kind is ProviderFailureKind.AUTH:
+                    # Authentication failure disables the unusable credential;
+                    # a later loop iteration may use an explicit backup.
+                    continue
+                # Rate-limit, quota, transient, invalid-request and unknown
+                # failures are surfaced. Never hop credentials to evade service
+                # limits or account policy.
+                raise
             finally:
                 secret = ""
 
