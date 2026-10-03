@@ -91,7 +91,12 @@ class WindowsCredentialManagerStore:
         cred_write.argtypes = [credential_pointer, wintypes.DWORD]
         cred_write.restype = wintypes.BOOL
         cred_read = advapi32.CredReadW
-        cred_read.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(credential_pointer)]
+        cred_read.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            ctypes.POINTER(credential_pointer),
+        ]
         cred_read.restype = wintypes.BOOL
         cred_delete = advapi32.CredDeleteW
         cred_delete.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD]
@@ -114,8 +119,10 @@ class WindowsCredentialManagerStore:
             credential = pointer.contents
             if credential.CredentialBlobSize == 0:
                 return ""
-            raw = ctypes.string_at(credential.CredentialBlob, credential.CredentialBlobSize)
-            return raw.decode("utf-16-le")
+            raw_bytes = bytes(
+                ctypes.string_at(credential.CredentialBlob, credential.CredentialBlobSize)
+            )
+            return raw_bytes.decode("utf-16-le")
         finally:
             cred_free(pointer)
 
