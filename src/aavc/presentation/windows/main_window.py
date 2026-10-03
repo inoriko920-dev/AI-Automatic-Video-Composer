@@ -23,6 +23,7 @@ class MainWindow:
         self.window.setCentralWidget(self.stack)
         self._route_widgets: dict[UiRoute, Any] = {}
         self._active_dialog: Any | None = None
+        self._toolbar: Any | None = None
         self._build_menu(QAction)
         self._build_toolbar(QToolBar, QAction)
         self._build_pages()
@@ -73,7 +74,7 @@ class MainWindow:
             ("Impor Media", lambda: None),
             ("Tambah Teks", lambda: self.show_route(UiRoute.SUBTITLE_EDITOR)),
             ("Rekam Narasi", lambda: None),
-            ("AI", lambda: None),
+            ("AI Otomatis", lambda: None),
         ]
         for text, callback in actions:
             action = action_type(text, self.window)
@@ -87,6 +88,7 @@ class MainWindow:
         export_action.triggered.connect(self.open_export)
         toolbar.addAction(export_action)
         self.window.addToolBar(toolbar)
+        self._toolbar = toolbar
 
     def _build_pages(self) -> None:
         from aavc.presentation.screens.home import create_home_screen
@@ -114,6 +116,10 @@ class MainWindow:
         widget = self._route_widgets[route]
         self.stack.setCurrentWidget(widget)
         self.window.setProperty("ui_state", route.value)
+        editor_chrome = route not in {UiRoute.HOME, UiRoute.NEW_PROJECT_DOCX}
+        self.window.menuBar().setVisible(editor_chrome)
+        if self._toolbar is not None:
+            self._toolbar.setVisible(editor_chrome)
         if route is UiRoute.EXPORT_SETTINGS:
             self.open_export()
         elif route is UiRoute.VALIDATION_CENTER:
@@ -131,7 +137,7 @@ class MainWindow:
         from aavc.presentation.dialogs.validation_center import create_validation_dialog
 
         dialog = create_validation_dialog(self.window)
-        dialog.setModal(True)
+        dialog.setModal(False)
         dialog.show()
         self._active_dialog = dialog
 
@@ -142,7 +148,33 @@ class MainWindow:
         self.window.resize(width, height)
 
     def grab(self) -> Any:
-        return self.window.grab()
+        from PySide6.QtCore import QPoint, QRect
+        from PySide6.QtGui import QColor, QPainter, QPixmap
+
+        base = self.window.grab()
+        dialog = self._active_dialog
+        if dialog is None or not dialog.isVisible():
+            return base
+
+        dialog_grab = dialog.grab()
+        result = QPixmap(base)
+        painter = QPainter(result)
+        route = str(self.window.property("ui_state") or "")
+        if route == UiRoute.EXPORT_SETTINGS.value:
+            painter.fillRect(QRect(0, 0, result.width(), result.height()), QColor(23, 32, 51, 80))
+            x = max(0, (result.width() - dialog_grab.width()) // 2)
+            y = max(0, (result.height() - dialog_grab.height()) // 2)
+        elif route == UiRoute.VALIDATION_CENTER.value:
+            x = max(0, result.width() - dialog_grab.width())
+            y = max(0, METRICS.menu_h + METRICS.toolbar_h)
+        else:
+            global_pos = dialog.mapToGlobal(QPoint(0, 0))
+            window_global = self.window.mapToGlobal(QPoint(0, 0))
+            x = global_pos.x() - window_global.x()
+            y = global_pos.y() - window_global.y()
+        painter.drawPixmap(x, y, dialog_grab)
+        painter.end()
+        return result
 
     def close(self) -> None:
         self.window.close()
