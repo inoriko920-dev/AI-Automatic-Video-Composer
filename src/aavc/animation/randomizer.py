@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Iterable
 from dataclasses import replace
-from typing import Iterable
 
 from aavc.domain.project.models import AnimationAssignment, ProjectState
 

@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class UiRoute(str, Enum):
+class UiRoute(StrEnum):
     HOME = "UI-002"
     NEW_PROJECT_DOCX = "UI-003"
     EDITOR = "UI-010"

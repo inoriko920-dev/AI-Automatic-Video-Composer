@@ -65,10 +65,11 @@ def _scene_list():
     widget = QListWidget()
     for number in range(1, 13):
         mode = "DOUBLE" if number % 3 == 1 else "SINGLE"
-        if mode == "DOUBLE":
-            ids = f"A{number * 2 - 1:03d}, A{number * 2:03d}"
-        else:
-            ids = f"A{number:03d}"
+        ids = (
+            f"A{number * 2 - 1:03d}, A{number * 2:03d}"
+            if mode == "DOUBLE"
+            else f"A{number:03d}"
+        )
         widget.addItem(QListWidgetItem(f"Scene {number:02d}   {mode}\n{ids}    READY"))
     widget.setCurrentRow(3)
     return widget
@@ -76,7 +77,15 @@ def _scene_list():
 
 def _preview_widget(mode: str):
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
+    from PySide6.QtWidgets import (
+        QFrame,
+        QHBoxLayout,
+        QLabel,
+        QPushButton,
+        QSlider,
+        QVBoxLayout,
+        QWidget,
+    )
 
     outer = QWidget()
     layout = QVBoxLayout(outer)
@@ -133,7 +142,6 @@ def _layout_inspector(mode: str):
     from PySide6.QtWidgets import (
         QComboBox,
         QFormLayout,
-        QFrame,
         QHBoxLayout,
         QPushButton,
         QSpinBox,

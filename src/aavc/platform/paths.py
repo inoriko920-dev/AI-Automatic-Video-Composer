@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-import sys
+
 
 @dataclass(frozen=True, slots=True)
 class PathService:
@@ -11,7 +12,7 @@ class PathService:
     executable_dir: Path
 
     @classmethod
-    def discover(cls) -> "PathService":
+    def discover(cls) -> PathService:
         if getattr(sys, "frozen", False):
             base = Path(sys.executable).resolve().parent
         else:

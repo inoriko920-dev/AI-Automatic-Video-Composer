@@ -28,6 +28,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         from PySide6.QtCore import QTimer
         from PySide6.QtWidgets import QApplication
+
         from aavc.presentation.windows.main_window import create_main_window
     except ModuleNotFoundError as exc:
         print(f"Qt runtime belum terpasang: {exc}", file=sys.stderr)
@@ -44,6 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if capture_path:
         target = Path(capture_path)
         target.parent.mkdir(parents=True, exist_ok=True)
+
         def capture() -> None:
             pixmap = window.grab()
             if not pixmap.save(str(target), "PNG"):
@@ -52,5 +54,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return
             print(target)
             app.quit()
+
         QTimer.singleShot(500, capture)
     return int(app.exec())

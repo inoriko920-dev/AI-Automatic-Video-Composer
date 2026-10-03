@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from aavc.platform.paths import PathService
+
 
 @dataclass(frozen=True, slots=True)
 class FoundationServices:

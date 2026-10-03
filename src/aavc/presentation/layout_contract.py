@@ -13,10 +13,12 @@ class Rect:
     w: int
     h: int
 
-    def intersects(self, other: "Rect") -> bool:
+    def intersects(self, other: Rect) -> bool:
         return not (
-            self.x + self.w <= other.x or other.x + other.w <= self.x
-            or self.y + self.h <= other.y or other.y + other.h <= self.y
+            self.x + self.w <= other.x
+            or other.x + other.w <= self.x
+            or self.y + self.h <= other.y
+            or other.y + other.h <= self.y
         )
 
 
@@ -29,13 +31,16 @@ class ShellGeometry:
     timeline: Rect
 
     @classmethod
-    def calculate(cls, width: int, height: int) -> "ShellGeometry":
+    def calculate(cls, width: int, height: int) -> ShellGeometry:
         if width < 1280 or height < 720:
             raise ValueError("STEP 09 minimum supported editor viewport is 1280x720")
         top = METRICS.menu_h + METRICS.toolbar_h
         bottom = METRICS.status_h
         content_h = height - top - bottom
-        timeline_h = max(METRICS.timeline_min_h, min(METRICS.timeline_ref_h, int(content_h * 0.34)))
+        timeline_h = max(
+            METRICS.timeline_min_h,
+            min(METRICS.timeline_ref_h, int(content_h * 0.34)),
+        )
         upper_h = content_h - timeline_h
         left_w = METRICS.left_ref_w if width >= 1600 else METRICS.left_min_w
         right_w = METRICS.right_ref_w if width >= 1600 else 300

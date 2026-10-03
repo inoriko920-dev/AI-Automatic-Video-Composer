@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from aavc import __version__
 from aavc.bootstrap.composition_root import build_foundation_services
 from aavc.bootstrap.startup import FOUNDATION_SMOKE_TOKEN, main
