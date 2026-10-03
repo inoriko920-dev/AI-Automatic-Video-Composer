@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from aavc.domain.project.models import (
-    SubtitleAnimationSettings,
-    SubtitleStyle,
-)
-
+from aavc.domain.project.models import SubtitleAnimationSettings, SubtitleStyle
 
 STYLE_PRESETS: dict[str, SubtitleStyle] = {
     "Clean": SubtitleStyle(preset_name="Clean", font_size=50, outline_width=2.0, shadow=0.5),
