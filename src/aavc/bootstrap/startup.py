@@ -22,6 +22,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     services = build_foundation_services()
     if "--foundation-smoke" in args:
+        marker_path = _arg_value(args, "--foundation-smoke-file")
+        if marker_path:
+            marker = Path(marker_path)
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(FOUNDATION_SMOKE_TOKEN, encoding="utf-8")
         print(FOUNDATION_SMOKE_TOKEN)
         return 0
 

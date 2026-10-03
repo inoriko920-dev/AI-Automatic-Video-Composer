@@ -1,9 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files
 
 datas = [
     ('resources', 'resources'),
     ('schemas', 'schemas'),
+    ('LICENSES', 'LICENSES'),
+    ('RELEASE_NOTES_RC1.md', '.'),
     ('tools/ffmpeg/README.md', 'tools/ffmpeg'),
 ]
 

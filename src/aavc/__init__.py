@@ -1,3 +1,3 @@
 """AI Automatic Video Composer package."""
 
-__version__ = "0.0.0.dev11"
+__version__ = "0.1.0rc1"
