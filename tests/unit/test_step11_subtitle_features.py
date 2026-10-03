@@ -12,11 +12,15 @@ def test_subtitle_style_and_animation_are_compiled(tmp_path: Path) -> None:
         FIXTURE / "subtitle.srt",
         out,
         style=SubtitleStyle(font_family="Arial", font_size=60, outline_width=4.0),
-        animation=SubtitleAnimationSettings(preset="Clean Documentary", enter_duration_ms=300, exit_duration_ms=300),
+        animation=SubtitleAnimationSettings(
+            preset="Clean Documentary",
+            enter_duration_ms=300,
+            exit_duration_ms=300,
+        ),
     )
     text = out.read_text(encoding="utf-8")
     assert "Arial,60" in text
-    assert "\fad(300,300)" in text
+    assert r"\fad(300,300)" in text
 
 
 def test_word_distribution_is_explicit_fallback() -> None:
