@@ -64,29 +64,55 @@ class MainWindow:
                 menu.addAction(f"{name} — menu")
 
     def _build_toolbar(self, toolbar_type: Any, action_type: Any) -> None:
+        from PySide6.QtWidgets import (
+            QComboBox,
+            QLabel,
+            QPushButton,
+            QSizePolicy,
+            QWidget,
+        )
+
         toolbar = toolbar_type("Utama", self.window)
         toolbar.setMovable(False)
         toolbar.setFixedHeight(METRICS.toolbar_h)
         actions = [
-            ("Proyek Baru", lambda: self.show_route(UiRoute.NEW_PROJECT_DOCX)),
-            ("Buka Proyek", lambda: self.show_route(UiRoute.EDITOR)),
+            ("Baru", lambda: self.show_route(UiRoute.NEW_PROJECT_DOCX)),
+            ("Buka", lambda: self.show_route(UiRoute.EDITOR)),
             ("Simpan", lambda: None),
+            ("Undo", lambda: None),
+            ("Redo", lambda: None),
             ("Impor Media", lambda: None),
             ("Tambah Teks", lambda: self.show_route(UiRoute.SUBTITLE_EDITOR)),
             ("Rekam Narasi", lambda: None),
-            ("AI Otomatis", lambda: None),
         ]
         for text, callback in actions:
             action = action_type(text, self.window)
             action.triggered.connect(callback)
             toolbar.addAction(action)
+
         toolbar.addSeparator()
-        spacer = action_type("                                      ", self.window)
-        spacer.setEnabled(False)
-        toolbar.addAction(spacer)
-        export_action = action_type("Ekspor Video", self.window)
-        export_action.triggered.connect(self.open_export)
-        toolbar.addAction(export_action)
+        toolbar.addWidget(QLabel("Mode Animasi"))
+        animation_mode = QComboBox()
+        animation_mode.addItems(["Auto (AI)", "Random App", "Manual"])
+        animation_mode.setMaximumWidth(130)
+        toolbar.addWidget(animation_mode)
+
+        validation = QPushButton("✓ Validasi OK")
+        validation.setStyleSheet(
+            "color:#15803D; background:#F0FDF4; border:1px solid #BBF7D0; "
+            "border-radius:6px; padding:5px 9px; font-weight:600;"
+        )
+        validation.clicked.connect(lambda: self.show_route(UiRoute.VALIDATION_CENTER))
+        toolbar.addWidget(validation)
+
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+
+        export_button = QPushButton("Ekspor Video")
+        export_button.setProperty("primary", True)
+        export_button.clicked.connect(self.open_export)
+        toolbar.addWidget(export_button)
         self.window.addToolBar(toolbar)
         self._toolbar = toolbar
 
@@ -161,7 +187,10 @@ class MainWindow:
         painter = QPainter(result)
         route = str(self.window.property("ui_state") or "")
         if route == UiRoute.EXPORT_SETTINGS.value:
-            painter.fillRect(QRect(0, 0, result.width(), result.height()), QColor(23, 32, 51, 80))
+            painter.fillRect(
+                QRect(0, 0, result.width(), result.height()),
+                QColor(23, 32, 51, 80),
+            )
             x = max(0, (result.width() - dialog_grab.width()) // 2)
             y = max(0, (result.height() - dialog_grab.height()) // 2)
         elif route == UiRoute.VALIDATION_CENTER.value:
