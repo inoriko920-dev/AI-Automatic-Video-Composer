@@ -29,8 +29,11 @@ $ffmpegReadme = Get-ChildItem $dist -Recurse -File -Filter "README.md" | Where-O
 } | Select-Object -First 1
 if (-not $ffmpegReadme) { throw "FFmpeg runtime policy README tidak ditemukan" }
 
+# Block secret/runtime artifacts, but allow documentation files whose names contain
+# words such as BACKUP or RECOVERY.
 $forbidden = Get-ChildItem $dist -Recurse -File | Where-Object {
-  $_.Name -match '(^\.env|\.key$|\.pem$|autosave|recovery)' -or $_.FullName -match '\\cache\\|\\logs\\|\\user_data\\'
+  $_.Name -match '(^\.env($|\.)|\.key$|\.pem$|\.autosave($|\.)|\.recovery($|\.))' -or
+  $_.FullName -match '\\cache\\|\\logs\\|\\user_data\\|\\runtime_data\\'
 }
 if ($forbidden) { throw "Forbidden runtime/user file ditemukan dalam artifact: $($forbidden.FullName -join ', ')" }
 
