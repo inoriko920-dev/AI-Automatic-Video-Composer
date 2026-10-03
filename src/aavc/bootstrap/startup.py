@@ -27,6 +27,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         from PySide6.QtCore import QTimer
+        from PySide6.QtGui import QFont, QFontDatabase
         from PySide6.QtWidgets import QApplication
 
         from aavc.presentation.windows.main_window import create_main_window
@@ -37,6 +38,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     state = _arg_value(args, "--ui-state", "UI-002") or "UI-002"
     capture_path = _arg_value(args, "--capture-path")
     app = QApplication([services.app_name])
+
+    if sys.platform == "win32":
+        windows_fonts = Path(r"C:\Windows\Fonts")
+        for font_name in ("segoeui.ttf", "arial.ttf"):
+            font_path = windows_fonts / font_name
+            if font_path.exists():
+                QFontDatabase.addApplicationFont(str(font_path))
+                break
+    app.setFont(QFont("Segoe UI", 10))
+
     window = create_main_window(services, initial_state=state)
     if capture_path:
         window.resize(1920, 1080)
