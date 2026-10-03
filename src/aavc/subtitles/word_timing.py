@@ -15,7 +15,7 @@ def distribute_words(text: str, start_seconds: float, end_seconds: float) -> tup
 
     It does not claim speech alignment; it evenly distributes words across the cue duration.
     """
-    words = [word for word in text.replace("\N", " ").split() if word]
+    words = [word for word in text.replace("\\N", " ").split() if word]
     if not words:
         return ()
     duration = max(0.001, end_seconds - start_seconds)
