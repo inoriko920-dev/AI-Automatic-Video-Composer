@@ -110,20 +110,25 @@ def _video_properties(payload: dict[str, Any]) -> tuple[int | None, int | None, 
 def _duration(payload: dict[str, Any]) -> float | None:
     format_value = payload.get("format")
     if isinstance(format_value, dict):
-        raw = format_value.get("duration")
-        try:
-            return float(raw)
-        except (TypeError, ValueError):
-            pass
+        parsed = _parse_float(format_value.get("duration"))
+        if parsed is not None:
+            return parsed
     streams = payload.get("streams")
     if isinstance(streams, list):
         for stream in streams:
             if isinstance(stream, dict):
-                raw = stream.get("duration")
-                try:
-                    return float(raw)
-                except (TypeError, ValueError):
-                    continue
+                parsed = _parse_float(stream.get("duration"))
+                if parsed is not None:
+                    return parsed
+    return None
+
+
+def _parse_float(value: object) -> float | None:
+    if isinstance(value, (str, int, float)):
+        try:
+            return float(value)
+        except ValueError:
+            return None
     return None
 
 
@@ -137,7 +142,4 @@ def _parse_rate(value: object) -> float | None:
             return float(numerator) / den if den else None
         except ValueError:
             return None
-    try:
-        return float(value)
-    except ValueError:
-        return None
+    return _parse_float(value)
