@@ -16,7 +16,7 @@ def test_memory_credential_store_round_trip() -> None:
         store.get_secret("gemini/key-001")
 
 
-def test_key_pool_rotates_and_snapshot_never_contains_secret() -> None:
+def test_key_pool_keeps_active_key_during_quota_cooldown() -> None:
     now = [100.0]
     pool = ProviderKeyPool(
         ["gemini/key-001", "gemini/key-002"],
@@ -25,20 +25,23 @@ def test_key_pool_rotates_and_snapshot_never_contains_secret() -> None:
     )
     assert pool.acquire() == "gemini/key-001"
     pool.mark_failure("gemini/key-001", ProviderFailureKind.QUOTA)
-    assert pool.acquire() == "gemini/key-002"
     snapshot_text = repr(pool.snapshot())
     assert "synthetic-secret" not in snapshot_text
     assert pool.snapshot()[0].state is KeyState.COOLDOWN
-    now[0] = 111.0
-    assert pool.snapshot()[0].state is KeyState.READY
-
-
-def test_auth_failure_disables_key() -> None:
-    pool = ProviderKeyPool(["gemini/key-001"])
-    pool.mark_failure("gemini/key-001", ProviderFailureKind.AUTH)
-    assert pool.snapshot()[0].state is KeyState.DISABLED
     with pytest.raises(NoEligibleKeyError):
         pool.acquire()
+
+    now[0] = 111.0
+    assert pool.snapshot()[0].state is KeyState.READY
+    assert pool.acquire() == "gemini/key-001"
+
+
+def test_auth_failure_disables_key_and_allows_configured_backup() -> None:
+    pool = ProviderKeyPool(["gemini/key-001", "gemini/key-002"])
+    assert pool.acquire() == "gemini/key-001"
+    pool.mark_failure("gemini/key-001", ProviderFailureKind.AUTH)
+    assert pool.snapshot()[0].state is KeyState.DISABLED
+    assert pool.acquire() == "gemini/key-002"
 
 
 def test_pool_caps_at_one_hundred_references() -> None:
