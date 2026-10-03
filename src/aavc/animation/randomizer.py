@@ -20,11 +20,7 @@ def randomize_project_animations(
     scene_numbers: Iterable[int] | None = None,
     cooldown: int = 2,
 ) -> ProjectState:
-    """Assign deterministic visual effects while respecting locks.
-
-    Cooldown prevents repeating an effect among the immediately preceding N assignments.
-    Existing locked assignments are preserved exactly.
-    """
+    """Assign deterministic visual effects while respecting locks and cooldown."""
     rng = random.Random(seed)
     allowed_scenes = set(scene_numbers) if scene_numbers is not None else None
     names = list(effect_names())
@@ -63,10 +59,11 @@ def randomize_project_animations(
             recent.append(enter)
             recent[:] = recent[-cooldown:]
 
-    keys = {(a.scene_number, a.asset_id) for a in output}
+    keys = {(item.scene_number, item.asset_id) for item in output}
     for item in project.animations:
         if (item.scene_number, item.asset_id) not in keys:
             output.append(item)
 
     output.sort(key=lambda item: (item.scene_number, item.asset_id))
-    return replace(project, animations=tuple(output), metadata={**project.metadata, "animation_seed": str(seed)})
+    metadata = {**project.metadata, "animation_seed": str(seed)}
+    return replace(project, animations=tuple(output), metadata=metadata)

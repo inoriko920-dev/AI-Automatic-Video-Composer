@@ -64,7 +64,7 @@ def run_vertical_slice(
         default_scene_duration=default_scene_duration,
     )
     if not project.ready:
-        not_ready = [b.asset_id for b in project.bindings if b.status != "READY"]
+        not_ready = [binding.asset_id for binding in project.bindings if binding.status != "READY"]
         raise ValueError(f"Asset belum READY: {', '.join(not_ready)}")
 
     project_path = save_project(project, output_dir / "step10_demo.aavcproj")
@@ -78,10 +78,15 @@ def run_vertical_slice(
             style=project.subtitle_style,
             animation=project.subtitle_animation,
         )
-    render_plan = build_render_plan(project, output_dir / "step10_demo.mp4", str(ass_path) if ass_path else None)
+    render_plan = build_render_plan(
+        project,
+        output_dir / "step10_demo.mp4",
+        str(ass_path) if ass_path else None,
+    )
     plan_path = output_dir / "render_plan.json"
     plan_path.write_text(
-        json.dumps(asdict(render_plan), ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(asdict(render_plan), ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
     command = build_ffmpeg_command(render_plan, ffmpeg=ffmpeg)
     command_path = output_dir / "ffmpeg_command.txt"

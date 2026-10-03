@@ -25,13 +25,29 @@ class RouteDefinition:
 
 ROUTES: dict[UiRoute, RouteDefinition] = {
     UiRoute.HOME: RouteDefinition("UI-002", "Beranda / Recent Projects", "home"),
-    UiRoute.NEW_PROJECT_DOCX: RouteDefinition("UI-003", "Wizard Proyek Baru — Pilih Scene DOCX", "wizard"),
+    UiRoute.NEW_PROJECT_DOCX: RouteDefinition(
+        "UI-003",
+        "Wizard Proyek Baru — Pilih Scene DOCX",
+        "wizard",
+    ),
     UiRoute.EDITOR: RouteDefinition("UI-010", "Editor Utama — Overview", "editor"),
     UiRoute.SCENE_SINGLE: RouteDefinition("UI-013", "Scene Terpilih — SINGLE", "editor"),
     UiRoute.SCENE_DOUBLE: RouteDefinition("UI-014", "Scene Terpilih — DOUBLE", "editor"),
-    UiRoute.SUBTITLE_EDITOR: RouteDefinition("UI-027", "Subtitle Editor — Teks & Timing", "editor"),
-    UiRoute.EXPORT_SETTINGS: RouteDefinition("UI-035", "Export / Render Settings — Quality Preset", "dialog"),
-    UiRoute.VALIDATION_CENTER: RouteDefinition("UI-041", "Global Error / Validation Center", "drawer"),
+    UiRoute.SUBTITLE_EDITOR: RouteDefinition(
+        "UI-027",
+        "Subtitle Editor — Teks & Timing",
+        "editor",
+    ),
+    UiRoute.EXPORT_SETTINGS: RouteDefinition(
+        "UI-035",
+        "Export / Render Settings — Quality Preset",
+        "dialog",
+    ),
+    UiRoute.VALIDATION_CENTER: RouteDefinition(
+        "UI-041",
+        "Global Error / Validation Center",
+        "drawer",
+    ),
 }
 
 

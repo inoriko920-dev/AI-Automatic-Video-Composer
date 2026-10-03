@@ -1,8 +1,9 @@
+import json
 from pathlib import Path
 
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.persistence.recovery import RecoveryManager
-from aavc.persistence.serializer import dumps_project, loads_project, save_project
+from aavc.persistence.serializer import loads_project, save_project
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 
@@ -21,7 +22,6 @@ def test_old_schema_loads_into_schema_two() -> None:
     payload["schema_version"] = 1
     for key in ["animations", "subtitle_style", "subtitle_animation", "render_quality"]:
         payload.pop(key, None)
-    import json
     restored = loads_project(json.dumps(payload))
     assert restored.schema_version == 2
     assert restored.subtitle_style.preset_name == "Dokumenter"

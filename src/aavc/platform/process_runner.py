@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import subprocess
 from collections.abc import Sequence
+from dataclasses import dataclass
+
 
 @dataclass(frozen=True, slots=True)
 class ProcessResult:
@@ -10,10 +11,16 @@ class ProcessResult:
     stdout: str
     stderr: str
 
+
 class ProcessRunner:
     """The only repository owner allowed to execute child processes."""
 
-    def run(self, argv: Sequence[str], *, timeout_seconds: float | None = None) -> ProcessResult:
+    def run(
+        self,
+        argv: Sequence[str],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> ProcessResult:
         completed = subprocess.run(
             list(argv),
             capture_output=True,

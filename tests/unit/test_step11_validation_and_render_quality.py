@@ -21,11 +21,16 @@ def _project():
 def test_validation_reports_missing_asset() -> None:
     project = _project()
     broken = tuple(
-        AssetBinding(item.asset_id, item.source_quote, None, "MISSING") if item.asset_id == "A001" else item
+        AssetBinding(item.asset_id, item.source_quote, None, "MISSING")
+        if item.asset_id == "A001"
+        else item
         for item in project.bindings
     )
     issues = validate_project(replace(project, bindings=broken))
-    assert any(issue.code == "ASSET_NOT_READY" and issue.asset_id == "A001" for issue in issues)
+    assert any(
+        issue.code == "ASSET_NOT_READY" and issue.asset_id == "A001"
+        for issue in issues
+    )
 
 
 def test_documentary_crisp_settings_reach_ffmpeg_command(tmp_path: Path) -> None:
@@ -42,8 +47,8 @@ def test_documentary_crisp_settings_reach_ffmpeg_command(tmp_path: Path) -> None
         ),
     )
     plan = build_render_plan(project, tmp_path / "out.mp4")
-    cmd = build_ffmpeg_command(plan)
-    joined = " ".join(cmd)
+    command = build_ffmpeg_command(plan)
+    joined = " ".join(command)
     assert "flags=lanczos" in joined
     assert "unsharp=5:5:" in joined
     assert "-preset slow" in joined

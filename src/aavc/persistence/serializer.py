@@ -41,7 +41,9 @@ def loads_project(text: str) -> ProjectState:
         fps=int(data.get("fps", 30)),
         width=int(data.get("width", 1920)),
         height=int(data.get("height", 1080)),
-        animations=tuple(AnimationAssignment(**item) for item in data.get("animations", [])),
+        animations=tuple(
+            AnimationAssignment(**item) for item in data.get("animations", [])
+        ),
         subtitle_style=SubtitleStyle(**data.get("subtitle_style", {})),
         subtitle_animation=SubtitleAnimationSettings(**data.get("subtitle_animation", {})),
         render_quality=RenderQualitySettings(**data.get("render_quality", {})),
@@ -52,9 +54,9 @@ def loads_project(text: str) -> ProjectState:
 def save_project(project: ProjectState, path: str | Path) -> Path:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    tmp = destination.with_suffix(destination.suffix + ".tmp")
-    tmp.write_text(dumps_project(project), encoding="utf-8")
-    tmp.replace(destination)
+    temporary = destination.with_suffix(destination.suffix + ".tmp")
+    temporary.write_text(dumps_project(project), encoding="utf-8")
+    temporary.replace(destination)
     return destination
 
 

@@ -5,7 +5,8 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from aavc.domain.errors import ImportError as AAVCImportError, ValidationError
+from aavc.domain.errors import ImportError as AAVCImportError
+from aavc.domain.errors import ValidationError
 from aavc.domain.project.models import Scene
 
 _SCENE_RE = re.compile(r"^tampilan\s+scene\s+(\d+)\s*:\s*([12])\s*$", re.I)
@@ -15,21 +16,27 @@ _WORD_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 def _paragraphs_from_docx(path: Path) -> list[str]:
     try:
-        with zipfile.ZipFile(path) as zf:
-            xml = zf.read("word/document.xml")
+        with zipfile.ZipFile(path) as archive:
+            xml = archive.read("word/document.xml")
     except (OSError, KeyError, zipfile.BadZipFile) as exc:
         raise AAVCImportError(f"DOCX tidak dapat dibaca: {path}") from exc
 
     root = ET.fromstring(xml)
     lines: list[str] = []
     for paragraph in root.iter(f"{_WORD_NS}p"):
-        text = "".join(node.text or "" for node in paragraph.iter(f"{_WORD_NS}t")).strip()
+        text = "".join(
+            node.text or "" for node in paragraph.iter(f"{_WORD_NS}t")
+        ).strip()
         if text:
             lines.append(text)
     return lines
 
 
-def parse_scene_docx(path: str | Path, *, default_duration_seconds: float = 3.0) -> tuple[Scene, ...]:
+def parse_scene_docx(
+    path: str | Path,
+    *,
+    default_duration_seconds: float = 3.0,
+) -> tuple[Scene, ...]:
     source = Path(path)
     if not source.exists():
         raise AAVCImportError(f"DOCX tidak ditemukan: {source}")
@@ -46,7 +53,8 @@ def parse_scene_docx(path: str | Path, *, default_duration_seconds: float = 3.0)
             return
         if expected_count is None or len(current_assets) != expected_count:
             raise ValidationError(
-                f"Scene {current_number} meminta {expected_count} aset tetapi ditemukan {len(current_assets)}"
+                f"Scene {current_number} meminta {expected_count} aset tetapi ditemukan "
+                f"{len(current_assets)}"
             )
         ids = tuple(f"A{asset_no:03d}" for asset_no, _ in current_assets)
         quotes = tuple(quote for _, quote in current_assets)
@@ -86,7 +94,7 @@ def parse_scene_docx(path: str | Path, *, default_duration_seconds: float = 3.0)
             f"Nomor scene harus berurutan mulai 1. Ditemukan: {actual_scene_numbers}"
         )
 
-    seen_assets: list[str] = [asset for scene in scenes for asset in scene.asset_ids]
+    seen_assets = [asset for scene in scenes for asset in scene.asset_ids]
     expected_assets = [f"A{i:03d}" for i in range(1, len(seen_assets) + 1)]
     if seen_assets != expected_assets:
         raise ValidationError(

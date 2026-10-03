@@ -14,11 +14,7 @@ class TransformDelta:
 
 
 def evaluate_effect(name: str, progress: float, *, entering: bool = True) -> TransformDelta:
-    """Evaluate a small canonical primitive subset for preview/render adapters.
-
-    Product effects remain registry-level identities. This evaluator intentionally provides
-    conservative primitives so layout ownership stays separate from animation deltas.
-    """
+    """Evaluate conservative animation primitives without mutating base layout."""
     validate_effect(name)
     p = max(0.0, min(1.0, progress))
     if not entering:
