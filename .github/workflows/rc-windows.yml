@@ -1,0 +1,79 @@
+name: STEP14 RC Windows
+
+on:
+  push:
+    branches:
+      - release/step14-rc1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RC_VERSION: 0.1.0-rc.1
+
+jobs:
+  rc:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.lock
+          python -m pip install -e .
+
+      - name: Compile
+        run: python -m compileall -q src
+
+      - name: Ruff
+        run: python -m ruff check src tests
+
+      - name: Mypy
+        run: python -m mypy src/aavc
+
+      - name: Cheap tests
+        run: python -m pytest -m "not integration and not visual and not e2e and not packaging" -q
+
+      - name: Build PyInstaller onedir
+        shell: pwsh
+        run: ./scripts/package.ps1
+
+      - name: Verify build-tree portable smoke
+        shell: pwsh
+        run: ./scripts/verify_portable.ps1
+
+      - name: Build RC archive, manifest, checksum and provenance
+        shell: pwsh
+        run: ./scripts/build_rc_archive.ps1 -Version $env:RC_VERSION -SourceSha $env:GITHUB_SHA
+
+      - name: Verify extracted RC archive
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem artifacts/rc/AI-Automatic-Video-Composer_*_win64.zip | Select-Object -First 1
+          if (-not $zip) { throw "RC zip tidak ditemukan" }
+          ./scripts/verify_rc_archive.ps1 -ZipPath $zip.FullName
+
+      - name: Upload RC package
+        uses: actions/upload-artifact@v7
+        with:
+          name: AI-Automatic-Video-Composer-${{ env.RC_VERSION }}-win64
+          path: |
+            artifacts/rc/AI-Automatic-Video-Composer_*_win64.zip
+            artifacts/rc/CHECKSUMS.sha256
+            artifacts/rc/PROVENANCE.json
+          if-no-files-found: error
+
+      - name: Upload RC manifest evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: AI-Automatic-Video-Composer-${{ env.RC_VERSION }}-manifest
+          path: artifacts/rc/AI-Automatic-Video-Composer_*_win64/MANIFEST.tsv
+          if-no-files-found: error
