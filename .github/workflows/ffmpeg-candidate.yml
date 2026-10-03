@@ -1,0 +1,26 @@
+name: STEP14 FFmpeg Candidate Probe
+
+on:
+  push:
+    branches:
+      - release/step14-rc1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Probe pinned LGPL FFmpeg candidate
+        shell: pwsh
+        run: ./scripts/probe_ffmpeg_candidate.ps1
+      - name: Upload capability evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-lgpl-candidate-evidence
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
