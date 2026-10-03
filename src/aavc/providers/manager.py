@@ -82,9 +82,10 @@ class ProviderManager:
     @staticmethod
     def _cooldown_for(error: ProviderError, previous_failures: int) -> float:
         if error.retry_after_seconds is not None:
-            return min(900.0, error.retry_after_seconds)
+            return float(min(900.0, error.retry_after_seconds))
         if error.quota_exhausted:
-            return min(900.0, 60.0 * (previous_failures + 1))
+            return float(min(900.0, 60.0 * (previous_failures + 1)))
         if error.retryable:
-            return min(120.0, 5.0 * (2**min(previous_failures, 4)))
+            backoff = 5.0 * float(2 ** min(previous_failures, 4))
+            return float(min(120.0, backoff))
         return 0.0
