@@ -11,10 +11,15 @@ try {
   $exe = Get-ChildItem $verifyRoot -Recurse -File -Filter "AI Automatic Video Composer.exe" | Select-Object -First 1
   if (-not $exe) { throw "RC EXE tidak ditemukan setelah ekstraksi" }
 
-  $output = & $exe.FullName --foundation-smoke
-  if ($LASTEXITCODE -ne 0 -or ($output -join "`n") -notmatch "AAVC_FOUNDATION_SMOKE_OK") {
-    throw "Packaged RC smoke gagal. Output: $output"
+  $smokeFile = Join-Path $verifyRoot "foundation-smoke.txt"
+  $process = Start-Process -FilePath $exe.FullName -ArgumentList @("--foundation-smoke-file", $smokeFile) -Wait -PassThru
+  if ($process.ExitCode -ne 0) { throw "Packaged RC smoke process gagal: exit $($process.ExitCode)" }
+  if (-not (Test-Path $smokeFile)) { throw "Packaged RC smoke token file tidak dibuat" }
+  $output = Get-Content $smokeFile -Raw
+  if ($output -notmatch "AAVC_FOUNDATION_SMOKE_OK") {
+    throw "Packaged RC smoke token tidak valid: $output"
   }
+  Remove-Item $smokeFile -Force
 
   $stage = $exe.Directory.FullName
   $buildInfo = Join-Path $stage "BUILD_INFO.txt"
