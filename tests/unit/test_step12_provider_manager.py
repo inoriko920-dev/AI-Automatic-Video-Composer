@@ -30,7 +30,7 @@ class FakeAdapter:
         return ProviderResponse(text=outcome, provider=self.name, model=request.model)
 
 
-def test_manager_rotates_after_quota_failure() -> None:
+def test_manager_surfaces_quota_without_switching_credentials() -> None:
     store = MemoryCredentialStore()
     store.set_secret("gemini/key-001", "secret-one")
     store.set_secret("gemini/key-002", "secret-two")
@@ -41,6 +41,32 @@ def test_manager_rotates_after_quota_failure() -> None:
                 "quota",
                 retryable=True,
                 status_code=429,
+            )
+        ]
+    )
+    pool = ProviderKeyPool(["gemini/key-001", "gemini/key-002"])
+    manager = ProviderManager(store)
+    manager.register(adapter, pool)
+
+    with pytest.raises(ProviderCallError) as caught:
+        manager.generate("gemini", ProviderRequest(prompt="hi", model="test"))
+    assert caught.value.kind is ProviderFailureKind.QUOTA
+    assert adapter.seen_keys == ["secret-one"]
+    assert pool.snapshot()[0].state is KeyState.COOLDOWN
+    assert pool.snapshot()[1].state is KeyState.READY
+
+
+def test_manager_uses_backup_only_after_auth_failure() -> None:
+    store = MemoryCredentialStore()
+    store.set_secret("gemini/key-001", "secret-one")
+    store.set_secret("gemini/key-002", "secret-two")
+    adapter = FakeAdapter(
+        outcomes=[
+            ProviderCallError(
+                ProviderFailureKind.AUTH,
+                "invalid credential",
+                retryable=False,
+                status_code=401,
             ),
             "ok",
         ]
@@ -53,7 +79,7 @@ def test_manager_rotates_after_quota_failure() -> None:
     assert response.text == "ok"
     assert response.key_ref == "gemini/key-002"
     assert adapter.seen_keys == ["secret-one", "secret-two"]
-    assert pool.snapshot()[0].state is KeyState.COOLDOWN
+    assert pool.snapshot()[0].state is KeyState.DISABLED
 
 
 def test_manager_disables_missing_credential_and_exhausts_cleanly() -> None:
