@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from aavc.presentation.visual_mock import project_thumb_pixmap
 from aavc.presentation.widgets.common import make_primary_button, muted_label
 
 
@@ -125,30 +126,27 @@ def create_home_screen(
     recent_layout.addLayout(recent_header)
 
     samples = [
-        ("BROMO", "Liburan ke Bromo", "D:\\Video Projects\\Liburan ke Bromo", "Selesai", "#DCFCE7"),
+        ("Liburan ke Bromo", "D:\\Video Projects\\Liburan ke Bromo", "Selesai", "#DCFCE7"),
         (
-            "PRODUK",
             "Konten Promosi Produk",
             "D:\\Video Projects\\Konten Promosi Produk",
             "Dalam Proses",
             "#DBEAFE",
         ),
         (
-            "SEMINAR",
             "Highlight Acara Seminar",
             "D:\\Video Projects\\Highlight Acara Seminar",
             "Jeda",
             "#FEF3C7",
         ),
         (
-            "BALI",
             "Travel Vlog Bali",
             "D:\\Video Projects\\Travel Vlog Bali",
             "Perlu Diperbaiki",
             "#FEE2E2",
         ),
     ]
-    for index, (thumb_text, name, path, status, status_bg) in enumerate(samples):
+    for index, (name, path, status, status_bg) in enumerate(samples):
         if index == 0:
             separator = QFrame()
             separator.setFixedHeight(1)
@@ -157,13 +155,12 @@ def create_home_screen(
         row_widget = QWidget()
         row = QHBoxLayout(row_widget)
         row.setContentsMargins(0, 10, 0, 10)
-        thumbnail = QLabel(thumb_text)
+        thumbnail = QLabel()
         thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
         thumbnail.setFixedSize(112, 58)
-        thumbnail.setStyleSheet(
-            "background:#DCEBFA; border:1px solid #C8D8EA; border-radius:7px; "
-            "color:#315A84; font-weight:700;"
-        )
+        thumbnail.setPixmap(project_thumb_pixmap(index))
+        thumbnail.setScaledContents(True)
+        thumbnail.setStyleSheet("border:1px solid #C8D8EA; border-radius:7px;")
         info = QVBoxLayout()
         project_name = QLabel(name)
         project_name.setStyleSheet("font-size:14px; font-weight:650;")
