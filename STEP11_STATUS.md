@@ -10,5 +10,13 @@ Technical wave set implemented:
 - Documentary Crisp render quality propagation
 - autosave/recovery snapshot manager
 
-Local verification: 27 pytest tests PASS including FFmpeg integration.
-Formal project progression remains gated by STEP09 actual Windows Qt screenshot parity and remote CI configuration.
+Verification:
+- Windows CI compile: PASS
+- Ruff: PASS
+- strict mypy across 96 source files: PASS
+- cheap pytest suite: PASS
+- local verification previously recorded: 27 pytest tests PASS including FFmpeg integration
+
+STEP 11 technical gate: PASS.
+Remote CI quality gate is now green on the STEP 11 branch.
+Formal project progression still remains constrained by the upstream STEP 09 actual Windows Qt screenshot-parity gate until that visual evidence is accepted.
