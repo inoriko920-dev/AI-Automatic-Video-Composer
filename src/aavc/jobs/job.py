@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generic, TypeVar
 
 from aavc.jobs.cancellation import CancellationToken
-
-T = TypeVar("T")
 
 
 class JobState(StrEnum):
@@ -25,7 +22,7 @@ class JobSnapshot:
     error: str | None = None
 
 
-class BackgroundJob(Generic[T]):
+class BackgroundJob[T]:
     def __init__(self, job_id: str, name: str, token: CancellationToken) -> None:
         self.job_id = job_id
         self.name = name
