@@ -30,3 +30,25 @@ jobs:
         run: python -m mypy src/aavc
       - name: Cheap tests
         run: python -m pytest -m "not integration and not visual and not e2e" -q
+      - name: Capture STEP09 actual UI
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python scripts/capture_step09_ui.py
+      - name: Verify STEP09 screenshots
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem artifacts/step09_actual/*.png
+          if ($files.Count -ne 8) {
+            throw "Expected 8 STEP09 screenshots, found $($files.Count)"
+          }
+          $tooSmall = $files | Where-Object { $_.Length -lt 1000 }
+          if ($tooSmall) {
+            throw "One or more STEP09 screenshots are unexpectedly small"
+          }
+          $files | Select-Object Name, Length
+      - name: Upload STEP09 actual UI
+        uses: actions/upload-artifact@v4
+        with:
+          name: step09-ui-actual
+          path: artifacts/step09_actual/*.png
+          if-no-files-found: error
