@@ -1,10 +1,21 @@
-# FFmpeg tool slot
+# FFmpeg tool slot — Final Release 0.1.0
 
-No FFmpeg or ffprobe binary is committed in STEP 08.
+AAVC 0.1.0 does **not** redistribute an FFmpeg/ffprobe binary inside the repository or release ZIP.
 
-Before bundling:
-1. approve exact build/version and capabilities;
-2. record provenance and license profile;
-3. validate required filters/codecs/subtitle support;
-4. add checksums and NOTICE material;
-5. pass Windows capability smoke tests.
+Reason: the exact FFmpeg build determines codec availability and license obligations. The application keeps that decision explicit instead of silently shipping an unknown third-party binary.
+
+Supported runtime setup:
+1. place an approved `ffmpeg.exe` and `ffprobe.exe` in this `tools/ffmpeg/` directory next to the portable application; or
+2. install an approved FFmpeg build and make both executables available on the Windows `PATH`.
+
+Resolution order:
+- app-local `tools/ffmpeg/`
+- system `PATH`
+
+Before using a build for redistribution, record:
+- exact build/version and download source;
+- SHA-256 checksums;
+- enabled codecs/filters required by AAVC;
+- license profile and corresponding NOTICE/source obligations.
+
+Minimum functional capability expected by the current render pipeline includes H.264 video encoding, AAC audio, scale/overlay/concat/unsharp filters, and ASS/libass subtitle rendering.
