@@ -11,6 +11,7 @@ from aavc.providers.base import (
     ProviderRequest,
     ProviderResponse,
 )
+from aavc.providers.context_builder import redact_sensitive_text
 from aavc.providers.key_pool import ApiKeyPool
 
 
@@ -64,16 +65,15 @@ class ProviderManager:
                     cooldown_seconds=cooldown,
                     disable=not exc.retryable,
                 )
-                if not exc.retryable:
-                    continue
             else:
                 self._key_pool.mark_success(entry.key_id)
                 return response
 
         if last_error is not None:
+            safe_message = redact_sensitive_text(str(last_error))
             raise ProviderExhaustedError(
                 f"{self._provider.name} provider exhausted after {len(attempted)} attempt(s): "
-                f"{last_error}"
+                f"{safe_message}"
             ) from last_error
         raise ProviderExhaustedError(
             f"{self._provider.name} provider has no usable configured credentials"
