@@ -7,7 +7,7 @@ Windows desktop application for composing narrative/infographic videos from scen
 Development is currently through **STEP 11 — Feature Implementation Waves** on the technical track.
 
 - STEP 00–08: complete
-- STEP 09: UI shell implemented, formal parity gate still waiting for actual Windows/PySide6 screenshots
+- STEP 09: UI shell implemented; formal parity gate still waiting for actual Windows/PySide6 screenshots
 - STEP 10: technical vertical slice complete
 - STEP 11: technical feature waves complete
 
@@ -27,7 +27,7 @@ Development is currently through **STEP 11 — Feature Implementation Waves** on
 - SINGLE / DOUBLE layout contracts
 - versioned `.aavcproj` ProjectState persistence
 - undo / redo and recovery snapshots
-- 21-effect visual animation registry
+- canonical 21-effect visual animation registry
 - deterministic random animation with seed, cooldown and lock awareness
 - subtitle styling and subtitle animation compilation to ASS
 - word-timing fallback
@@ -38,7 +38,9 @@ Development is currently through **STEP 11 — Feature Implementation Waves** on
 
 ## Frozen UI reference pack
 
-The repository includes 47 frozen UI references under `resources/ui_reference/final/`. They are visual references, not static screens. Real Qt widgets must follow the normalized UI Freeze rules rather than copying accidental overlaps from generated references.
+The canonical UI design consists of **47 frozen visual references (UI-001 through UI-047)**. The original PNG reference pack is retained in the project artifact package and is **not yet committed to this Git repository** because the current connector bootstrap is text-first. `resources/ui_reference/final/README.md` records the expected location.
+
+Before formal STEP 09 screenshot parity review, copy the 47 PNGs into `resources/ui_reference/final/`. Real Qt widgets must follow the normalized UI Freeze rules rather than copying accidental overlaps from generated references.
 
 ## Canonical local commands (PowerShell)
 
