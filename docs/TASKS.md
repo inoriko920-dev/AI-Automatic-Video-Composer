@@ -1,9 +1,21 @@
-# STEP 09 READY TASKS
+# ACTIVE FACTORY TASKS
 
-1. S09-T01 — Canonical Qt application shell and design tokens.
-2. S09-T02 — Main editor workspace layout: left workspace, preview, right inspector, bottom timeline, status bar.
-3. S09-T03 — Navigation/state routing for Home, New Project wizard, Editor, Settings, Export.
-4. S09-T04 — Implement representative P0 screens and dialogs from frozen UI references.
-5. S09-T05 — Actual-vs-reference screenshot capture and parity review at 1920x1080.
+## STEP 13 — Hardening & QA
+- S13-T01 — Secret redaction + structured diagnostics: DONE.
+- S13-T02 — Redacted support bundle: DONE.
+- S13-T03 — Cancellable background-job lifecycle: DONE.
+- S13-T04 — Process timeout/launch error normalization: DONE.
+- S13-T05 — Render preflight/output validation: DONE.
+- S13-T06 — Provider credential policy: quota/rate/transient must not auto-hop credentials: DONE.
+- S13-T07 — Canonical QA evidence pack: DONE.
+- S13-T08 — Final Windows CI on closing SHA: PENDING.
 
-No feature-wave business logic is allowed to leak into widgets. UI emits intents and renders presentation state.
+## STEP 14 — Release Candidate & Packaging (next after S13-T08 PASS)
+1. S14-T01 — Branch `release/step14-rc1` from exact STEP 13 closing SHA and freeze RC identity.
+2. S14-T02 — Upgrade Windows package workflow to exact RC artifact naming/version/SHA.
+3. S14-T03 — Build manifest + SHA-256 checksum + build provenance.
+4. S14-T04 — Extract candidate ZIP to a fresh folder and smoke the packaged app.
+5. S14-T05 — Run candidate hygiene/security scan and record evidence.
+6. S14-T06 — RC gate decision and handoff to STEP 15.
+
+No new product feature may enter STEP 14 without an explicit blocker fix and complete regression run.
