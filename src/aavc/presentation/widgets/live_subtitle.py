@@ -5,20 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from aavc.domain.project.models import SubtitleStyle
-from aavc.presentation.subtitle_view import (
-    SubtitleCueView,
-    build_subtitle_views,
-)
-from aavc.presentation.widgets.common import (
-    make_primary_button,
-    muted_label,
-    section_title,
-)
-from aavc.subtitles import (
-    STYLE_PRESETS,
-    get_style_preset,
-    parse_srt,
-)
+from aavc.presentation.subtitle_view import build_subtitle_views, SubtitleCueView
+from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
+from aavc.subtitles import get_style_preset, parse_srt, STYLE_PRESETS
 
 
 ALIGNMENT_OPTIONS: tuple[tuple[str, int], ...] = (
