@@ -13,9 +13,9 @@ def timeline_seek_slider_value(
     """Map a horizontal click inside a timeline Scene block to preview slider value."""
 
     span = float(width)
-    if span <= 0:
+    upper = int(maximum)
+    if span <= 0 or upper <= 0:
         return 0
-    upper = max(1, int(maximum))
     fraction = max(0.0, min(1.0, float(position_x) / span))
     return int(round(fraction * upper))
 
@@ -46,6 +46,8 @@ def install_timeline_preview_seek(root: Any, project: ProjectState) -> bool:
     if scene_list is None or progress_slider is None or not project.scenes:
         return False
 
+    active_scene_list: Any = scene_list
+    active_slider: Any = progress_slider
     button_indexes: dict[int, int] = {}
     timeline_buttons: list[Any] = []
     buttons = root.findChildren(QPushButton)
@@ -78,14 +80,14 @@ def install_timeline_preview_seek(root: Any, project: ProjectState) -> bool:
             if scene_index is None:
                 return False
 
-            scene_list.setCurrentRow(scene_index)
+            active_scene_list.setCurrentRow(scene_index)
             value = timeline_seek_slider_value(
                 event.position().x(),
                 watched.width(),
-                progress_slider.maximum(),
+                active_slider.maximum(),
             )
-            progress_slider.setValue(value)
-            progress_slider.sliderMoved.emit(value)
+            active_slider.setValue(value)
+            active_slider.sliderMoved.emit(value)
             return False
 
     event_filter = _TimelineSeekFilter(root)
