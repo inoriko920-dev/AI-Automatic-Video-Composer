@@ -117,6 +117,50 @@ def insert_subtitle_cue(
     return tuple(items)
 
 
+def split_subtitle_cue(
+    cues: tuple[SubtitleCue, ...],
+    row: int,
+    *,
+    text_offset: int,
+    split_seconds: float | None = None,
+) -> tuple[SubtitleCue, ...]:
+    if row < 0 or row >= len(cues):
+        raise ValueError("Cue subtitle yang dipilih tidak valid")
+    cue = cues[row]
+    plain_text = cue.text.replace("\\N", "\n")
+    if text_offset <= 0 or text_offset >= len(plain_text):
+        raise ValueError("Posisi kursor harus berada di tengah teks cue")
+    left_text = plain_text[:text_offset].strip()
+    right_text = plain_text[text_offset:].strip()
+    if not left_text or not right_text:
+        raise ValueError("Kedua hasil Pisah Cue harus memiliki teks")
+
+    split_time = (
+        (cue.start_seconds + cue.end_seconds) / 2
+        if split_seconds is None
+        else split_seconds
+    )
+    if not cue.start_seconds < split_time < cue.end_seconds:
+        raise ValueError("Waktu pisah harus berada di dalam rentang cue")
+
+    first = replace(
+        cue,
+        end_seconds=split_time,
+        text=_normalize_cue_text(left_text),
+    )
+    second = SubtitleCue(
+        index=max((item.index for item in cues), default=0) + 1,
+        start_seconds=split_time,
+        end_seconds=cue.end_seconds,
+        text=_normalize_cue_text(right_text),
+    )
+    _validate_cue(first)
+    _validate_cue(second)
+    items = list(cues)
+    items[row : row + 1] = [first, second]
+    return tuple(items)
+
+
 def serialize_srt(cues: tuple[SubtitleCue, ...]) -> str:
     blocks: list[str] = []
     for cue in cues:

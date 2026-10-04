@@ -13,6 +13,7 @@ from aavc.subtitles import (
     parse_srt_timestamp,
     replace_subtitle_cue,
     serialize_srt,
+    split_subtitle_cue,
     write_srt_atomic,
 )
 
@@ -93,6 +94,43 @@ def test_insert_cue_rejects_invalid_position_and_content() -> None:
         insert_subtitle_cue(cues, 1, text=" ", start_seconds=4.0, end_seconds=5.0)
 
 
+def test_split_cue_at_cursor_uses_midpoint_and_unique_index() -> None:
+    cues = (
+        SubtitleCue(7, 1.0, 5.0, "Halo dunia"),
+        SubtitleCue(9, 6.0, 7.0, "Lanjut"),
+    )
+    split = split_subtitle_cue(cues, 0, text_offset=5)
+
+    assert [cue.index for cue in split] == [7, 10, 9]
+    assert split[0] == SubtitleCue(7, 1.0, 3.0, "Halo")
+    assert split[1] == SubtitleCue(10, 3.0, 5.0, "dunia")
+    assert split[2] is cues[1]
+
+
+def test_split_cue_supports_multiline_and_explicit_time() -> None:
+    cues = (SubtitleCue(4, 0.0, 4.0, "Baris satu\\NBaris dua"),)
+    split = split_subtitle_cue(
+        cues,
+        0,
+        text_offset=len("Baris satu\n"),
+        split_seconds=1.25,
+    )
+    assert split == (
+        SubtitleCue(4, 0.0, 1.25, "Baris satu"),
+        SubtitleCue(5, 1.25, 4.0, "Baris dua"),
+    )
+
+
+def test_split_cue_rejects_invalid_cursor_and_time() -> None:
+    cues = (SubtitleCue(1, 0.0, 2.0, "Halo dunia"),)
+    with pytest.raises(ValueError, match="Posisi kursor"):
+        split_subtitle_cue(cues, 0, text_offset=0)
+    with pytest.raises(ValueError, match="Posisi kursor"):
+        split_subtitle_cue(cues, 0, text_offset=len("Halo dunia"))
+    with pytest.raises(ValueError, match="Waktu pisah"):
+        split_subtitle_cue(cues, 0, text_offset=5, split_seconds=2.0)
+
+
 def test_serialize_and_atomic_write_round_trip(tmp_path: Path) -> None:
     cues = _sample_cues()
     serialized = serialize_srt(cues)
@@ -118,6 +156,17 @@ def test_added_cue_round_trips_through_copy(tmp_path: Path) -> None:
     destination = tmp_path / "with-added-cue.srt"
     write_srt_atomic(destination, added)
     assert parse_srt(destination) == added
+
+
+def test_split_cue_round_trips_through_copy(tmp_path: Path) -> None:
+    split = split_subtitle_cue(
+        (SubtitleCue(1, 0.0, 3.0, "Bagian pertama bagian kedua"),),
+        0,
+        text_offset=len("Bagian pertama"),
+    )
+    destination = tmp_path / "with-split-cue.srt"
+    write_srt_atomic(destination, split)
+    assert parse_srt(destination) == split
 
 
 def test_writing_copy_does_not_touch_original(tmp_path: Path) -> None:

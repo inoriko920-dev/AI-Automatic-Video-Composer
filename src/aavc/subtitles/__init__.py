@@ -8,6 +8,7 @@ from .srt import (
     parse_srt_timestamp,
     replace_subtitle_cue,
     serialize_srt,
+    split_subtitle_cue,
     write_srt_atomic,
 )
 from .word_timing import WordTiming, distribute_words
@@ -27,5 +28,6 @@ __all__ = [
     "parse_srt_timestamp",
     "replace_subtitle_cue",
     "serialize_srt",
+    "split_subtitle_cue",
     "write_srt_atomic",
 ]
