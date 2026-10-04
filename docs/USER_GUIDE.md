@@ -85,7 +85,7 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, live-editor-overview, static-scene-preview, dan live-readonly-timeline, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, live-editor-overview, static-scene-preview, live-readonly-timeline, dan live-scene-duration, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
@@ -94,13 +94,14 @@ Pada source `main` setelah maintenance project-session, new-project-session, rea
 - **Redo** → mengulangi perubahan model pada `ProjectHistory` jika tersedia.
 - **Impor Media** → memasukkan subtitle SRT atau audio narasi yang didukung ke project aktif melalui history.
 - **Tambah Teks** → membaca `subtitle_source` project aktif dan menampilkan cue/timing SRT yang sebenarnya.
+- **Terapkan Durasi** pada inspector Scene → mengubah `duration_seconds` Scene terpilih melalui `ProjectHistory`.
 - **Validasi** → menghitung issue dari `ProjectState` aktif dan membuka Validation Center dengan data nyata.
 - **Ekspor Video** → membuka pengaturan ekspor; **Mulai Render** menjalankan render pipeline FFmpeg nyata untuk project aktif.
 - **Keluar** → menutup aplikasi.
 
 Jika **Simpan** dipilih tanpa project aktif, aplikasi memberi penjelasan bahwa penyimpanan belum tersedia untuk sesi tersebut. Undo/Redo yang tidak memiliki aksi juga memberi feedback dan tidak merusak state project.
 
-## 7. Editor Overview, preview statis, dan timeline read-only
+## 7. Editor Overview, preview statis, timeline read-only, dan durasi Scene
 
 Pada source `main` setelah maintenance live-editor-overview, editor yang dibuka setelah **Buat/Buka Project** tidak lagi memakai daftar Scene/Aset demo sebagai data project.
 
@@ -135,7 +136,19 @@ Pada source `main` setelah maintenance live-readonly-timeline, timeline project 
 - total durasi timeline dihitung dari scene project aktif;
 - track audio, subtitle, background, dan elemen demo lama tidak ditampilkan sebagai data project.
 
-Timeline ini **read-only**. Drag/drop, trim, resize, split, ripple, perubahan durasi, waveform, dan scrubbing timeline belum diaktifkan. Preview juga belum merupakan pemutar video: playback, audio, subtitle overlay, dan animasi enter/exit belum aktif. Kontrol transport/scrub preview tetap dinonaktifkan agar tidak terlihat seolah-olah sudah berfungsi. Fixture editor lama tetap dipertahankan hanya untuk no-session STEP09 visual-reference capture.
+Pada source `main` setelah maintenance live-scene-duration, panel kanan mengikuti Scene yang sedang dipilih dan menyediakan inspector durasi nyata. Cara menggunakannya:
+
+1. Pilih Scene dari daftar kiri atau klik blok Scene pada timeline.
+2. Inspector kanan menampilkan nomor Scene, mode SINGLE/DOUBLE, Asset ID, durasi saat ini, total durasi project, resolusi, dan FPS.
+3. Masukkan durasi baru pada field **Durasi Scene**. Input mendukung presisi sampai 0,001 detik.
+4. Klik **Terapkan Durasi**.
+5. AAVC menjalankan `SetSceneDuration` melalui `ProjectSession.execute()`, sehingga perubahan masuk **Undo/Redo**.
+6. Editor dibangun ulang pada Scene yang sama; total durasi, lebar relatif blok timeline, header preview, dan validation badge mengikuti state terbaru.
+7. Klik **Simpan** untuk menulis perubahan permanen ke file `.aavcproj`.
+
+Mengubah angka pada field tanpa menekan **Terapkan Durasi** tidak mengubah project. Perubahan yang sudah diterapkan masih berada di state/history sampai tombol **Simpan** dipakai. Jika kemudian **Undo** atau **Redo** dipilih, editor kembali menampilkan durasi hasil history sambil mempertahankan Scene yang sedang dipilih bila Scene tersebut masih ada.
+
+Timeline sendiri tetap **read-only**. Drag/drop, trim, resize, split, ripple, perubahan urutan, waveform, dan scrubbing timeline belum diaktifkan. Durasi Scene diubah melalui inspector kanan, bukan dengan menarik tepi blok timeline. Preview juga belum merupakan pemutar video: playback, audio, subtitle overlay, dan animasi enter/exit belum aktif. Kontrol transport/scrub preview tetap dinonaktifkan agar tidak terlihat seolah-olah sudah berfungsi. Fixture editor lama tetap dipertahankan hanya untuk no-session STEP09 visual-reference capture.
 
 ## 8. Validasi project dan relink aset
 
@@ -220,9 +233,11 @@ Jika project belum memiliki `subtitle_source`, **Tambah Teks** meminta pengguna 
 
 ## 12. Kontrol yang belum terhubung penuh
 
-Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Playback preview, timeline editing/scrubbing, animasi preview, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final. Timeline scene read-only sudah tersedia, tetapi belum dapat dipakai untuk mengedit urutan atau durasi.
+Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Playback preview, timeline editing/scrubbing, animasi preview, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final. Timeline scene read-only sudah tersedia dan durasi Scene sudah dapat diubah melalui inspector kanan, tetapi timeline belum dapat dipakai untuk drag/trim/reorder.
 
-Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-editor-overview/static-scene-preview/live-readonly-timeline berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Editor assignment animasi juga belum dibuka sebagai kontrol live pada tahap ini. Walaupun model `AnimationAssignment` dan command `SetAnimationAssignment` sudah ada, penggunaan assignment project oleh render pipeline belum dibuktikan end-to-end, sehingga UI tidak mengklaim bahwa perubahan animasi tersebut akan masuk video final.
+
+Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-editor-overview/static-scene-preview/live-readonly-timeline/live-scene-duration berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
 ## 13. Sebelum ekspor
 
