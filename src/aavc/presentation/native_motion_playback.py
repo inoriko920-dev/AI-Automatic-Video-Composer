@@ -9,6 +9,7 @@ from aavc.presentation.motion_preview import (
     preview_narration_seconds,
     preview_neighbor_scene_index,
     preview_scrub_seconds,
+    preview_timecode,
 )
 from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
 
@@ -113,14 +114,25 @@ def _find_preview_canvas(root: Any) -> Any | None:
     return None
 
 
+def _find_preview_timecode_label(root: Any) -> Any | None:
+    from PySide6.QtWidgets import QLabel
+
+    for label in root.findChildren(QLabel):
+        text = label.text()
+        if " / " in text and text.count(":") >= 6:
+            return label
+    return None
+
+
 def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
-    """Enable visual playback, scrubbing, Scene transport, and narration preview."""
+    """Enable visual playback, scrubbing, Scene transport, narration, and live timecode."""
 
     from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QPushButton, QSlider
 
     scene_list = _find_scene_list(root, project)
     canvas = _find_preview_canvas(root)
+    timecode_label = _find_preview_timecode_label(root)
     buttons = root.findChildren(QPushButton)
     previous_button = next((button for button in buttons if button.text() == "◀"), None)
     play_button = next((button for button in buttons if button.text() == "▶"), None)
@@ -199,6 +211,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     frame_step = 1.0 / fps
     playback_seconds = 0.0
     scene_durations = tuple(scene.duration_seconds for scene in project.scenes)
+    total_project_seconds = sum(max(0.0, float(value)) for value in scene_durations)
 
     def selected_plan() -> ScenePreviewPlan | None:
         row = scene_list.currentRow()
@@ -211,6 +224,15 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
             scene_durations,
             scene_list.currentRow(),
             local_seconds,
+        )
+
+    def update_timecode(local_seconds: float) -> None:
+        if timecode_label is None:
+            return
+        current = narration_seconds(local_seconds)
+        timecode_label.setText(
+            f"{preview_timecode(current, fps)}  /  "
+            f"{preview_timecode(total_project_seconds, fps)}"
         )
 
     def seek_audio(local_seconds: float) -> None:
@@ -248,6 +270,8 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
                 time_seconds=time_seconds,
             )
         )
+        local_seconds = 0.0 if time_seconds is None else time_seconds
+        update_timecode(local_seconds)
         if progress_slider is not None:
             if time_seconds is None or plan.duration_seconds <= 0:
                 progress_slider.setValue(0)
@@ -350,6 +374,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     def scene_changed(row: int) -> None:
         stop_playback(restore_static=False)
         update_transport_state(row)
+        update_timecode(0.0)
 
     def toggle_audio() -> None:
         nonlocal audio_muted
@@ -374,5 +399,6 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     if audio_button is not None:
         audio_button.clicked.connect(toggle_audio)
     update_transport_state(scene_list.currentRow())
+    update_timecode(0.0)
     seek_audio(0.0)
     return True
