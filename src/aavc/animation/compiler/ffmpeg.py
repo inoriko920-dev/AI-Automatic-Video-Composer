@@ -4,7 +4,7 @@ from aavc.domain.project.models import AnimationAssignment
 
 NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift"})
 NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade", "Pop"})
-NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop"})
+NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop", "Breathe"})
 NATIVE_VISUAL_EFFECTS = (
     NATIVE_VISUAL_MOTION_EFFECTS
     | NATIVE_VISUAL_ALPHA_EFFECTS
@@ -84,6 +84,30 @@ def compile_native_alpha_filters(
     return tuple(filters)
 
 
+def _scale_floor(effect: str) -> float | None:
+    if effect == "Pop":
+        return 0.85
+    if effect == "Breathe":
+        return 0.98
+    return None
+
+
+def _enter_scale_expression(effect: str, window: str) -> str | None:
+    floor = _scale_floor(effect)
+    if floor is None:
+        return None
+    excursion = 1.0 - floor
+    return f"{floor:.2f}+{excursion:.2f}*t/{window}"
+
+
+def _exit_scale_expression(effect: str, exit_start: str, window: str) -> str | None:
+    floor = _scale_floor(effect)
+    if floor is None:
+        return None
+    excursion = 1.0 - floor
+    return f"1-{excursion:.2f}*(t-{exit_start})/{window}"
+
+
 def _native_scale_factor(
     assignment: AnimationAssignment,
     *,
@@ -94,19 +118,17 @@ def _native_scale_factor(
     window = f"{window_seconds:.6f}"
     exit_start_seconds = max(0.0, duration - window_seconds)
     exit_start = f"{exit_start_seconds:.6f}"
-    has_enter = is_native_visual_scale_effect(assignment.enter_effect)
-    has_exit = is_native_visual_scale_effect(assignment.exit_effect)
+    enter_expr = _enter_scale_expression(assignment.enter_effect, window)
+    exit_expr = _exit_scale_expression(assignment.exit_effect, exit_start, window)
 
-    enter_expr = f"0.85+0.15*t/{window}"
-    exit_expr = f"1-0.15*(t-{exit_start})/{window}"
-    if has_enter and has_exit:
+    if enter_expr is not None and exit_expr is not None:
         return (
             f"if(lt(t,{window}),{enter_expr},"
             f"if(gt(t,{exit_start}),{exit_expr},1))"
         )
-    if has_enter:
+    if enter_expr is not None:
         return f"if(lt(t,{window}),{enter_expr},1)"
-    if has_exit:
+    if exit_expr is not None:
         return f"if(gt(t,{exit_start}),{exit_expr},1)"
     return "1"
 
@@ -116,7 +138,7 @@ def compile_native_scale_filter(
     *,
     duration_seconds: float,
 ) -> str | None:
-    """Compile frame-evaluated per-asset scale for native Pop assignments."""
+    """Compile frame-evaluated per-asset scale for native scale effects."""
 
     if not assignment_has_native_scale(assignment) or assignment is None:
         return None
