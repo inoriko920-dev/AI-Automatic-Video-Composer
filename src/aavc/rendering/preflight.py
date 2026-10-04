@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from aavc.animation.compiler import is_native_visual_motion_effect
+
 from .render_plan import RenderPlan
 
 
@@ -25,18 +27,39 @@ class PreflightReport:
 
     @property
     def ok(self) -> bool:
-        return not any(issue.severity is PreflightSeverity.ERROR for issue in self.issues)
+        return not any(
+            issue.severity is PreflightSeverity.ERROR for issue in self.issues
+        )
 
 
 def validate_render_plan(plan: RenderPlan) -> PreflightReport:
     issues: list[PreflightIssue] = []
+    fallback_effects: set[str] = set()
 
     if plan.width <= 0 or plan.height <= 0:
-        issues.append(PreflightIssue("INVALID_FRAME_SIZE", PreflightSeverity.ERROR, "Resolusi render tidak valid"))
+        issues.append(
+            PreflightIssue(
+                "INVALID_FRAME_SIZE",
+                PreflightSeverity.ERROR,
+                "Resolusi render tidak valid",
+            )
+        )
     if plan.fps <= 0:
-        issues.append(PreflightIssue("INVALID_FPS", PreflightSeverity.ERROR, "FPS harus lebih dari 0"))
+        issues.append(
+            PreflightIssue(
+                "INVALID_FPS",
+                PreflightSeverity.ERROR,
+                "FPS harus lebih dari 0",
+            )
+        )
     if not plan.scenes:
-        issues.append(PreflightIssue("NO_SCENES", PreflightSeverity.ERROR, "Render plan tidak memiliki scene"))
+        issues.append(
+            PreflightIssue(
+                "NO_SCENES",
+                PreflightSeverity.ERROR,
+                "Render plan tidak memiliki scene",
+            )
+        )
 
     seen_scene_numbers: set[int] = set()
     for scene in plan.scenes:
@@ -65,6 +88,20 @@ def validate_render_plan(plan: RenderPlan) -> PreflightReport:
                     f"Scene {scene.scene_number} tidak memiliki aset",
                 )
             )
+        if scene.animations and len(scene.animations) != len(scene.asset_paths):
+            issues.append(
+                PreflightIssue(
+                    "ANIMATION_SLOT_MISMATCH",
+                    PreflightSeverity.ERROR,
+                    f"Slot animasi Scene {scene.scene_number} tidak sejajar dengan aset",
+                )
+            )
+        for assignment in scene.animations:
+            if assignment is None:
+                continue
+            for effect in {assignment.enter_effect, assignment.exit_effect}:
+                if not is_native_visual_motion_effect(effect):
+                    fallback_effects.add(effect)
         for asset_path in scene.asset_paths:
             path = Path(asset_path)
             if not path.is_file():
@@ -75,6 +112,16 @@ def validate_render_plan(plan: RenderPlan) -> PreflightReport:
                         f"Aset render tidak ditemukan: {path.name}",
                     )
                 )
+
+    for effect in sorted(fallback_effects):
+        issues.append(
+            PreflightIssue(
+                "VISUAL_EFFECT_FALLBACK",
+                PreflightSeverity.WARNING,
+                f"Efek visual {effect} belum memiliki compiler native phase 1; "
+                "motion khusus diabaikan dan transisi Scene default tetap digunakan",
+            )
+        )
 
     if plan.narration_audio is not None and not Path(plan.narration_audio).is_file():
         issues.append(
