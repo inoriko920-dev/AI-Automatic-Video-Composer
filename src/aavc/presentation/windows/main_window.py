@@ -33,6 +33,18 @@ def ensure_project_suffix(path: str) -> str:
     return path if Path(path).suffix.lower() == ".aavcproj" else f"{path}.aavcproj"
 
 
+def format_window_title(
+    app_name: str,
+    project_title: str | None,
+    *,
+    is_dirty: bool = False,
+) -> str:
+    if not project_title:
+        return app_name
+    dirty_marker = " *" if is_dirty else ""
+    return f"{app_name} — Project: {project_title}{dirty_marker}"
+
+
 class MainWindow:
     def __init__(self, services: FoundationServices, initial_state: str = "UI-002") -> None:
         from PySide6.QtGui import QAction
@@ -41,7 +53,7 @@ class MainWindow:
         self.services = services
         self.window = QMainWindow()
         self.window.setObjectName("AAVCMainWindow")
-        self.window.setWindowTitle(f"{services.app_name} — Project: Liburan ke Bromo")
+        self.window.setWindowTitle(format_window_title(services.app_name, None))
         self.window.resize(1600, 900)
         self.window.setMinimumSize(1280, 720)
         self.window.setStyleSheet(app_stylesheet())
@@ -72,6 +84,17 @@ class MainWindow:
         from PySide6.QtWidgets import QMessageBox
 
         QMessageBox.information(self.window, title, message)
+
+    def _refresh_window_title(self) -> None:
+        session = self.services.project_session
+        project = session.current
+        self.window.setWindowTitle(
+            format_window_title(
+                self.services.app_name,
+                project.title if project is not None else None,
+                is_dirty=session.is_dirty,
+            )
+        )
 
     def _replace_route_widget(self, route: UiRoute, replacement: Any) -> None:
         previous = self._route_widgets[route]
@@ -190,7 +213,7 @@ class MainWindow:
         self._selected_scene_number = (
             project.scenes[0].scene_number if project.scenes else None
         )
-        self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
+        self._refresh_window_title()
         self.window.statusBar().showMessage(f"Proyek dibuat: {destination}", 5000)
         self._refresh_validation_badge()
         self.refresh_editor_overview()
@@ -215,7 +238,7 @@ class MainWindow:
         self._selected_scene_number = (
             project.scenes[0].scene_number if project.scenes else None
         )
-        self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
+        self._refresh_window_title()
         self.window.statusBar().showMessage(f"Proyek dibuka: {chosen}", 5000)
         self._refresh_validation_badge()
         self.refresh_editor_overview()
@@ -230,6 +253,7 @@ class MainWindow:
         except (AAVCError, OSError) as error:
             self._show_project_error("Gagal menyimpan proyek", error)
             return
+        self._refresh_window_title()
         self.window.statusBar().showMessage(f"Proyek disimpan: {saved}", 5000)
 
     def undo_project(self) -> None:
@@ -239,6 +263,7 @@ class MainWindow:
         except ValueError as error:
             self.window.statusBar().showMessage(f"Undo tidak tersedia: {error}", 5000)
             return
+        self._refresh_window_title()
         self._refresh_validation_badge()
         self.refresh_editor_overview()
         if subtitle_was_open:
@@ -254,6 +279,7 @@ class MainWindow:
         except ValueError as error:
             self.window.statusBar().showMessage(f"Redo tidak tersedia: {error}", 5000)
             return
+        self._refresh_window_title()
         self._refresh_validation_badge()
         self.refresh_editor_overview()
         if subtitle_was_open:
@@ -271,6 +297,7 @@ class MainWindow:
             self._show_project_error("Gagal mengubah durasi Scene", error)
             return
         self._selected_scene_number = scene_number
+        self._refresh_window_title()
         self._refresh_validation_badge()
         self.refresh_editor_overview()
         self.window.statusBar().showMessage(
@@ -285,6 +312,7 @@ class MainWindow:
         except (AAVCError, ValueError) as error:
             self._show_project_error("Gagal mengubah gaya subtitle", error)
             return
+        self._refresh_window_title()
         self.refresh_editor_overview()
         self.open_subtitle_editor()
         self.window.statusBar().showMessage(
@@ -299,6 +327,7 @@ class MainWindow:
         except (AAVCError, ValueError) as error:
             self._show_project_error("Gagal mengubah animasi subtitle", error)
             return
+        self._refresh_window_title()
         self.refresh_editor_overview()
         self.open_subtitle_editor()
         self.window.statusBar().showMessage(
@@ -350,6 +379,7 @@ class MainWindow:
             self._show_project_error("Impor Media gagal", error)
             return
 
+        self._refresh_window_title()
         self.refresh_editor_overview()
         self.window.statusBar().showMessage(
             f"{media_label} diimpor: {Path(chosen).name}. "
@@ -417,6 +447,7 @@ class MainWindow:
             except (AAVCError, OSError, ValueError) as error:
                 self._show_project_error("Relink gagal", error)
             else:
+                self._refresh_window_title()
                 self._refresh_validation_badge()
                 self.refresh_editor_overview()
                 self.window.statusBar().showMessage(
