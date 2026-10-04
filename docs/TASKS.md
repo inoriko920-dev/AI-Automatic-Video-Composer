@@ -5,6 +5,20 @@ No product feature task is active.
 
 Software Factory STEP 00–15 is complete. The old STEP 09 ready-task list is retired and must not be treated as pending work.
 
+### REL-0.1.0-PUBLISH — Publish official GitHub Release
+Status: **PENDING MANUAL DISPATCH**
+
+The final Windows release source is frozen at `release/0.1.0` (commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`). The guarded `Final Release Windows` workflow is ready to rebuild that exact source, run the release gates, and publish tag/release `v0.1.0`.
+
+Required manual workflow inputs:
+- `publish_github_release = true`
+- `release_tag = v0.1.0`
+- `release_source_ref = release/0.1.0`
+
+Do not mark this task complete until the GitHub Release exists, tag `v0.1.0` resolves to the frozen release commit, the published assets are present, and the published checksums are verified.
+
+See `docs/RELEASE_PUBLISHING.md` for the operator procedure.
+
 ## Maintenance intake checklist
 When a concrete request arrives:
 1. record the symptom or requested capability and expected behavior;
