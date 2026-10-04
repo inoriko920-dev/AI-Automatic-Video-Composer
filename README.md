@@ -81,6 +81,14 @@ The implementation uses real Qt widgets and follows the normalized UI Freeze rul
 
 STEP 09 is formally closed after actual Windows/PySide6 screenshot capture and CI verification. See `STEP09_STATUS.md` and `docs/UI_FREEZE.md`.
 
+## User guide
+
+Untuk cara menjalankan versi portable, menyiapkan Scene DOCX dan aset canonical, memahami kebutuhan FFmpeg/ffprobe, serta membedakan fitur UI yang sudah aktif dari kontrol yang belum terhubung penuh, lihat:
+
+- `docs/USER_GUIDE.md`
+
+Panduan tersebut juga membedakan frozen release `v0.1.1` dari maintenance yang sudah masuk ke branch `main` setelah rilis.
+
 ## Canonical local commands (PowerShell)
 
 ```powershell
@@ -99,6 +107,7 @@ For release evidence, publication, rollback rules and maintenance policy, see:
 - `STEP15_STATUS.md`
 - `RELEASE_NOTES_0.1.1.md`
 - `docs/RELEASE_PUBLISHING.md`
+- `docs/USER_GUIDE.md`
 - `MAINTENANCE.md`
 - `BACKUP_AND_RECOVERY.md`
 - `docs/`
