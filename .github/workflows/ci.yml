@@ -23,6 +23,8 @@ jobs:
         with:
           python-version: '3.12.10'
           cache: 'pip'
+      - name: Reject committed secrets
+        run: python scripts/check_no_secrets.py
       - name: Install pinned dependencies
         run: |
           python -m pip install "pip==26.2.1"
