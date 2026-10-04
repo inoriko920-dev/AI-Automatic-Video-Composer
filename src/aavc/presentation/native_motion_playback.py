@@ -12,6 +12,11 @@ from aavc.presentation.motion_preview import (
     preview_timecode,
 )
 from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
+from aavc.presentation.subtitle_preview import (
+    active_subtitle_cue,
+    overlay_subtitle_pixmap,
+)
+from aavc.subtitles.srt import SubtitleCue, parse_srt
 
 
 def _draw_missing_asset(painter: Any, asset: Any, width: int, height: int) -> None:
@@ -124,8 +129,20 @@ def _find_preview_timecode_label(root: Any) -> Any | None:
     return None
 
 
+def _load_preview_subtitles(project: ProjectState) -> tuple[SubtitleCue, ...]:
+    if not project.subtitle_source:
+        return ()
+    path = Path(project.subtitle_source).expanduser()
+    if not path.is_file():
+        return ()
+    try:
+        return parse_srt(path)
+    except (OSError, UnicodeError, ValueError):
+        return ()
+
+
 def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
-    """Enable visual playback, scrubbing, Scene transport, narration, and live timecode."""
+    """Enable motion, scrub, transport, narration, timecode, and timed subtitles."""
 
     from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QPushButton, QSlider
@@ -152,17 +169,18 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     ):
         return False
 
+    subtitle_cues = _load_preview_subtitles(project)
     previous_button.setToolTip("Pilih Scene sebelumnya pada preview.")
     next_button.setToolTip("Pilih Scene berikutnya pada preview.")
     play_button.setToolTip(
         "Putar preview motion native Rise/Pan/Drift untuk Scene terpilih. "
-        "Narasi ikut diputar bila tersedia; subtitle overlay belum aktif."
+        "Narasi dan subtitle timing ikut preview bila tersedia; animasi subtitle belum dipreview."
     )
     if progress_slider is not None:
         progress_slider.setRange(0, 1000)
         progress_slider.setValue(0)
         progress_slider.setToolTip(
-            "Geser untuk melihat frame motion dan posisi narasi pada waktu tertentu."
+            "Geser untuk melihat frame motion, subtitle, dan posisi narasi pada waktu tertentu."
         )
 
     media_player: Any | None = None
@@ -219,7 +237,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
             return None
         return build_scene_preview_plan(project, project.scenes[row])
 
-    def narration_seconds(local_seconds: float) -> float:
+    def project_seconds(local_seconds: float) -> float:
         return preview_narration_seconds(
             scene_durations,
             scene_list.currentRow(),
@@ -229,7 +247,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     def update_timecode(local_seconds: float) -> None:
         if timecode_label is None:
             return
-        current = narration_seconds(local_seconds)
+        current = project_seconds(local_seconds)
         timecode_label.setText(
             f"{preview_timecode(current, fps)}  /  "
             f"{preview_timecode(total_project_seconds, fps)}"
@@ -238,7 +256,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     def seek_audio(local_seconds: float) -> None:
         if media_player is None:
             return
-        global_seconds = narration_seconds(local_seconds)
+        global_seconds = project_seconds(local_seconds)
         media_player.setPosition(max(0, int(round(global_seconds * 1000))))
 
     def pause_audio() -> None:
@@ -263,14 +281,21 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         plan = selected_plan()
         if plan is None:
             return
-        canvas.setPixmap(
-            render_native_motion_pixmap(
-                plan,
-                project.animations,
-                time_seconds=time_seconds,
-            )
-        )
         local_seconds = 0.0 if time_seconds is None else time_seconds
+        pixmap = render_native_motion_pixmap(
+            plan,
+            project.animations,
+            time_seconds=time_seconds,
+        )
+        cue = active_subtitle_cue(subtitle_cues, project_seconds(local_seconds))
+        pixmap = overlay_subtitle_pixmap(
+            pixmap,
+            cue,
+            project.subtitle_style,
+            project_width=project.width,
+            project_height=project.height,
+        )
+        canvas.setPixmap(pixmap)
         update_timecode(local_seconds)
         if progress_slider is not None:
             if time_seconds is None or plan.duration_seconds <= 0:
@@ -375,6 +400,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         stop_playback(restore_static=False)
         update_transport_state(row)
         update_timecode(0.0)
+        render_frame(None)
 
     def toggle_audio() -> None:
         nonlocal audio_muted
@@ -399,6 +425,6 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     if audio_button is not None:
         audio_button.clicked.connect(toggle_audio)
     update_transport_state(scene_list.currentRow())
-    update_timecode(0.0)
+    render_frame(None)
     seek_audio(0.0)
     return True
