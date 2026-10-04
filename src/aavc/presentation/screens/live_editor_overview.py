@@ -10,7 +10,9 @@ from aavc.presentation.project_view import (
     build_asset_views,
     build_project_summary,
     build_scene_views,
+    format_duration,
 )
+from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
 from aavc.presentation.widgets.common import muted_label, section_title
 from aavc.presentation.widgets.editor_shell import create_editor_shell
 
@@ -39,7 +41,12 @@ def _asset_page(assets: tuple[AssetView, ...]) -> Any:
     layout = QVBoxLayout(page)
     layout.setContentsMargins(8, 8, 8, 8)
     ready = sum(asset.status == "READY" for asset in assets)
-    layout.addWidget(QLabel(f"Aset project: {len(assets)} · READY {ready} · Belum READY {len(assets) - ready}"))
+    layout.addWidget(
+        QLabel(
+            f"Aset project: {len(assets)} · READY {ready} · "
+            f"Belum READY {len(assets) - ready}"
+        )
+    )
 
     listing = QListWidget()
     listing.setSpacing(3)
@@ -101,14 +108,72 @@ def _overview_page(project: ProjectState) -> Any:
     return page
 
 
+def _draw_missing_asset(painter: Any, asset: Any, width: int, height: int) -> None:
+    from PySide6.QtCore import QRectF, Qt
+    from PySide6.QtGui import QColor, QPen
+
+    box_w = max(160, int(width * asset.max_width * 0.82))
+    box_h = max(120, int(height * asset.max_height * 0.72))
+    x = int(width * asset.anchor_x - box_w / 2)
+    y = int(height * asset.anchor_y - box_h / 2)
+    rect = QRectF(x, y, box_w, box_h)
+    painter.setPen(QPen(QColor("#D97706"), 3))
+    painter.setBrush(QColor("#FFFBEB"))
+    painter.drawRoundedRect(rect, 12, 12)
+    painter.setPen(QColor("#92400E"))
+    painter.drawText(
+        rect,
+        int(Qt.AlignmentFlag.AlignCenter),
+        f"{asset.asset_id}\n{asset.status}\nFile tidak tersedia",
+    )
+
+
+def _render_scene_pixmap(plan: ScenePreviewPlan, width: int = 1280, height: int = 720) -> Any:
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QColor, QPainter, QPixmap
+
+    canvas = QPixmap(width, height)
+    canvas.fill(QColor("#F4F7FB"))
+    painter = QPainter(canvas)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+
+    for asset in plan.assets:
+        if asset.status != "READY" or asset.path is None:
+            _draw_missing_asset(painter, asset, width, height)
+            continue
+        source = QPixmap(asset.path)
+        if source.isNull():
+            _draw_missing_asset(painter, asset, width, height)
+            continue
+
+        max_width = max(1, int(width * asset.max_width))
+        max_height = max(1, int(height * asset.max_height))
+        scaled = source.scaled(
+            max_width,
+            max_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        x = int(width * asset.anchor_x - scaled.width() / 2)
+        y = int(height * asset.anchor_y - scaled.height() / 2)
+        painter.drawPixmap(x, y, scaled)
+
+    painter.end()
+    return canvas
+
+
 def create_live_editor_overview(project: ProjectState) -> Any:
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QLabel, QPushButton, QSlider
+
     parts = create_editor_shell("overview")
     scenes = build_scene_views(project)
     assets = build_asset_views(project)
     summary = build_project_summary(project)
+    scene_list = _scene_page(scenes)
 
     parts.left_tabs.clear()
-    parts.left_tabs.addTab(_scene_page(scenes), "Scene")
+    parts.left_tabs.addTab(scene_list, "Scene")
     parts.left_tabs.addTab(_asset_page(assets), "Aset")
     parts.left_tabs.setCurrentIndex(0)
 
@@ -116,20 +181,64 @@ def create_live_editor_overview(project: ProjectState) -> Any:
     parts.right_tabs.insertTab(0, _overview_page(project), "Layout")
     parts.right_tabs.setCurrentIndex(0)
 
-    parts.preview_label.clear()
-    parts.preview_label.setText(
-        "Pratinjau project nyata belum terhubung pada tahap ini.\n"
-        "Scene dan aset di panel kiri berasal dari ProjectState aktif."
+    preview_header = QLabel()
+    preview_header.setStyleSheet(
+        "color:#E2E8F0; background:#111827; border:none; padding:6px 10px; "
+        "font-weight:650;"
     )
+    frame_layout = parts.preview_frame.layout()
+    if frame_layout is not None:
+        frame_layout.insertWidget(0, preview_header)
+
+    parts.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     parts.preview_label.setStyleSheet(
-        "border:1px solid #CBD5E1; background:#F8FAFD; color:#64748B; padding:24px;"
+        "border:1px solid #CBD5E1; background:#F4F7FB; color:#64748B;"
     )
+
+    preview_outer = parts.preview_frame.parentWidget()
+    if preview_outer is not None:
+        for button in preview_outer.findChildren(QPushButton):
+            button.setEnabled(False)
+            button.setToolTip("Playback preview belum diaktifkan pada tahap ini.")
+        for slider in preview_outer.findChildren(QSlider):
+            slider.setEnabled(False)
+            slider.setToolTip("Scrubbing preview belum diaktifkan pada tahap ini.")
+
+    def show_scene(row: int) -> None:
+        if row < 0 or row >= len(project.scenes):
+            preview_header.setText("Tidak ada scene terpilih")
+            parts.preview_label.clear()
+            parts.preview_label.setText("Pilih scene untuk melihat preview statis.")
+            return
+        scene = project.scenes[row]
+        plan = build_scene_preview_plan(project, scene)
+        preview_header.setText(
+            f"Scene {scene.scene_number:02d} · {scene.mode} · "
+            f"{project.width} × {project.height} · {format_duration(scene.duration_seconds)}"
+        )
+        parts.preview_label.setPixmap(_render_scene_pixmap(plan))
+        parts.preview_label.setToolTip(
+            "Preview statis memakai placement yang sama dengan render engine. "
+            "Playback, animasi, audio, subtitle overlay, dan scrub timeline belum aktif."
+        )
+
+    scene_list.currentRowChanged.connect(show_scene)
+    if project.scenes:
+        scene_list.setCurrentRow(0)
+        show_scene(0)
+    else:
+        show_scene(-1)
+
     parts.timeline.setEnabled(False)
     parts.timeline.setToolTip(
         "Timeline masih berupa shell visual pada tahap ini dan belum membaca ProjectState."
     )
 
-    status = "✓ Project siap" if summary.not_ready_count == 0 else f"⚠ {summary.not_ready_count} aset belum READY"
+    status = (
+        "✓ Project siap"
+        if summary.not_ready_count == 0
+        else f"⚠ {summary.not_ready_count} aset belum READY"
+    )
     source_name = Path(project.source_docx).name
     parts.status_label.setText(
         f"{status}   ·   {project.title}   ·   {summary.scene_count} scene   ·   "
