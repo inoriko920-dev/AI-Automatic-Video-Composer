@@ -44,6 +44,18 @@ def preview_narration_seconds(
     return sum(normalized[:index]) + local
 
 
+def preview_timecode(seconds: float, fps: int) -> str:
+    """Format a non-negative preview position as HH:MM:SS:FF."""
+
+    rate = max(1, int(fps))
+    position = max(0.0, float(seconds))
+    total_frames = max(0, int(round(position * rate)))
+    total_seconds, frames = divmod(total_frames, rate)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}:{frames:02d}"
+
+
 def preview_neighbor_scene_index(
     current_index: int,
     scene_count: int,
