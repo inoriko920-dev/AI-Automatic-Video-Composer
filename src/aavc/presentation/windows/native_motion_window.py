@@ -26,7 +26,7 @@ def _stored_animation_seed(metadata: dict[str, str]) -> int:
 
 
 class NativeMotionMainWindow(GuardedMainWindow):
-    """Guarded editor shell with render-backed phase-one asset motion controls."""
+    """Guarded editor shell with render-backed asset animation controls."""
 
     def _build_menu(self, action_type: Any) -> None:
         super()._build_menu(action_type)
@@ -147,8 +147,8 @@ class NativeMotionMainWindow(GuardedMainWindow):
             self.window,
             "Auto Motion",
             (
-                f"Acak motion native untuk {scope_label}.\n"
-                "Efek yang digunakan: Rise, Pan, Drift.\n"
+                f"Acak animasi native untuk {scope_label}.\n"
+                f"Efek yang digunakan: {', '.join(NATIVE_MOTION_CHOICES)}.\n"
                 "Seed yang sama menghasilkan pola yang sama:"
             ),
             value=_stored_animation_seed(project.metadata),
