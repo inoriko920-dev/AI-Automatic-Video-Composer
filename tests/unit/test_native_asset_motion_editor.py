@@ -3,14 +3,17 @@ from pathlib import Path
 import pytest
 
 from aavc.application.commands import (
+    RandomizeAnimationAssignments,
     RemoveAnimationAssignment,
     SetAnimationAssignment,
 )
 from aavc.application.services.project_session import ProjectSession
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.domain.project.models import AnimationAssignment
+from aavc.persistence.project_repository import ProjectRepository
 from aavc.presentation.dialogs.asset_motion import (
     NATIVE_MOTION_CHOICES,
+    build_asset_motion_assignment,
     find_asset_motion_assignment,
 )
 from aavc.rendering import build_ffmpeg_command, build_render_plan
@@ -50,6 +53,24 @@ def test_find_asset_motion_assignment_is_target_specific() -> None:
     assert find_asset_motion_assignment((assignment,), scene.scene_number, "A999") is None
 
 
+def test_build_asset_motion_assignment_maps_lock_state() -> None:
+    assignment = build_asset_motion_assignment(
+        scene_number=7,
+        asset_id="A007",
+        enter_effect="Rise",
+        exit_effect="Pan",
+        intensity=1.25,
+        locked=True,
+    )
+
+    assert assignment.scene_number == 7
+    assert assignment.asset_id == "A007"
+    assert assignment.enter_effect == "Rise"
+    assert assignment.exit_effect == "Pan"
+    assert assignment.intensity == 1.25
+    assert assignment.locked
+
+
 def test_apply_remove_and_undo_native_motion_reaches_ffmpeg(tmp_path: Path) -> None:
     project = _project()
     scene = project.scenes[0]
@@ -75,6 +96,49 @@ def test_apply_remove_and_undo_native_motion_reaches_ffmpeg(tmp_path: Path) -> N
 
     restored = session.undo()
     assert find_asset_motion_assignment(restored.animations, scene.scene_number, asset_id) == assignment
+
+
+def test_locked_motion_survives_save_load_and_auto_motion(tmp_path: Path) -> None:
+    project = _project()
+    scene = project.scenes[0]
+    asset_id = scene.asset_ids[0]
+    locked = build_asset_motion_assignment(
+        scene_number=scene.scene_number,
+        asset_id=asset_id,
+        enter_effect="Pan",
+        exit_effect="Rise",
+        intensity=0.9,
+        locked=True,
+    )
+    project_path = tmp_path / "locked-motion.aavcproj"
+    session = ProjectSession()
+    session.start(project, project_path)
+    session.execute(SetAnimationAssignment(locked))
+    session.save()
+
+    persisted = ProjectRepository().load(project_path)
+    persisted_assignment = find_asset_motion_assignment(
+        persisted.animations,
+        scene.scene_number,
+        asset_id,
+    )
+    assert persisted_assignment == locked
+    assert persisted_assignment is not None and persisted_assignment.locked
+
+    reopened = ProjectSession()
+    reopened.open(project_path)
+    randomized = reopened.execute(
+        RandomizeAnimationAssignments(
+            seed=99,
+            effect_pool=NATIVE_MOTION_CHOICES,
+        )
+    )
+    after_randomize = find_asset_motion_assignment(
+        randomized.animations,
+        scene.scene_number,
+        asset_id,
+    )
+    assert after_randomize == locked
 
 
 def test_remove_native_motion_rejects_missing_assignment_without_history(tmp_path: Path) -> None:
