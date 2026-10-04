@@ -1,25 +1,32 @@
-# ACTIVE TASKS — Post Release 0.1.0
+# ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-No product feature task is active.
+No product feature or release task is active.
 
-Software Factory STEP 00–15 is complete. The old STEP 09 ready-task list is retired and must not be treated as pending work.
+Software Factory STEP 00–15 remains complete. Maintenance work stays on the `0.1.x` line.
 
-### REL-0.1.0-PUBLISH — Publish official GitHub Release
+### REL-0.1.1-PUBLISH — Publish maintenance patch
 Status: **COMPLETE**
 
-Official GitHub Release `v0.1.0` was published successfully on 2026-10-04 from frozen source `release/0.1.0`, commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`.
+Official GitHub Release `v0.1.1` was published successfully from frozen source `release/0.1.1`, commit `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`.
 
 Verified evidence:
-- Final Release Windows run: `#6` / `37180132492`
-- Tag: `v0.1.0`
-- Release target commit: `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`
-- Windows ZIP SHA-256: `c3e4f92656aefd3d57329627c52b8e057d2f8cac5a0a757471b90cb1d68915e8`
-- Source ZIP SHA-256: `1264b1dc483932b496acf87dee21c93f92d4e1b222aa37ca2284fbf99b9df328`
-- `BUILD_INFO.txt` records version `0.1.0` and the same frozen release commit.
+- Canonical release workflow: `Maintenance Release Windows 0.1.1` run `#1` / `37181599863`
+- Tag: `v0.1.1`
+- Release target commit: `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`
+- Windows ZIP SHA-256: `84ad8cc93f055cb95fc2624511a9eecd541505627628090c277a048e5e8495b4`
+- Source ZIP SHA-256: `a5a00b196e76d34684deef97b9dc605b748e1a32f2f92fe6f761c25b13f720bb`
+- `BUILD_INFO.txt` records version `0.1.1` and the same frozen commit.
 - `SHA256SUMS.txt` matches independently computed hashes for both release ZIP files.
+- Direct ZIP inspection confirmed root `tools/ffmpeg/README.md` and no `_internal/tools/ffmpeg/README.md` duplicate.
+- Maintenance issue #9 is closed.
 
-The temporary one-shot publish trigger used to bridge tooling limitations has been retired. The canonical workflow returns to guarded manual publication behavior and refuses to overwrite an existing tag/release.
+A second one-shot publication attempt was blocked by the overwrite guard after the release already existed. No existing tag/release was replaced.
+
+### REL-0.1.0-PUBLISH — Publish original final release
+Status: **COMPLETE**
+
+Official GitHub Release `v0.1.0` remains the immutable original baseline at commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`.
 
 ## Maintenance intake checklist
 When a concrete request arrives:
@@ -29,7 +36,7 @@ When a concrete request arrives:
 4. identify affected architecture/UI/schema/provider/packaging contracts;
 5. define focused implementation and regression-test tasks;
 6. run the required gates and preserve evidence;
-7. update this file with the active task IDs while work is in progress;
+7. update this file with active task IDs while work is in progress;
 8. clear completed task entries and synchronize `PROJECT_STATE.md` at closure.
 
 ## Guardrail
