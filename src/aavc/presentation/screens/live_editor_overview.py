@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from aavc.domain.project.models import ProjectState
 from aavc.presentation.project_view import (
@@ -12,9 +12,13 @@ from aavc.presentation.project_view import (
     build_scene_views,
     format_duration,
 )
+from aavc.presentation.scene_inspector import (
+    build_scene_inspector_view,
+    scene_index_for_number,
+)
 from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
 from aavc.presentation.timeline_view import TimelinePlan, build_timeline_plan
-from aavc.presentation.widgets.common import muted_label, section_title
+from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 from aavc.presentation.widgets.editor_shell import create_editor_shell
 
 
@@ -30,8 +34,6 @@ def _scene_page(scenes: tuple[SceneView, ...]) -> Any:
             f"Aset: {assets}\nDurasi: {scene.duration_label}"
         )
         widget.addItem(item)
-    if scenes:
-        widget.setCurrentRow(0)
     return widget
 
 
@@ -107,6 +109,80 @@ def _overview_page(project: ProjectState) -> Any:
 
     layout.addStretch(1)
     return page
+
+
+def _scene_inspector_page(
+    project: ProjectState,
+    scene_number: int,
+    on_set_scene_duration: Callable[[int, float], None] | None,
+) -> Any:
+    from PySide6.QtWidgets import (
+        QDoubleSpinBox,
+        QFrame,
+        QLabel,
+        QPushButton,
+        QVBoxLayout,
+        QWidget,
+    )
+
+    view = build_scene_inspector_view(project, scene_number)
+    summary = build_project_summary(project)
+    page = QWidget()
+    layout = QVBoxLayout(page)
+    layout.setContentsMargins(12, 12, 12, 12)
+    layout.setSpacing(10)
+
+    layout.addWidget(section_title("Scene Terpilih"))
+    card = QFrame()
+    card.setProperty("panel", True)
+    card_layout = QVBoxLayout(card)
+    heading = QLabel(f"Scene {view.scene_number:02d} · {view.mode}")
+    heading.setStyleSheet("font-size:15px; font-weight:700;")
+    card_layout.addWidget(heading)
+    card_layout.addWidget(muted_label(f"Aset: {', '.join(view.asset_ids)}"))
+    card_layout.addWidget(muted_label(f"Durasi saat ini: {format_duration(view.duration_seconds)}"))
+    layout.addWidget(card)
+
+    layout.addWidget(section_title("Durasi Scene"))
+    duration = QDoubleSpinBox()
+    duration.setRange(0.001, 86400.0)
+    duration.setDecimals(3)
+    duration.setSingleStep(0.1)
+    duration.setSuffix(" detik")
+    duration.setValue(view.duration_seconds)
+    layout.addWidget(duration)
+
+    apply_button: QPushButton = make_primary_button("Terapkan Durasi")
+    if on_set_scene_duration is None:
+        apply_button.setEnabled(False)
+        apply_button.setToolTip("Perubahan durasi belum terhubung pada sesi ini.")
+    else:
+        apply_button.clicked.connect(
+            lambda: on_set_scene_duration(view.scene_number, float(duration.value()))
+        )
+    layout.addWidget(apply_button)
+
+    note = QLabel(
+        "Perubahan masuk Undo/Redo. Setelah selesai, klik Simpan untuk menulis perubahan ke file project."
+    )
+    note.setWordWrap(True)
+    note.setStyleSheet("color:#64748B; font-size:9px;")
+    layout.addWidget(note)
+
+    layout.addWidget(section_title("Project"))
+    layout.addWidget(muted_label(f"Total durasi: {summary.duration_label}"))
+    layout.addWidget(muted_label(f"Resolusi: {summary.resolution} · {summary.fps} fps"))
+    layout.addStretch(1)
+    return page
+
+
+def _replace_layout_tab(tab_widget: Any, replacement: Any) -> None:
+    previous = tab_widget.widget(0)
+    tab_widget.removeTab(0)
+    tab_widget.insertTab(0, replacement, "Layout")
+    tab_widget.setCurrentIndex(0)
+    if previous is not None:
+        previous.deleteLater()
 
 
 def _draw_missing_asset(painter: Any, asset: Any, width: int, height: int) -> None:
@@ -250,7 +326,13 @@ def _configure_live_timeline(
     return tuple(buttons)
 
 
-def create_live_editor_overview(project: ProjectState) -> Any:
+def create_live_editor_overview(
+    project: ProjectState,
+    *,
+    on_set_scene_duration: Callable[[int, float], None] | None = None,
+    selected_scene_number: int | None = None,
+    on_scene_selected: Callable[[int], None] | None = None,
+) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QLabel, QPushButton, QSlider
 
@@ -306,8 +388,16 @@ def create_live_editor_overview(project: ProjectState) -> Any:
             preview_header.setText("Tidak ada scene terpilih")
             parts.preview_label.clear()
             parts.preview_label.setText("Pilih scene untuk melihat preview statis.")
+            _replace_layout_tab(parts.right_tabs, _overview_page(project))
             return
+
         scene = project.scenes[row]
+        if on_scene_selected is not None:
+            on_scene_selected(scene.scene_number)
+        _replace_layout_tab(
+            parts.right_tabs,
+            _scene_inspector_page(project, scene.scene_number, on_set_scene_duration),
+        )
         plan = build_scene_preview_plan(project, scene)
         preview_header.setText(
             f"Scene {scene.scene_number:02d} · {scene.mode} · "
@@ -320,9 +410,9 @@ def create_live_editor_overview(project: ProjectState) -> Any:
         )
 
     scene_list.currentRowChanged.connect(show_scene)
-    if project.scenes:
-        scene_list.setCurrentRow(0)
-        show_scene(0)
+    selected_index = scene_index_for_number(project, selected_scene_number)
+    if selected_index >= 0:
+        scene_list.setCurrentRow(selected_index)
     else:
         show_scene(-1)
 
