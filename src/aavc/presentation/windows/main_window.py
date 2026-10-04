@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from aavc.application.commands import RelinkAsset
 from aavc.application.services.export_service import ExportOptions, render_project
+from aavc.application.services.validation import validate_project
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
 from aavc.presentation.design_tokens import METRICS, app_stylesheet
@@ -39,6 +41,7 @@ class MainWindow:
         self._route_widgets: dict[UiRoute, Any] = {}
         self._active_dialog: Any | None = None
         self._toolbar: Any | None = None
+        self._validation_button: Any | None = None
         self._build_menu(QAction)
         self._build_toolbar(QToolBar, QAction)
         self._build_pages()
@@ -59,6 +62,42 @@ class MainWindow:
         from PySide6.QtWidgets import QMessageBox
 
         QMessageBox.information(self.window, title, message)
+
+    def _refresh_validation_badge(self) -> None:
+        button = self._validation_button
+        if button is None:
+            return
+
+        project = self.services.project_session.current
+        if project is None:
+            button.setText("✓ Validasi OK")
+            button.setStyleSheet(
+                "color:#15803D; background:#F0FDF4; border:1px solid #BBF7D0; "
+                "border-radius:6px; padding:5px 9px; font-weight:600;"
+            )
+            return
+
+        issues = validate_project(project)
+        errors = sum(issue.severity == "ERROR" for issue in issues)
+        warnings = sum(issue.severity == "WARNING" for issue in issues)
+        if errors:
+            button.setText(f"Validasi: {errors} Error")
+            button.setStyleSheet(
+                "color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; "
+                "border-radius:6px; padding:5px 9px; font-weight:600;"
+            )
+        elif warnings:
+            button.setText(f"Validasi: {warnings} Peringatan")
+            button.setStyleSheet(
+                "color:#B45309; background:#FFFBEB; border:1px solid #FDE68A; "
+                "border-radius:6px; padding:5px 9px; font-weight:600;"
+            )
+        else:
+            button.setText("✓ Validasi OK")
+            button.setStyleSheet(
+                "color:#15803D; background:#F0FDF4; border:1px solid #BBF7D0; "
+                "border-radius:6px; padding:5px 9px; font-weight:600;"
+            )
 
     def create_project_from_docx(self, scene_docx: str) -> None:
         from PySide6.QtWidgets import QFileDialog
@@ -107,6 +146,7 @@ class MainWindow:
 
         self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
         self.window.statusBar().showMessage(f"Proyek dibuat: {destination}", 5000)
+        self._refresh_validation_badge()
         self.show_route(UiRoute.EDITOR)
 
     def open_project(self) -> None:
@@ -127,6 +167,7 @@ class MainWindow:
             return
         self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
         self.window.statusBar().showMessage(f"Proyek dibuka: {chosen}", 5000)
+        self._refresh_validation_badge()
         self.show_route(UiRoute.EDITOR)
 
     def save_project(self) -> None:
@@ -146,6 +187,7 @@ class MainWindow:
         except ValueError as error:
             self.window.statusBar().showMessage(f"Undo tidak tersedia: {error}", 5000)
             return
+        self._refresh_validation_badge()
         self.window.statusBar().showMessage("Undo berhasil", 3000)
 
     def redo_project(self) -> None:
@@ -154,7 +196,38 @@ class MainWindow:
         except ValueError as error:
             self.window.statusBar().showMessage(f"Redo tidak tersedia: {error}", 5000)
             return
+        self._refresh_validation_badge()
         self.window.statusBar().showMessage("Redo berhasil", 3000)
+
+    def relink_asset_from_validation(self, asset_id: str) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        project = self.services.project_session.current
+        if project is None:
+            self._show_project_notice(
+                "Relink tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu.",
+            )
+            return
+
+        chosen, _ = QFileDialog.getOpenFileName(
+            self.window,
+            f"Relink {asset_id}",
+            project.asset_directory,
+            "Gambar (*.png *.jpg *.jpeg *.webp);;Semua File (*.*)",
+        )
+        if chosen:
+            try:
+                self.services.project_session.execute(RelinkAsset(asset_id, chosen))
+            except (AAVCError, OSError, ValueError) as error:
+                self._show_project_error("Relink gagal", error)
+            else:
+                self._refresh_validation_badge()
+                self.window.statusBar().showMessage(
+                    f"{asset_id} direlink. Klik Simpan untuk menyimpan perubahan.",
+                    6000,
+                )
+        self.open_validation()
 
     def render_active_project(self, options: ExportOptions) -> bool:
         from PySide6.QtCore import Qt
@@ -274,6 +347,7 @@ class MainWindow:
         )
         validation.clicked.connect(lambda: self.show_route(UiRoute.VALIDATION_CENTER))
         toolbar.addWidget(validation)
+        self._validation_button = validation
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -350,10 +424,21 @@ class MainWindow:
     def open_validation(self) -> None:
         from aavc.presentation.dialogs.validation_center import create_validation_dialog
 
-        dialog = create_validation_dialog(self.window)
+        project = self.services.project_session.current
+        if project is None:
+            dialog = create_validation_dialog(self.window)
+        else:
+            issues = validate_project(project)
+            dialog = create_validation_dialog(
+                self.window,
+                issues=issues,
+                on_revalidate=self.open_validation,
+                on_relink=self.relink_asset_from_validation,
+            )
         dialog.setModal(False)
         dialog.show()
         self._active_dialog = dialog
+        self._refresh_validation_badge()
 
     def show(self) -> None:
         self.window.show()
