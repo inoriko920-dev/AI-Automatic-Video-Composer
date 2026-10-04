@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from aavc.animation.registry import validate_effect
+from aavc.application.services.media_import import classify_media_path
 from aavc.domain.project.models import AnimationAssignment, AssetBinding, ProjectState, Scene
 
 
@@ -61,6 +62,34 @@ class RelinkAsset:
 
     def describe(self) -> str:
         return f"Relink {self.asset_id}"
+
+
+@dataclass(frozen=True, slots=True)
+class SetNarrationAudio:
+    source_path: str
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        source = Path(self.source_path)
+        if classify_media_path(source) != "narration":
+            raise ValueError("File yang dipilih bukan audio narasi yang didukung")
+        return replace(project, narration_audio=str(source.resolve()))
+
+    def describe(self) -> str:
+        return f"Atur narasi audio: {Path(self.source_path).name}"
+
+
+@dataclass(frozen=True, slots=True)
+class SetSubtitleSource:
+    source_path: str
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        source = Path(self.source_path)
+        if classify_media_path(source) != "subtitle":
+            raise ValueError("File yang dipilih bukan subtitle SRT")
+        return replace(project, subtitle_source=str(source.resolve()))
+
+    def describe(self) -> str:
+        return f"Atur subtitle: {Path(self.source_path).name}"
 
 
 @dataclass(frozen=True, slots=True)
