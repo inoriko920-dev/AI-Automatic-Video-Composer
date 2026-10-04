@@ -37,6 +37,11 @@ def format_srt_timestamp(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
 
+def _normalize_cue_text(text: str) -> str:
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    return "\\N".join(line.strip() for line in normalized.splitlines())
+
+
 def _validate_cue(cue: SubtitleCue) -> None:
     if cue.start_seconds < 0:
         raise ValueError("Waktu mulai cue tidak boleh negatif")
@@ -77,16 +82,38 @@ def replace_subtitle_cue(
 ) -> tuple[SubtitleCue, ...]:
     if row < 0 or row >= len(cues):
         raise ValueError("Cue subtitle yang dipilih tidak valid")
-    normalized_text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
     replacement = replace(
         cues[row],
         start_seconds=start_seconds,
         end_seconds=end_seconds,
-        text="\\N".join(line.strip() for line in normalized_text.splitlines()),
+        text=_normalize_cue_text(text),
     )
     _validate_cue(replacement)
     items = list(cues)
     items[row] = replacement
+    return tuple(items)
+
+
+def insert_subtitle_cue(
+    cues: tuple[SubtitleCue, ...],
+    after_row: int,
+    *,
+    text: str,
+    start_seconds: float,
+    end_seconds: float,
+) -> tuple[SubtitleCue, ...]:
+    if after_row < -1 or after_row >= len(cues):
+        raise ValueError("Posisi cue baru tidak valid")
+    next_index = max((cue.index for cue in cues), default=0) + 1
+    new_cue = SubtitleCue(
+        index=next_index,
+        start_seconds=start_seconds,
+        end_seconds=end_seconds,
+        text=_normalize_cue_text(text),
+    )
+    _validate_cue(new_cue)
+    items = list(cues)
+    items.insert(after_row + 1, new_cue)
     return tuple(items)
 
 
