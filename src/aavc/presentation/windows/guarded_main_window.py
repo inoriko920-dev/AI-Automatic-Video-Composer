@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from aavc.application.commands.scene_order import DeleteScene, MoveScene
+from aavc.application.commands.scene_order import DeleteScene, DuplicateScene, MoveScene
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
@@ -99,6 +99,13 @@ class GuardedMainWindow(MainWindow):
         )
         edit_menu.addAction(move_down)
         edit_menu.addSeparator()
+
+        duplicate_scene = action_type("Duplikasi Scene", self.window)
+        duplicate_scene.setShortcut("Ctrl+D")
+        duplicate_scene.triggered.connect(
+            lambda _checked=False: self.duplicate_selected_scene()
+        )
+        edit_menu.addAction(duplicate_scene)
 
         delete_scene = action_type("Hapus Scene", self.window)
         delete_scene.setShortcut("Delete")
@@ -231,6 +238,47 @@ class GuardedMainWindow(MainWindow):
         self.window.statusBar().showMessage(
             f"Scene {scene_number:02d} dipindah satu posisi ke {direction}. "
             "Klik Simpan untuk menyimpan perubahan.",
+            7000,
+        )
+
+    def duplicate_selected_scene(self) -> None:
+        session = self.services.project_session
+        project = session.current
+        if project is None:
+            self._show_project_notice(
+                "Duplikasi Scene tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu.",
+            )
+            return
+
+        scene_number = self._selected_scene_number
+        if scene_number is None:
+            self.window.statusBar().showMessage(
+                "Pilih Scene terlebih dahulu sebelum menduplikasi.",
+                5000,
+            )
+            return
+
+        try:
+            updated = session.execute(DuplicateScene(scene_number))
+        except ValueError as error:
+            self.window.statusBar().showMessage(str(error), 5000)
+            return
+
+        source_index = next(
+            index
+            for index, scene in enumerate(updated.scenes)
+            if scene.scene_number == scene_number
+        )
+        duplicate = updated.scenes[source_index + 1]
+        self._selected_scene_number = duplicate.scene_number
+        self._refresh_window_title()
+        self._refresh_validation_badge()
+        self.refresh_editor_overview()
+        self.window.statusBar().showMessage(
+            f"Scene {scene_number:02d} diduplikasi menjadi Scene "
+            f"{duplicate.scene_number:02d}. Gunakan Undo untuk membatalkan atau "
+            "klik Simpan untuk menyimpan perubahan.",
             7000,
         )
 
