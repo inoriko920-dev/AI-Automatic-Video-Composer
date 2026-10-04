@@ -6,11 +6,23 @@ from dataclasses import replace
 
 from aavc.domain.project.models import AnimationAssignment, ProjectState
 
-from .registry import effect_names
+from .registry import effect_names, validate_effect
 
 
 def _existing_by_key(project: ProjectState) -> dict[tuple[int, str], AnimationAssignment]:
     return {(item.scene_number, item.asset_id): item for item in project.animations}
+
+
+def _normalize_effect_pool(effect_pool: Iterable[str] | None) -> list[str]:
+    if effect_pool is None:
+        return list(effect_names())
+
+    names = list(dict.fromkeys(effect_pool))
+    if len(names) < 2:
+        raise ValueError("Effect pool harus memiliki minimal dua efek berbeda")
+    for name in names:
+        validate_effect(name)
+    return names
 
 
 def randomize_project_animations(
@@ -19,11 +31,15 @@ def randomize_project_animations(
     seed: int,
     scene_numbers: Iterable[int] | None = None,
     cooldown: int = 2,
+    effect_pool: Iterable[str] | None = None,
 ) -> ProjectState:
     """Assign deterministic visual effects while respecting locks and cooldown."""
+    if cooldown < 0:
+        raise ValueError("Cooldown animasi tidak boleh negatif")
+
     rng = random.Random(seed)
     allowed_scenes = set(scene_numbers) if scene_numbers is not None else None
-    names = list(effect_names())
+    names = _normalize_effect_pool(effect_pool)
     existing = _existing_by_key(project)
     recent: list[str] = []
     output: list[AnimationAssignment] = []
