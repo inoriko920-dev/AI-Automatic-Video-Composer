@@ -60,7 +60,7 @@ def overlay_subtitle_pixmap(
     if cue is None or pixmap.isNull():
         return pixmap
 
-    from PySide6.QtCore import QRect
+    from PySide6.QtCore import QRect, Qt
     from PySide6.QtGui import QColor, QFont, QPainter, QPen
 
     result = pixmap.copy()
@@ -91,7 +91,7 @@ def overlay_subtitle_pixmap(
         padding = max(4, int(round(8 * scale)))
         background = bounds.adjusted(-padding, -padding, padding, padding)
         opacity = max(0, min(100, int(style.background_opacity)))
-        painter.setPen(Qt.PenStyle.NoPen)  # type: ignore[name-defined]
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(0, 0, 0, int(round(255 * opacity / 100))))
         painter.drawRoundedRect(background, padding, padding)
 
@@ -110,7 +110,12 @@ def overlay_subtitle_pixmap(
     outline_px = max(0, min(8, int(round(style.outline_width * scale))))
     if outline_px:
         painter.setPen(QPen(outline, max(1, outline_px)))
-        for dx, dy in ((-outline_px, 0), (outline_px, 0), (0, -outline_px), (0, outline_px)):
+        for dx, dy in (
+            (-outline_px, 0),
+            (outline_px, 0),
+            (0, -outline_px),
+            (0, outline_px),
+        ):
             painter.drawText(rect.translated(dx, dy), int(flags), text)
 
     painter.setPen(fill)
