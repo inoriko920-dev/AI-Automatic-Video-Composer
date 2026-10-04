@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from aavc.animation.registry import validate_effect
-from aavc.application.services.media_import import classify_media_path
+from aavc.application.media_import import classify_media_path
 from aavc.domain.project.models import AnimationAssignment, AssetBinding, ProjectState, Scene
 
 
