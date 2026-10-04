@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from aavc.application.commands.scene_order import MoveScene
+from aavc.application.commands.scene_order import DeleteScene, MoveScene
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
@@ -98,6 +98,14 @@ class GuardedMainWindow(MainWindow):
             lambda _checked=False: self.move_selected_scene(1)
         )
         edit_menu.addAction(move_down)
+        edit_menu.addSeparator()
+
+        delete_scene = action_type("Hapus Scene", self.window)
+        delete_scene.setShortcut("Delete")
+        delete_scene.triggered.connect(
+            lambda _checked=False: self.delete_selected_scene()
+        )
+        edit_menu.addAction(delete_scene)
 
     def _install_close_guard(self) -> None:
         from PySide6.QtCore import QEvent, QObject
@@ -223,6 +231,65 @@ class GuardedMainWindow(MainWindow):
         self.window.statusBar().showMessage(
             f"Scene {scene_number:02d} dipindah satu posisi ke {direction}. "
             "Klik Simpan untuk menyimpan perubahan.",
+            7000,
+        )
+
+    def delete_selected_scene(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        session = self.services.project_session
+        project = session.current
+        if project is None:
+            self._show_project_notice(
+                "Hapus Scene tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu.",
+            )
+            return
+
+        scene_number = self._selected_scene_number
+        if scene_number is None:
+            self.window.statusBar().showMessage(
+                "Pilih Scene terlebih dahulu sebelum menghapus.",
+                5000,
+            )
+            return
+
+        if len(project.scenes) <= 1:
+            self.window.statusBar().showMessage(
+                "Scene terakhir tidak boleh dihapus.",
+                5000,
+            )
+            return
+
+        scene_index = next(
+            index
+            for index, scene in enumerate(project.scenes)
+            if scene.scene_number == scene_number
+        )
+        answer = QMessageBox.question(
+            self.window,
+            "Hapus Scene",
+            f"Hapus Scene {scene_number:02d}? Aksi ini dapat dikembalikan dengan Undo.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            updated = session.execute(DeleteScene(scene_number))
+        except ValueError as error:
+            self.window.statusBar().showMessage(str(error), 5000)
+            return
+
+        next_index = min(scene_index, len(updated.scenes) - 1)
+        self._selected_scene_number = updated.scenes[next_index].scene_number
+        self._refresh_window_title()
+        self._refresh_validation_badge()
+        self.refresh_editor_overview()
+        self.window.statusBar().showMessage(
+            f"Scene {scene_number:02d} dihapus. Gunakan Undo untuk mengembalikan "
+            "atau klik Simpan untuk menyimpan perubahan.",
             7000,
         )
 

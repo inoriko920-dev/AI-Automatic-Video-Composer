@@ -8,8 +8,11 @@ from .project_commands import (
     SetSubtitleSource,
     SetSubtitleStyle,
 )
+from .scene_order import DeleteScene, MoveScene
 
 __all__ = [
+    "DeleteScene",
+    "MoveScene",
     "ProjectCommand",
     "RelinkAsset",
     "SetAnimationAssignment",
