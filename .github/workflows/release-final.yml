@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - bootstrap/step15
-      - publish/v0.1.0
     paths-ignore:
       - STEP15_STATUS.md
   workflow_dispatch:
@@ -38,13 +37,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_source_ref || (github.event_name == 'push' && github.ref == 'refs/heads/publish/v0.1.0') && 'release/0.1.0' || github.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_source_ref || github.sha }}
       - name: Validate official release inputs
-        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_github_release) || (github.event_name == 'push' && github.ref == 'refs/heads/publish/v0.1.0') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_github_release }}
         shell: pwsh
         env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || 'v0.1.0' }}
-          RELEASE_SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.release_source_ref || 'release/0.1.0' }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_SOURCE_REF: ${{ inputs.release_source_ref }}
         run: |
           if ($env:RELEASE_TAG -ne "v0.1.0") {
             throw "This workflow is sealed for v0.1.0; got release_tag=$env:RELEASE_TAG"
@@ -122,7 +121,7 @@ jobs:
           retention-days: 90
 
   publish-github-release:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_github_release) || (github.event_name == 'push' && github.ref == 'refs/heads/publish/v0.1.0') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_github_release }}
     needs: final-release
     runs-on: ubuntu-latest
     permissions:
@@ -136,7 +135,7 @@ jobs:
       - name: Refuse to overwrite an existing tag or release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || 'v0.1.0' }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -151,7 +150,7 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || 'v0.1.0' }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
           RELEASE_COMMIT: ${{ needs.final-release.outputs.release_commit }}
         shell: bash
         run: |
