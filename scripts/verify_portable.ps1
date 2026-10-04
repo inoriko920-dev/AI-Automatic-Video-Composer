@@ -24,10 +24,10 @@ foreach ($requiredName in $requiredNames) {
   if (-not $found) { throw "$requiredName tidak ditemukan dalam portable artifact" }
 }
 
-$ffmpegReadme = Get-ChildItem $dist -Recurse -File -Filter "README.md" | Where-Object {
-  $_.FullName -match 'tools\\ffmpeg'
-} | Select-Object -First 1
-if (-not $ffmpegReadme) { throw "FFmpeg runtime policy README tidak ditemukan" }
+$ffmpegReadme = Join-Path $dist "tools\ffmpeg\README.md"
+if (-not (Test-Path $ffmpegReadme)) {
+  throw "FFmpeg app-local slot tidak ditemukan di samping portable EXE: $ffmpegReadme"
+}
 
 # Block secret/runtime artifacts, but allow documentation files whose names contain
 # words such as BACKUP or RECOVERY.
@@ -39,4 +39,5 @@ if ($forbidden) { throw "Forbidden runtime/user file ditemukan dalam artifact: $
 
 Write-Host "PORTABLE_SMOKE_OK"
 Write-Host "EXE=$exe"
+Write-Host "FFMPEG_SLOT_OK=$ffmpegReadme"
 Write-Host "FINAL_RELEASE_DOCS_OK"
