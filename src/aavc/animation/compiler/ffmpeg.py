@@ -5,10 +5,12 @@ from aavc.domain.project.models import AnimationAssignment
 NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift"})
 NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade", "Pop", "Stomp"})
 NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop", "Breathe", "Stomp"})
+NATIVE_VISUAL_ROTATION_EFFECTS = frozenset({"Tumble"})
 NATIVE_VISUAL_EFFECTS = (
     NATIVE_VISUAL_MOTION_EFFECTS
     | NATIVE_VISUAL_ALPHA_EFFECTS
     | NATIVE_VISUAL_SCALE_EFFECTS
+    | NATIVE_VISUAL_ROTATION_EFFECTS
 )
 
 
@@ -22,6 +24,10 @@ def is_native_visual_alpha_effect(name: str) -> bool:
 
 def is_native_visual_scale_effect(name: str) -> bool:
     return name in NATIVE_VISUAL_SCALE_EFFECTS
+
+
+def is_native_visual_rotation_effect(name: str) -> bool:
+    return name in NATIVE_VISUAL_ROTATION_EFFECTS
 
 
 def is_native_visual_effect(name: str) -> bool:
@@ -58,6 +64,17 @@ def assignment_has_native_scale(
     return (
         is_native_visual_scale_effect(assignment.enter_effect)
         or is_native_visual_scale_effect(assignment.exit_effect)
+    )
+
+
+def assignment_has_native_rotation(
+    assignment: AnimationAssignment | None,
+) -> bool:
+    if assignment is None or assignment.intensity <= 0:
+        return False
+    return (
+        is_native_visual_rotation_effect(assignment.enter_effect)
+        or is_native_visual_rotation_effect(assignment.exit_effect)
     )
 
 
@@ -149,6 +166,61 @@ def compile_native_scale_filter(
     )
     width = f"max(2,trunc(iw*({factor})/2)*2)"
     return f"scale=w='{width}':h=-2:eval=frame"
+
+
+def _rotation_term(
+    effect: str,
+    *,
+    entering: bool,
+    duration_seconds: float,
+    window_seconds: float,
+    intensity: float,
+) -> str | None:
+    if effect != "Tumble":
+        return None
+
+    window = f"{window_seconds:.6f}"
+    max_angle = 0.209440 * intensity
+    if entering:
+        return f"if(lt(t,{window}),-(1-t/{window})*{max_angle:.6f},0)"
+
+    exit_start = max(0.0, duration_seconds - window_seconds)
+    start = f"{exit_start:.6f}"
+    return f"if(gt(t,{start}),((t-{start})/{window})*{max_angle:.6f},0)"
+
+
+def compile_native_rotation_filter(
+    assignment: AnimationAssignment | None,
+    *,
+    duration_seconds: float,
+) -> str | None:
+    """Compile frame-evaluated Tumble rotation without changing base layout size."""
+
+    if not assignment_has_native_rotation(assignment) or assignment is None:
+        return None
+
+    duration = max(0.001, float(duration_seconds))
+    window = min(0.25, duration / 2.0)
+    intensity = max(0.0, min(2.0, float(assignment.intensity)))
+    terms: list[str] = []
+    for effect, entering in (
+        (assignment.enter_effect, True),
+        (assignment.exit_effect, False),
+    ):
+        term = _rotation_term(
+            effect,
+            entering=entering,
+            duration_seconds=duration,
+            window_seconds=window,
+            intensity=intensity,
+        )
+        if term is not None:
+            terms.append(term)
+
+    if not terms:
+        return None
+    angle = "+".join(f"({term})" for term in terms)
+    return f"rotate=a='{angle}':ow=iw:oh=ih:c=none"
 
 
 def _motion_term(
