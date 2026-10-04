@@ -26,13 +26,11 @@ jobs:
         with:
           fetch-depth: 0
           ref: release/0.1.1
-      - name: Resolve and validate frozen release source
+      - name: Resolve frozen release source
         id: release_source
         shell: pwsh
         run: |
           $commit = (git rev-parse HEAD).Trim()
-          $version = (python -c "from aavc import __version__; print(__version__)").Trim()
-          if ($version -ne "0.1.1") { throw "Expected package version 0.1.1, got $version" }
           "commit=$commit" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           Write-Host "Release source commit: $commit"
       - uses: actions/setup-python@v7
@@ -44,6 +42,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.lock
           python -m pip install -e .
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          $version = (python -c "from aavc import __version__; print(__version__)").Trim()
+          if ($version -ne "0.1.1") { throw "Expected package version 0.1.1, got $version" }
       - name: Compile
         run: python -m compileall -q src
       - name: Ruff
