@@ -85,7 +85,7 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, dan live-editor-overview, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, live-editor-overview, dan static-scene-preview, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
@@ -100,7 +100,7 @@ Pada source `main` setelah maintenance project-session, new-project-session, rea
 
 Jika **Simpan** dipilih tanpa project aktif, aplikasi memberi penjelasan bahwa penyimpanan belum tersedia untuk sesi tersebut. Undo/Redo yang tidak memiliki aksi juga memberi feedback dan tidak merusak state project.
 
-## 7. Editor Overview dari project aktif
+## 7. Editor Overview dan preview statis dari project aktif
 
 Pada source `main` setelah maintenance live-editor-overview, editor yang dibuka setelah **Buat/Buka Project** tidak lagi memakai daftar Scene/Aset demo sebagai data project.
 
@@ -116,7 +116,16 @@ Bagian yang sekarang berasal dari `ProjectState` aktif:
 
 Aset yang belum ditemukan ditampilkan sebagai `MISSING`/belum READY, bukan thumbnail contoh. Overview dibangun ulang setelah Create/Open dan setelah perubahan model melalui Undo/Redo, Relink, atau Impor Media.
 
-**Pratinjau project nyata dan timeline editing belum terhubung pada tahap ini.** Pada live overview, area preview menampilkan penjelasan bahwa preview belum aktif dan timeline dinonaktifkan. Hal ini sengaja dilakukan agar data demo lama tidak tampak seperti hasil project aktif. Fixture editor lama tetap dipertahankan hanya untuk no-session STEP09 visual-reference capture.
+Pada source `main` setelah maintenance static-scene-preview, memilih Scene pada daftar kiri juga memperbarui **preview statis** dari aset project yang sebenarnya. Preview memakai `solve_layout(scene)`, yaitu placement canonical yang sama dengan render engine:
+
+- scene SINGLE memakai satu aset di posisi/ukuran canonical SINGLE;
+- scene DOUBLE memakai dua aset pada posisi kiri/kanan canonical DOUBLE;
+- aspect ratio gambar dipertahankan;
+- asset READY dimuat dari path binding project;
+- asset hilang, corrupt, atau tidak dapat dimuat ditampilkan sebagai placeholder yang jelas, bukan gambar demo;
+- header preview menunjukkan nomor scene, mode, resolusi project, dan durasi scene.
+
+Preview ini belum merupakan pemutar video. Playback, audio, subtitle overlay, animasi enter/exit, dan scrubbing belum aktif. Kontrol transport/scrub dinonaktifkan pada live project agar tidak terlihat seolah-olah berfungsi. Timeline editing juga masih dinonaktifkan. Fixture editor lama tetap dipertahankan hanya untuk no-session STEP09 visual-reference capture.
 
 ## 8. Validasi project dan relink aset
 
@@ -201,9 +210,9 @@ Jika project belum memiliki `subtitle_source`, **Tambah Teks** meminta pengguna 
 
 ## 12. Kontrol yang belum terhubung penuh
 
-Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Preview project nyata, timeline editing, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final.
+Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Playback preview, timeline editing/scrubbing, animasi preview, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final.
 
-Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-editor-overview berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-editor-overview/static-scene-preview berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
 ## 13. Sebelum ekspor
 
