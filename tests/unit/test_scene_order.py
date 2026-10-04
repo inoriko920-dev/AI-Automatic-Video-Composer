@@ -1,10 +1,12 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from aavc.application.commands.scene_order import MoveScene
+from aavc.application.commands.scene_order import DeleteScene, MoveScene
 from aavc.application.services.project_session import ProjectSession
 from aavc.application.services.vertical_slice import create_project_state
+from aavc.domain.project.models import AnimationAssignment
 from aavc.rendering import build_render_plan
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
@@ -65,3 +67,78 @@ def test_move_scene_requires_single_step_offset() -> None:
     project = _project()
     with pytest.raises(ValueError, match="-1 atau 1"):
         MoveScene(project.scenes[0].scene_number, 2).apply(project)
+
+
+def test_delete_scene_updates_history_render_and_cleans_orphans(tmp_path: Path) -> None:
+    project = _project()
+    first, second, *_ = project.scenes
+    project = replace(
+        project,
+        animations=(
+            AnimationAssignment(first.scene_number, first.asset_ids[0]),
+            AnimationAssignment(second.scene_number, second.asset_ids[0]),
+        ),
+    )
+    original_order = _numbers(project)
+
+    session = ProjectSession()
+    session.start(project, tmp_path / "scene-delete.aavcproj")
+
+    deleted = session.execute(DeleteScene(first.scene_number))
+    assert first.scene_number not in _numbers(deleted)
+    assert session.is_dirty
+
+    used_asset_ids = {
+        asset_id
+        for scene in deleted.scenes
+        for asset_id in scene.asset_ids
+    }
+    assert {binding.asset_id for binding in deleted.bindings} == used_asset_ids
+    assert all(
+        assignment.scene_number != first.scene_number
+        for assignment in deleted.animations
+    )
+
+    render_plan = build_render_plan(deleted, tmp_path / "scene-delete.mp4")
+    assert tuple(scene.scene_number for scene in render_plan.scenes) == _numbers(deleted)
+
+    undone = session.undo()
+    assert _numbers(undone) == original_order
+    assert undone.bindings == project.bindings
+    assert undone.animations == project.animations
+    assert not session.is_dirty
+
+    redone = session.redo()
+    assert first.scene_number not in _numbers(redone)
+    assert session.is_dirty
+
+
+def test_delete_scene_keeps_shared_binding() -> None:
+    project = _project()
+    first, second, *rest = project.scenes
+    shared_asset = first.asset_ids[0]
+    second_with_shared = replace(
+        second,
+        asset_ids=(shared_asset,),
+        source_quotes=(second.source_quotes[0],),
+    )
+    project = replace(project, scenes=(first, second_with_shared, *rest))
+
+    deleted = DeleteScene(first.scene_number).apply(project)
+
+    assert any(binding.asset_id == shared_asset for binding in deleted.bindings)
+
+
+def test_delete_scene_rejects_last_scene_without_history_entry(tmp_path: Path) -> None:
+    project = _project()
+    only_scene = project.scenes[0]
+    project = replace(project, scenes=(only_scene,))
+    session = ProjectSession()
+    session.start(project, tmp_path / "single-scene.aavcproj")
+
+    with pytest.raises(ValueError, match="terakhir"):
+        session.execute(DeleteScene(only_scene.scene_number))
+
+    assert _numbers(session.current) == (only_scene.scene_number,)
+    assert not session.is_dirty
+    assert not session.can_undo
