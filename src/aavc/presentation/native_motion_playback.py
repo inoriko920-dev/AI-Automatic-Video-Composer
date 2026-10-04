@@ -6,6 +6,7 @@ from typing import Any
 from aavc.domain.project.models import AnimationAssignment, ProjectState
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
+    preview_continuation_scene_index,
     preview_narration_seconds,
     preview_neighbor_scene_index,
     preview_scrub_seconds,
@@ -142,7 +143,7 @@ def _load_preview_subtitles(project: ProjectState) -> tuple[SubtitleCue, ...]:
 
 
 def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
-    """Enable motion, scrub, transport, narration, timecode, and timed subtitles."""
+    """Enable continuous motion, scrub, narration, timecode, and timed subtitles."""
 
     from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QPushButton, QSlider
@@ -173,8 +174,8 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     previous_button.setToolTip("Pilih Scene sebelumnya pada preview.")
     next_button.setToolTip("Pilih Scene berikutnya pada preview.")
     play_button.setToolTip(
-        "Putar preview motion native Rise/Pan/Drift untuk Scene terpilih. "
-        "Narasi dan subtitle beserta animasi ASS-nya ikut preview bila tersedia."
+        "Putar preview kontinu mulai Scene terpilih sampai akhir project. "
+        "Motion native, narasi, subtitle, dan animasi subtitle ikut preview bila tersedia."
     )
     if progress_slider is not None:
         progress_slider.setRange(0, 1000)
@@ -228,6 +229,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     timer.setInterval(max(15, int(round(1000 / fps))))
     frame_step = 1.0 / fps
     playback_seconds = 0.0
+    continuing_across_scene = False
     scene_durations = tuple(scene.duration_seconds for scene in project.scenes)
     total_project_seconds = sum(max(0.0, float(value)) for value in scene_durations)
 
@@ -325,14 +327,35 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
             progress_slider.setValue(0)
 
     def tick() -> None:
-        nonlocal playback_seconds
+        nonlocal continuing_across_scene, playback_seconds
         plan = selected_plan()
         if plan is None:
             stop_playback(restore_static=False)
             return
         playback_seconds += frame_step
         if playback_seconds >= plan.duration_seconds:
-            stop_playback()
+            target = preview_continuation_scene_index(
+                scene_list.currentRow(),
+                len(project.scenes),
+            )
+            if target is None:
+                timer.stop()
+                pause_audio()
+                playback_seconds = plan.duration_seconds
+                render_frame(playback_seconds)
+                seek_audio(playback_seconds)
+                play_button.setText("▶")
+                return
+
+            playback_seconds = 0.0
+            continuing_across_scene = True
+            try:
+                scene_list.setCurrentRow(target)
+            finally:
+                continuing_across_scene = False
+            seek_audio(0.0)
+            if media_player is not None:
+                media_player.play()
             return
         render_frame(playback_seconds)
 
@@ -400,6 +423,11 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
             scene_list.setCurrentRow(target)
 
     def scene_changed(row: int) -> None:
+        if continuing_across_scene:
+            update_transport_state(row)
+            update_timecode(0.0)
+            render_frame(0.0)
+            return
         stop_playback(restore_static=False)
         update_transport_state(row)
         update_timecode(0.0)
