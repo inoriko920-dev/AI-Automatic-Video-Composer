@@ -6,6 +6,7 @@ from aavc.animation.compiler import (
     assignment_has_native_motion,
     compile_motion_overlay_position,
     compile_native_alpha_filters,
+    compile_native_scale_filter,
 )
 from aavc.domain.project.models import AnimationAssignment
 
@@ -45,6 +46,12 @@ def _scaled_asset_clause(
         f"force_original_aspect_ratio=decrease:flags={scale_flags},"
         "setpts=PTS-STARTPTS"
     )
+    scale_filter = compile_native_scale_filter(
+        assignment,
+        duration_seconds=duration_seconds,
+    )
+    if scale_filter is not None:
+        base += "," + scale_filter
     alpha_filters = compile_native_alpha_filters(
         assignment,
         duration_seconds=duration_seconds,
