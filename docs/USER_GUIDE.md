@@ -85,7 +85,7 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, new-project-session, dan real-export-render, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, dan real-validation-center, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
@@ -93,13 +93,39 @@ Pada source `main` setelah maintenance project-session, new-project-session, dan
 - **Undo** → memundurkan perubahan model pada `ProjectHistory` jika tersedia.
 - **Redo** → mengulangi perubahan model pada `ProjectHistory` jika tersedia.
 - **Tambah Teks** → membuka area subtitle.
-- **Validasi** → membuka Validation Center.
+- **Validasi** → menghitung issue dari `ProjectState` aktif dan membuka Validation Center dengan data nyata.
 - **Ekspor Video** → membuka pengaturan ekspor; **Mulai Render** menjalankan render pipeline FFmpeg nyata untuk project aktif.
 - **Keluar** → menutup aplikasi.
 
 Jika **Simpan** dipilih tanpa project aktif, aplikasi memberi penjelasan bahwa penyimpanan belum tersedia untuk sesi tersebut. Undo/Redo yang tidak memiliki aksi juga memberi feedback dan tidak merusak state project.
 
-## 7. Ekspor video nyata pada source main
+## 7. Validasi project dan relink aset
+
+Pada source `main` setelah maintenance real-validation-center, tombol validasi tidak lagi mengandalkan contoh statis ketika ada project aktif.
+
+Application service `validate_project()` saat ini mendeteksi issue yang memang didukung engine, antara lain:
+
+- asset yang belum `READY` / file canonical belum terikat dengan benar;
+- durasi scene yang terlalu pendek menurut rule validation saat ini.
+
+Badge validasi pada toolbar mengikuti state project aktif:
+
+- **merah** jika ada error;
+- **kuning** jika tidak ada error tetapi ada warning;
+- **hijau / Validasi OK** jika tidak ada issue.
+
+Di Validation Center:
+
+1. Ringkasan Error/Peringatan dihitung dari hasil validasi project aktif.
+2. Issue dikelompokkan ke kategori Project, Media, dan Scene; kategori AI/Render tetap 0 jika engine belum menghasilkan issue untuk kategori tersebut.
+3. **Validasi Ulang** membaca `ProjectState` terbaru dari session, bukan memakai data lama.
+4. Untuk issue asset belum READY, tombol **Relink** membuka file picker gambar pengganti.
+5. Relink dijalankan melalui `RelinkAsset` di `ProjectHistory`, sehingga dapat di-**Undo**.
+6. Relink mengubah state di memori; tekan **Simpan** untuk menulis perubahan ke `.aavcproj`.
+
+Fixture `2 Error, 3 Peringatan` yang lama hanya dipertahankan sebagai fallback tanpa sesi untuk frozen STEP09 visual-reference capture. Pada penggunaan normal, toolbar editor tidak tersedia dari Home/New Project sebelum ada project aktif.
+
+## 8. Ekspor video nyata pada source main
 
 Pada source `main` setelah maintenance real-export-render, dialog ekspor meneruskan pilihan yang didukung ke render engine:
 
@@ -120,29 +146,29 @@ Render UI pertama ini bersifat **synchronous**: aplikasi menampilkan wait cursor
 
 Jika tidak ada project aktif, **Mulai Render** ditolak dan pengguna diminta membuat atau membuka project terlebih dahulu.
 
-## 8. Kontrol yang belum terhubung penuh
+## 9. Kontrol yang belum terhubung penuh
 
 Pada source `main`, kontrol seperti **Impor Media** dan **Rekam Narasi** belum memiliki integrasi sesi penuh dari shell utama. Aplikasi tidak lagi diam tanpa penjelasan; ketika fitur belum tersedia, pengguna mendapat pesan **Fitur belum terhubung** dan tidak ada perubahan project yang dilakukan.
 
 Beberapa menu placeholder dan Bantuan Cepat juga masih berfungsi sebagai shell UI, bukan workflow final.
 
-Catatan penting: maintenance project-session/new-project-session/real-export-render berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
-## 9. Sebelum ekspor
+## 10. Sebelum ekspor
 
 Sebelum menjalankan ekspor, periksa minimal:
 
 - Scene DOCX dapat dibaca.
 - Asset ID yang diminta tersedia dan nama canonical-nya benar.
 - Media/audio yang dibutuhkan proyek tersedia.
-- Tidak ada asset missing pada Validation Center.
+- Badge/Validation Center tidak menunjukkan asset missing yang belum diperbaiki.
 - FFmpeg tersedia pada `tools/ffmpeg/` atau system `PATH`.
 - Subtitle source valid jika burn-in subtitle digunakan.
 - Pengaturan resolusi, FPS, codec, kualitas, dan ketajaman sesuai kebutuhan.
 
 Gunakan tombol **Validasi** untuk meninjau masalah yang dapat dideteksi sebelum render.
 
-## 10. Jika proyek bermasalah
+## 11. Jika proyek bermasalah
 
 Jangan menghapus file proyek asli ketika melakukan recovery.
 
@@ -150,7 +176,7 @@ Repo menyediakan mekanisme versioned project state dan recovery snapshot. Untuk 
 
 Jika asset berpindah folder, gunakan workflow relink/validation daripada mengganti ID canonical secara acak.
 
-## 11. Untuk developer
+## 12. Untuk developer
 
 Baseline pengembangan aktif:
 
@@ -169,7 +195,7 @@ Perintah PowerShell utama:
 ./scripts/verify_portable.ps1
 ```
 
-## 12. Batas dokumen ini
+## 13. Batas dokumen ini
 
 Panduan ini menjelaskan kemampuan yang dapat dibuktikan dari source dan release metadata repo. Ia tidak menjanjikan bahwa semua kontrol visual telah terhubung end-to-end pada setiap binary historis.
 
