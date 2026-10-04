@@ -7,6 +7,17 @@ on:
     paths-ignore:
       - STEP15_STATUS.md
   workflow_dispatch:
+    inputs:
+      publish_github_release:
+        description: Publish the verified bundle as a GitHub Release after all gates pass
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: Git tag to create for the published release
+        required: false
+        default: v0.1.0
+        type: string
 
 permissions:
   contents: read
@@ -80,3 +91,40 @@ jobs:
           path: release/*
           if-no-files-found: error
           retention-days: 90
+
+  publish-github-release:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_github_release }}
+    needs: final-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified final bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: AAVC-0.1.0-final-win64
+          path: release
+      - name: Refuse to overwrite an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub Release $RELEASE_TAG already exists; refusing to overwrite it."
+            exit 1
+          fi
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "AI Automatic Video Composer 0.1.0" \
+            --notes-file release/RELEASE_NOTES_0.1.0.md
