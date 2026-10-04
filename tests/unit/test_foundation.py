@@ -5,8 +5,8 @@ from aavc.bootstrap.composition_root import build_foundation_services
 from aavc.bootstrap.startup import FOUNDATION_SMOKE_TOKEN, main
 
 
-def test_package_version_matches_release_candidate() -> None:
-    assert __version__ == "0.1.0rc1"
+def test_package_version_matches_final_release() -> None:
+    assert __version__ == "0.1.0"
 
 
 def test_composition_root_builds_without_qt() -> None:
