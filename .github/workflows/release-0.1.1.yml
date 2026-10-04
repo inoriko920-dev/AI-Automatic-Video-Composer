@@ -1,35 +1,25 @@
-name: Maintenance Release Windows 0.1.1
+name: Historical Verification Windows 0.1.1
 
 on:
   workflow_dispatch:
-    inputs:
-      publish_github_release:
-        description: Attempt to publish the verified 0.1.1 bundle as a GitHub Release
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
 
 jobs:
-  final-release:
+  historical-verification:
     runs-on: windows-latest
     timeout-minutes: 40
-    outputs:
-      release_commit: ${{ steps.release_source.outputs.commit }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: release/0.1.1
       - name: Resolve frozen release source
-        id: release_source
         shell: pwsh
         run: |
           $commit = (git rev-parse HEAD).Trim()
-          "commit=$commit" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "Release source commit: $commit"
+          Write-Host "Historical 0.1.1 source commit: $commit"
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -68,7 +58,7 @@ jobs:
       - name: Verify portable artifact
         shell: pwsh
         run: ./scripts/verify_portable.ps1
-      - name: Prepare 0.1.1 release bundle
+      - name: Prepare historical verification bundle
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release | Out-Null
@@ -90,52 +80,10 @@ jobs:
             "$hash  $([System.IO.Path]::GetFileName($file))"
           }
           $sumLines | Set-Content release/SHA256SUMS.txt -Encoding utf8
-      - name: Upload verified 0.1.1 bundle
+      - name: Upload historical verification bundle
         uses: actions/upload-artifact@v7
         with:
-          name: AAVC-0.1.1-final-win64
+          name: AAVC-0.1.1-historical-verification
           path: release/*
           if-no-files-found: error
-          retention-days: 90
-
-  publish-github-release:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_github_release }}
-    needs: final-release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download verified 0.1.1 bundle
-        uses: actions/download-artifact@v8
-        with:
-          name: AAVC-0.1.1-final-win64
-          path: release
-      - name: Refuse to overwrite an existing tag or release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: v0.1.1
-        shell: bash
-        run: |
-          set -euo pipefail
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "GitHub Release $RELEASE_TAG already exists; refusing to overwrite it."
-            exit 1
-          fi
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Git tag $RELEASE_TAG already exists; refusing to overwrite it."
-            exit 1
-          fi
-      - name: Publish GitHub Release 0.1.1
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: v0.1.1
-          RELEASE_COMMIT: ${{ needs.final-release.outputs.release_commit }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh release create "$RELEASE_TAG" \
-            release/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$RELEASE_COMMIT" \
-            --title "AI Automatic Video Composer 0.1.1" \
-            --notes-file release/RELEASE_NOTES_0.1.1.md
+          retention-days: 30
