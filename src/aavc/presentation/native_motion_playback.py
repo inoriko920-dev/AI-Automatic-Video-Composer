@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from aavc.domain.project.models import AnimationAssignment, ProjectState
-from aavc.presentation.motion_preview import native_motion_preview_offset
+from aavc.presentation.motion_preview import (
+    native_motion_preview_offset,
+    preview_scrub_seconds,
+)
 from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
 
 
@@ -108,7 +111,7 @@ def _find_preview_canvas(root: Any) -> Any | None:
 
 
 def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
-    """Enable native visual playback on a live editor root without mutating project state."""
+    """Enable native visual playback and scrubbing without mutating project state."""
 
     from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QPushButton, QSlider
@@ -124,17 +127,18 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     if scene_list is None or canvas is None or play_button is None:
         return False
 
-    play_button.setEnabled(scene_list.currentRow() >= 0)
+    has_scene = scene_list.currentRow() >= 0
+    play_button.setEnabled(has_scene)
     play_button.setToolTip(
         "Putar preview motion native Rise/Pan/Drift untuk Scene terpilih. "
-        "Audio, subtitle overlay, dan scrub belum aktif."
+        "Audio dan subtitle overlay belum aktif."
     )
     if progress_slider is not None:
         progress_slider.setRange(0, 1000)
         progress_slider.setValue(0)
-        progress_slider.setEnabled(False)
+        progress_slider.setEnabled(has_scene)
         progress_slider.setToolTip(
-            "Indikator progress preview. Scrubbing manual belum aktif."
+            "Geser untuk melihat frame motion pada waktu tertentu di Scene terpilih."
         )
 
     timer = QTimer(root)
@@ -168,14 +172,19 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
                 fraction = max(0.0, min(1.0, time_seconds / plan.duration_seconds))
                 progress_slider.setValue(int(round(fraction * 1000)))
 
-    def stop_playback(*, restore_static: bool = True) -> None:
+    def stop_playback(
+        *,
+        restore_static: bool = True,
+        reset_position: bool = True,
+    ) -> None:
         nonlocal playback_seconds
         timer.stop()
-        playback_seconds = 0.0
+        if reset_position:
+            playback_seconds = 0.0
         play_button.setText("▶")
         if restore_static:
             render_frame(None)
-        elif progress_slider is not None:
+        elif reset_position and progress_slider is not None:
             progress_slider.setValue(0)
 
     def tick() -> None:
@@ -198,16 +207,59 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         if timer.isActive():
             stop_playback()
             return
-        playback_seconds = 0.0
+
+        start_seconds = 0.0
+        if progress_slider is not None:
+            start_seconds = preview_scrub_seconds(
+                progress_slider.value(),
+                progress_slider.maximum(),
+                plan.duration_seconds,
+            )
+        if start_seconds >= plan.duration_seconds:
+            start_seconds = 0.0
+
+        playback_seconds = start_seconds
         play_button.setText("⏸")
-        render_frame(0.0)
+        render_frame(playback_seconds)
         timer.start()
 
+    def scrub_to_value(value: int) -> None:
+        nonlocal playback_seconds
+        if progress_slider is None:
+            return
+        plan = selected_plan()
+        if plan is None:
+            return
+        timer.stop()
+        play_button.setText("▶")
+        playback_seconds = preview_scrub_seconds(
+            value,
+            progress_slider.maximum(),
+            plan.duration_seconds,
+        )
+        render_frame(playback_seconds)
+
+    def scrub_started() -> None:
+        stop_playback(restore_static=False, reset_position=False)
+        if progress_slider is not None:
+            scrub_to_value(progress_slider.value())
+
+    def scrub_released() -> None:
+        if progress_slider is not None:
+            scrub_to_value(progress_slider.value())
+
     def scene_changed(row: int) -> None:
+        valid_scene = 0 <= row < len(project.scenes)
         stop_playback(restore_static=False)
-        play_button.setEnabled(0 <= row < len(project.scenes))
+        play_button.setEnabled(valid_scene)
+        if progress_slider is not None:
+            progress_slider.setEnabled(valid_scene)
 
     timer.timeout.connect(tick)
     play_button.clicked.connect(toggle_playback)
     scene_list.currentRowChanged.connect(scene_changed)
+    if progress_slider is not None:
+        progress_slider.sliderPressed.connect(scrub_started)
+        progress_slider.sliderMoved.connect(scrub_to_value)
+        progress_slider.sliderReleased.connect(scrub_released)
     return True

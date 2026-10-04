@@ -13,6 +13,21 @@ class PreviewMotionOffset:
     y: float = 0.0
 
 
+def preview_scrub_seconds(
+    value: int,
+    maximum: int,
+    duration_seconds: float,
+) -> float:
+    """Map a preview slider position to a clamped scene-local time."""
+
+    duration = max(0.0, float(duration_seconds))
+    if duration == 0.0:
+        return 0.0
+    upper = max(1, int(maximum))
+    clamped = max(0, min(int(value), upper))
+    return duration * (clamped / upper)
+
+
 def native_motion_preview_offset(
     assignment: AnimationAssignment | None,
     *,

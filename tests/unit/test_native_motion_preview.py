@@ -1,7 +1,10 @@
 import pytest
 
 from aavc.domain.project.models import AnimationAssignment
-from aavc.presentation.motion_preview import native_motion_preview_offset
+from aavc.presentation.motion_preview import (
+    native_motion_preview_offset,
+    preview_scrub_seconds,
+)
 
 
 def _assignment(
@@ -17,6 +20,14 @@ def _assignment(
         exit_effect=exit_effect,
         intensity=intensity,
     )
+
+
+def test_preview_scrub_seconds_maps_and_clamps_scene_time() -> None:
+    assert preview_scrub_seconds(-10, 1000, 8.0) == pytest.approx(0.0)
+    assert preview_scrub_seconds(500, 1000, 8.0) == pytest.approx(4.0)
+    assert preview_scrub_seconds(1200, 1000, 8.0) == pytest.approx(8.0)
+    assert preview_scrub_seconds(0, 0, 8.0) == pytest.approx(0.0)
+    assert preview_scrub_seconds(500, 1000, -2.0) == pytest.approx(0.0)
 
 
 def test_preview_offset_is_zero_without_assignment() -> None:
