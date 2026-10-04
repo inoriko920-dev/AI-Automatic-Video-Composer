@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from aavc.animation.compiler import is_native_visual_motion_effect
+from aavc.animation.compiler import is_native_visual_effect
 
 from .render_plan import RenderPlan
 
@@ -100,7 +100,7 @@ def validate_render_plan(plan: RenderPlan) -> PreflightReport:
             if assignment is None:
                 continue
             for effect in {assignment.enter_effect, assignment.exit_effect}:
-                if not is_native_visual_motion_effect(effect):
+                if not is_native_visual_effect(effect):
                     fallback_effects.add(effect)
         for asset_path in scene.asset_paths:
             path = Path(asset_path)
@@ -118,8 +118,8 @@ def validate_render_plan(plan: RenderPlan) -> PreflightReport:
             PreflightIssue(
                 "VISUAL_EFFECT_FALLBACK",
                 PreflightSeverity.WARNING,
-                f"Efek visual {effect} belum memiliki compiler native phase 1; "
-                "motion khusus diabaikan dan transisi Scene default tetap digunakan",
+                f"Efek visual {effect} belum memiliki compiler native; "
+                "efek khusus diabaikan dan transisi Scene default tetap digunakan",
             )
         )
 
