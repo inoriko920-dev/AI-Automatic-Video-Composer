@@ -11,6 +11,7 @@ from aavc.domain.project.models import (
     AssetBinding,
     ProjectState,
     Scene,
+    SubtitleAnimationSettings,
     SubtitleStyle,
 )
 
@@ -133,6 +134,35 @@ class SetSubtitleStyle:
 
     def describe(self) -> str:
         return f"Atur gaya subtitle: {self.style.preset_name}"
+
+
+SUPPORTED_SUBTITLE_ANIMATION_PRESETS = {
+    "Fade",
+    "Clean Documentary",
+    "Pop",
+    "Slide Up",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class SetSubtitleAnimation:
+    animation: SubtitleAnimationSettings
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        animation = self.animation
+        if animation.preset not in SUPPORTED_SUBTITLE_ANIMATION_PRESETS:
+            raise ValueError("Preset animasi subtitle tidak didukung")
+        if not 0 <= animation.enter_duration_ms <= 10000:
+            raise ValueError("Durasi masuk subtitle harus 0–10000 ms")
+        if not 0 <= animation.exit_duration_ms <= 10000:
+            raise ValueError("Durasi keluar subtitle harus 0–10000 ms")
+        if not 0.0 <= animation.intensity <= 2.0:
+            raise ValueError("Intensitas animasi subtitle harus 0–2")
+        _validate_hex_color(animation.highlight_color, "Warna highlight subtitle")
+        return replace(project, subtitle_animation=animation)
+
+    def describe(self) -> str:
+        return f"Atur animasi subtitle: {self.animation.preset}"
 
 
 @dataclass(frozen=True, slots=True)

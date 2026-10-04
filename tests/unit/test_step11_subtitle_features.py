@@ -23,6 +23,23 @@ def test_subtitle_style_and_animation_are_compiled(tmp_path: Path) -> None:
     assert r"\fad(300,300)" in text
 
 
+def test_pop_animation_and_highlight_are_compiled(tmp_path: Path) -> None:
+    out = tmp_path / "pop.ass"
+    compile_srt_to_ass(
+        FIXTURE / "subtitle.srt",
+        out,
+        animation=SubtitleAnimationSettings(
+            preset="Pop",
+            enter_duration_ms=120,
+            exit_duration_ms=180,
+            highlight_color="#FFD400",
+        ),
+    )
+    text = out.read_text(encoding="utf-8")
+    assert r"\fad(120,180)\fscx105\fscy105" in text
+    assert "&H0000D4FF" in text
+
+
 def test_word_distribution_is_explicit_fallback() -> None:
     timings = distribute_words("satu dua tiga", 1.0, 4.0)
     assert [item.word for item in timings] == ["satu", "dua", "tiga"]

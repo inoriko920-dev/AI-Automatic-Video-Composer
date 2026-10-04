@@ -4,6 +4,7 @@ from .project_commands import (
     SetAnimationAssignment,
     SetNarrationAudio,
     SetSceneDuration,
+    SetSubtitleAnimation,
     SetSubtitleSource,
     SetSubtitleStyle,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "SetAnimationAssignment",
     "SetNarrationAudio",
     "SetSceneDuration",
+    "SetSubtitleAnimation",
     "SetSubtitleSource",
     "SetSubtitleStyle",
 ]
