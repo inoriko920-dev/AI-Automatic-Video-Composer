@@ -73,6 +73,15 @@ def preview_neighbor_scene_index(
     return target
 
 
+def preview_continuation_scene_index(
+    current_index: int,
+    scene_count: int,
+) -> int | None:
+    """Return the next Scene for continuous playback, or None at project end."""
+
+    return preview_neighbor_scene_index(current_index, scene_count, 1)
+
+
 def native_motion_preview_offset(
     assignment: AnimationAssignment | None,
     *,
