@@ -64,6 +64,20 @@ class MainWindow:
 
         QMessageBox.information(self.window, title, message)
 
+    def _replace_route_widget(self, route: UiRoute, replacement: Any) -> None:
+        previous = self._route_widgets[route]
+        previous_index = self.stack.indexOf(previous)
+        was_current = self.stack.currentWidget() is previous
+        self.stack.removeWidget(previous)
+        previous.deleteLater()
+        self._route_widgets[route] = replacement
+        if previous_index >= 0:
+            self.stack.insertWidget(previous_index, replacement)
+        else:
+            self.stack.addWidget(replacement)
+        if was_current:
+            self.stack.setCurrentWidget(replacement)
+
     def _refresh_validation_badge(self) -> None:
         button = self._validation_button
         if button is None:
@@ -99,6 +113,17 @@ class MainWindow:
                 "color:#15803D; background:#F0FDF4; border:1px solid #BBF7D0; "
                 "border-radius:6px; padding:5px 9px; font-weight:600;"
             )
+
+    def refresh_editor_overview(self) -> None:
+        from aavc.presentation.screens.live_editor_overview import (
+            create_live_editor_overview,
+        )
+
+        project = self.services.project_session.current
+        if project is None:
+            return
+        replacement = create_live_editor_overview(project)
+        self._replace_route_widget(UiRoute.EDITOR, replacement)
 
     def create_project_from_docx(self, scene_docx: str) -> None:
         from PySide6.QtWidgets import QFileDialog
@@ -148,6 +173,7 @@ class MainWindow:
         self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
         self.window.statusBar().showMessage(f"Proyek dibuat: {destination}", 5000)
         self._refresh_validation_badge()
+        self.refresh_editor_overview()
         self.show_route(UiRoute.EDITOR)
 
     def open_project(self) -> None:
@@ -169,6 +195,7 @@ class MainWindow:
         self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
         self.window.statusBar().showMessage(f"Proyek dibuka: {chosen}", 5000)
         self._refresh_validation_badge()
+        self.refresh_editor_overview()
         self.show_route(UiRoute.EDITOR)
 
     def save_project(self) -> None:
@@ -189,6 +216,7 @@ class MainWindow:
             self.window.statusBar().showMessage(f"Undo tidak tersedia: {error}", 5000)
             return
         self._refresh_validation_badge()
+        self.refresh_editor_overview()
         self.window.statusBar().showMessage("Undo berhasil", 3000)
 
     def redo_project(self) -> None:
@@ -198,6 +226,7 @@ class MainWindow:
             self.window.statusBar().showMessage(f"Redo tidak tersedia: {error}", 5000)
             return
         self._refresh_validation_badge()
+        self.refresh_editor_overview()
         self.window.statusBar().showMessage("Redo berhasil", 3000)
 
     def import_media(self) -> None:
@@ -243,6 +272,7 @@ class MainWindow:
             self._show_project_error("Impor Media gagal", error)
             return
 
+        self.refresh_editor_overview()
         self.window.statusBar().showMessage(
             f"{media_label} diimpor: {Path(chosen).name}. "
             "Klik Simpan untuk menyimpan perubahan.",
@@ -275,15 +305,7 @@ class MainWindow:
             self._show_project_error("Gagal membaca subtitle", error)
             return
 
-        previous = self._route_widgets[UiRoute.SUBTITLE_EDITOR]
-        previous_index = self.stack.indexOf(previous)
-        self.stack.removeWidget(previous)
-        previous.deleteLater()
-        self._route_widgets[UiRoute.SUBTITLE_EDITOR] = replacement
-        if previous_index >= 0:
-            self.stack.insertWidget(previous_index, replacement)
-        else:
-            self.stack.addWidget(replacement)
+        self._replace_route_widget(UiRoute.SUBTITLE_EDITOR, replacement)
         self.show_route(UiRoute.SUBTITLE_EDITOR)
         self.window.statusBar().showMessage(
             f"Subtitle dimuat: {Path(project.subtitle_source).name}",
@@ -314,6 +336,7 @@ class MainWindow:
                 self._show_project_error("Relink gagal", error)
             else:
                 self._refresh_validation_badge()
+                self.refresh_editor_overview()
                 self.window.statusBar().showMessage(
                     f"{asset_id} direlink. Klik Simpan untuk menyimpan perubahan.",
                     6000,
