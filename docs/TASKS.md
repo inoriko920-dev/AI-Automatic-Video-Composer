@@ -6,18 +6,20 @@ No product feature task is active.
 Software Factory STEP 00–15 is complete. The old STEP 09 ready-task list is retired and must not be treated as pending work.
 
 ### REL-0.1.0-PUBLISH — Publish official GitHub Release
-Status: **PENDING MANUAL DISPATCH**
+Status: **COMPLETE**
 
-The final Windows release source is frozen at `release/0.1.0` (commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`). The guarded `Final Release Windows` workflow is ready to rebuild that exact source, run the release gates, and publish tag/release `v0.1.0`.
+Official GitHub Release `v0.1.0` was published successfully on 2026-10-04 from frozen source `release/0.1.0`, commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`.
 
-Required manual workflow inputs:
-- `publish_github_release = true`
-- `release_tag = v0.1.0`
-- `release_source_ref = release/0.1.0`
+Verified evidence:
+- Final Release Windows run: `#6` / `37180132492`
+- Tag: `v0.1.0`
+- Release target commit: `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`
+- Windows ZIP SHA-256: `c3e4f92656aefd3d57329627c52b8e057d2f8cac5a0a757471b90cb1d68915e8`
+- Source ZIP SHA-256: `1264b1dc483932b496acf87dee21c93f92d4e1b222aa37ca2284fbf99b9df328`
+- `BUILD_INFO.txt` records version `0.1.0` and the same frozen release commit.
+- `SHA256SUMS.txt` matches independently computed hashes for both release ZIP files.
 
-Do not mark this task complete until the GitHub Release exists, tag `v0.1.0` resolves to the frozen release commit, the published assets are present, and the published checksums are verified.
-
-See `docs/RELEASE_PUBLISHING.md` for the operator procedure.
+The temporary one-shot publish trigger used to bridge tooling limitations has been retired. The canonical workflow returns to guarded manual publication behavior and refuses to overwrite an existing tag/release.
 
 ## Maintenance intake checklist
 When a concrete request arrives:
