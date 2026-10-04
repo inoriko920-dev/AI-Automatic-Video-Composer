@@ -110,7 +110,7 @@ def _find_preview_canvas(root: Any) -> Any | None:
 def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     """Enable native visual playback on a live editor root without mutating project state."""
 
-    from PySide6.QtCore import QTimer, Qt
+    from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QPushButton, QSlider
 
     scene_list = _find_scene_list(root, project)
