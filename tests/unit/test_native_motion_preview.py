@@ -3,6 +3,7 @@ import pytest
 from aavc.domain.project.models import AnimationAssignment
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
+    preview_neighbor_scene_index,
     preview_scrub_seconds,
 )
 
@@ -20,6 +21,18 @@ def _assignment(
         exit_effect=exit_effect,
         intensity=intensity,
     )
+
+
+def test_preview_neighbor_scene_index_respects_boundaries() -> None:
+    assert preview_neighbor_scene_index(0, 3, -1) is None
+    assert preview_neighbor_scene_index(0, 3, 1) == 1
+    assert preview_neighbor_scene_index(1, 3, -1) == 0
+    assert preview_neighbor_scene_index(1, 3, 1) == 2
+    assert preview_neighbor_scene_index(2, 3, 1) is None
+    assert preview_neighbor_scene_index(-1, 3, 1) is None
+    assert preview_neighbor_scene_index(3, 3, -1) is None
+    assert preview_neighbor_scene_index(0, 0, 1) is None
+    assert preview_neighbor_scene_index(1, 3, 0) is None
 
 
 def test_preview_scrub_seconds_maps_and_clamps_scene_time() -> None:
