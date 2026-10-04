@@ -35,6 +35,7 @@ def test_native_motion_choices_match_render_backed_contract() -> None:
         "Pop",
         "Breathe",
         "Stomp",
+        "Tumble",
         "Rise",
         "Pan",
         "Drift",
@@ -65,7 +66,7 @@ def test_build_asset_motion_assignment_maps_lock_state() -> None:
     assignment = build_asset_motion_assignment(
         scene_number=7,
         asset_id="A007",
-        enter_effect="Stomp",
+        enter_effect="Tumble",
         exit_effect="Pan",
         intensity=1.25,
         locked=True,
@@ -73,7 +74,7 @@ def test_build_asset_motion_assignment_maps_lock_state() -> None:
 
     assert assignment.scene_number == 7
     assert assignment.asset_id == "A007"
-    assert assignment.enter_effect == "Stomp"
+    assert assignment.enter_effect == "Tumble"
     assert assignment.exit_effect == "Pan"
     assert assignment.intensity == 1.25
     assert assignment.locked
