@@ -17,7 +17,7 @@ class SceneRenderPlan:
     duration_seconds: float
     asset_paths: tuple[str, ...]
     placements: tuple[Placement, ...]
-    animations: tuple[AnimationAssignment | None, ...]
+    animations: tuple[AnimationAssignment | None, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
