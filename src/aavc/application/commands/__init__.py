@@ -5,6 +5,7 @@ from .project_commands import (
     SetNarrationAudio,
     SetSceneDuration,
     SetSubtitleSource,
+    SetSubtitleStyle,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "SetNarrationAudio",
     "SetSceneDuration",
     "SetSubtitleSource",
+    "SetSubtitleStyle",
 ]

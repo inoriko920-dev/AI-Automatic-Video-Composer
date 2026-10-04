@@ -8,12 +8,14 @@ from aavc.application.commands import (
     SetNarrationAudio,
     SetSceneDuration,
     SetSubtitleSource,
+    SetSubtitleStyle,
 )
 from aavc.application.services.export_service import ExportOptions, render_project
 from aavc.application.services.media_import import classify_media_path
 from aavc.application.services.validation import validate_project
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
+from aavc.domain.project.models import SubtitleStyle
 from aavc.presentation.design_tokens import METRICS, app_stylesheet
 from aavc.presentation.navigation import UiRoute, parse_route
 
@@ -230,6 +232,7 @@ class MainWindow:
         self.window.statusBar().showMessage(f"Proyek disimpan: {saved}", 5000)
 
     def undo_project(self) -> None:
+        subtitle_was_open = self.stack.currentWidget() is self._route_widgets[UiRoute.SUBTITLE_EDITOR]
         try:
             self.services.project_session.undo()
         except ValueError as error:
@@ -237,9 +240,14 @@ class MainWindow:
             return
         self._refresh_validation_badge()
         self.refresh_editor_overview()
+        if subtitle_was_open:
+            project = self.services.project_session.current
+            if project is not None and project.subtitle_source:
+                self.open_subtitle_editor()
         self.window.statusBar().showMessage("Undo berhasil", 3000)
 
     def redo_project(self) -> None:
+        subtitle_was_open = self.stack.currentWidget() is self._route_widgets[UiRoute.SUBTITLE_EDITOR]
         try:
             self.services.project_session.redo()
         except ValueError as error:
@@ -247,6 +255,10 @@ class MainWindow:
             return
         self._refresh_validation_badge()
         self.refresh_editor_overview()
+        if subtitle_was_open:
+            project = self.services.project_session.current
+            if project is not None and project.subtitle_source:
+                self.open_subtitle_editor()
         self.window.statusBar().showMessage("Redo berhasil", 3000)
 
     def set_scene_duration(self, scene_number: int, duration_seconds: float) -> None:
@@ -262,6 +274,20 @@ class MainWindow:
         self.refresh_editor_overview()
         self.window.statusBar().showMessage(
             f"Durasi Scene {scene_number:02d} diubah menjadi {duration_seconds:.3f} detik. "
+            "Klik Simpan untuk menyimpan perubahan.",
+            7000,
+        )
+
+    def set_subtitle_style(self, style: SubtitleStyle) -> None:
+        try:
+            self.services.project_session.execute(SetSubtitleStyle(style))
+        except (AAVCError, ValueError) as error:
+            self._show_project_error("Gagal mengubah gaya subtitle", error)
+            return
+        self.refresh_editor_overview()
+        self.open_subtitle_editor()
+        self.window.statusBar().showMessage(
+            f"Gaya subtitle diterapkan: {style.preset_name}. "
             "Klik Simpan untuk menyimpan perubahan.",
             7000,
         )
@@ -336,6 +362,8 @@ class MainWindow:
         try:
             replacement = create_live_subtitle_screen(
                 project.subtitle_source,
+                style=project.subtitle_style,
+                on_apply_style=self.set_subtitle_style,
                 on_reload=self.open_subtitle_editor,
             )
         except (OSError, ValueError) as error:

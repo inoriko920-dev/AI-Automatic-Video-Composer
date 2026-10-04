@@ -4,9 +4,22 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from aavc.domain.project.models import SubtitleStyle
 from aavc.presentation.subtitle_view import SubtitleCueView, build_subtitle_views
-from aavc.presentation.widgets.common import muted_label, section_title
-from aavc.subtitles import parse_srt
+from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
+from aavc.subtitles import STYLE_PRESETS, get_style_preset, parse_srt
+
+ALIGNMENT_OPTIONS: tuple[tuple[str, int], ...] = (
+    ("Bawah Kiri", 1),
+    ("Bawah Tengah", 2),
+    ("Bawah Kanan", 3),
+    ("Tengah Kiri", 4),
+    ("Tengah", 5),
+    ("Tengah Kanan", 6),
+    ("Atas Kiri", 7),
+    ("Atas Tengah", 8),
+    ("Atas Kanan", 9),
+)
 
 
 def load_subtitle_views(source: str | Path) -> tuple[SubtitleCueView, ...]:
@@ -16,9 +29,14 @@ def load_subtitle_views(source: str | Path) -> tuple[SubtitleCueView, ...]:
 def create_live_subtitle_inspector(
     source: str | Path,
     *,
+    style: SubtitleStyle | None = None,
+    on_apply_style: Callable[[SubtitleStyle], None] | None = None,
     on_reload: Callable[[], None] | None = None,
 ) -> Any:
     from PySide6.QtWidgets import (
+        QCheckBox,
+        QComboBox,
+        QDoubleSpinBox,
         QFormLayout,
         QHBoxLayout,
         QLabel,
@@ -26,6 +44,7 @@ def create_live_subtitle_inspector(
         QListWidget,
         QListWidgetItem,
         QPushButton,
+        QSpinBox,
         QTabWidget,
         QTextEdit,
         QVBoxLayout,
@@ -34,6 +53,7 @@ def create_live_subtitle_inspector(
 
     source_path = Path(source).resolve()
     views = load_subtitle_views(source_path)
+    current_style = style or SubtitleStyle()
 
     tabs = QTabWidget()
     text_page = QWidget()
@@ -119,10 +139,110 @@ def create_live_subtitle_inspector(
 
     style_page = QWidget()
     style_layout = QVBoxLayout(style_page)
+    style_layout.addWidget(section_title("Gaya Subtitle untuk Render"))
     style_layout.addWidget(
         muted_label(
-            "Gaya subtitle project digunakan saat render. Editor gaya interaktif belum "
-            "terhubung pada layar ini."
+            "Nilai di tab ini disimpan pada ProjectState dan dipakai saat SRT dikompilasi "
+            "menjadi ASS untuk burn-in video. Klik Terapkan Gaya lalu Simpan project."
+        )
+    )
+
+    style_form = QFormLayout()
+    preset = QComboBox()
+    preset_names = list(STYLE_PRESETS)
+    if current_style.preset_name not in preset_names:
+        preset_names.append(current_style.preset_name)
+    preset.addItems(preset_names)
+    preset.setCurrentText(current_style.preset_name)
+
+    font_family = QLineEdit()
+    font_size = QSpinBox()
+    font_size.setRange(1, 400)
+    fill_color = QLineEdit()
+    fill_color.setPlaceholderText("#FFFFFF")
+    outline_color = QLineEdit()
+    outline_color.setPlaceholderText("#111111")
+    outline_width = QDoubleSpinBox()
+    outline_width.setRange(0.0, 20.0)
+    outline_width.setDecimals(2)
+    outline_width.setSingleStep(0.25)
+    shadow = QDoubleSpinBox()
+    shadow.setRange(0.0, 20.0)
+    shadow.setDecimals(2)
+    shadow.setSingleStep(0.25)
+    background_box = QCheckBox("Gunakan kotak background")
+    background_opacity = QSpinBox()
+    background_opacity.setRange(0, 100)
+    background_opacity.setSuffix(" %")
+    alignment = QComboBox()
+    for label, value in ALIGNMENT_OPTIONS:
+        alignment.addItem(label, value)
+    margin_v = QSpinBox()
+    margin_v.setRange(0, 5000)
+    margin_v.setSuffix(" px")
+
+    style_form.addRow("Preset", preset)
+    style_form.addRow("Font", font_family)
+    style_form.addRow("Ukuran Font", font_size)
+    style_form.addRow("Warna Isi", fill_color)
+    style_form.addRow("Warna Outline", outline_color)
+    style_form.addRow("Lebar Outline", outline_width)
+    style_form.addRow("Shadow", shadow)
+    style_form.addRow("Background", background_box)
+    style_form.addRow("Opacity Background", background_opacity)
+    style_form.addRow("Posisi", alignment)
+    style_form.addRow("Margin Vertikal", margin_v)
+    style_layout.addLayout(style_form)
+
+    def load_style(target: SubtitleStyle) -> None:
+        font_family.setText(target.font_family)
+        font_size.setValue(target.font_size)
+        fill_color.setText(target.fill_color)
+        outline_color.setText(target.outline_color)
+        outline_width.setValue(target.outline_width)
+        shadow.setValue(target.shadow)
+        background_box.setChecked(target.background_box)
+        background_opacity.setValue(target.background_opacity)
+        index = alignment.findData(target.alignment)
+        alignment.setCurrentIndex(index if index >= 0 else 1)
+        margin_v.setValue(target.margin_v)
+
+    load_style(current_style)
+
+    def load_preset(name: str) -> None:
+        if name in STYLE_PRESETS:
+            load_style(get_style_preset(name))
+
+    preset.currentTextChanged.connect(load_preset)
+
+    apply_style = make_primary_button("Terapkan Gaya")
+    if on_apply_style is None:
+        apply_style.setEnabled(False)
+        apply_style.setToolTip("Editor gaya belum terhubung ke sesi project.")
+    else:
+
+        def apply_current_style() -> None:
+            target = SubtitleStyle(
+                preset_name=preset.currentText(),
+                font_family=font_family.text().strip(),
+                font_size=font_size.value(),
+                fill_color=fill_color.text().strip(),
+                outline_color=outline_color.text().strip(),
+                outline_width=float(outline_width.value()),
+                shadow=float(shadow.value()),
+                background_box=background_box.isChecked(),
+                background_opacity=background_opacity.value(),
+                alignment=int(alignment.currentData()),
+                margin_v=margin_v.value(),
+            )
+            on_apply_style(target)
+
+        apply_style.clicked.connect(apply_current_style)
+    style_layout.addWidget(apply_style)
+    style_layout.addWidget(
+        muted_label(
+            "Preview burn-in subtitle belum tersedia pada layar ini. Hasil final mengikuti "
+            "compiler ASS saat Ekspor Video dengan Sertakan Subtitle aktif."
         )
     )
     style_layout.addStretch(1)

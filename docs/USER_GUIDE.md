@@ -85,7 +85,7 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, live-editor-overview, static-scene-preview, live-readonly-timeline, dan live-scene-duration, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, live-subtitle-style, live-editor-overview, static-scene-preview, live-readonly-timeline, dan live-scene-duration, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
@@ -93,7 +93,7 @@ Pada source `main` setelah maintenance project-session, new-project-session, rea
 - **Undo** → memundurkan perubahan model pada `ProjectHistory` jika tersedia.
 - **Redo** → mengulangi perubahan model pada `ProjectHistory` jika tersedia.
 - **Impor Media** → memasukkan subtitle SRT atau audio narasi yang didukung ke project aktif melalui history.
-- **Tambah Teks** → membaca `subtitle_source` project aktif dan menampilkan cue/timing SRT yang sebenarnya.
+- **Tambah Teks** → membaca `subtitle_source` project aktif, menampilkan cue/timing SRT yang sebenarnya, dan membuka tab **Gaya** untuk style subtitle yang dipakai render.
 - **Terapkan Durasi** pada inspector Scene → mengubah `duration_seconds` Scene terpilih melalui `ProjectHistory`.
 - **Validasi** → menghitung issue dari `ProjectState` aktif dan membuka Validation Center dengan data nyata.
 - **Ekspor Video** → membuka pengaturan ekspor; **Mulai Render** menjalankan render pipeline FFmpeg nyata untuk project aktif.
@@ -187,7 +187,7 @@ Pada source `main` setelah maintenance real-export-render, dialog ekspor menerus
 - Frame rate **30 fps** atau **60 fps** benar-benar diteruskan ke render plan/FFmpeg.
 - Slider kualitas dipetakan ke CRF pada rentang yang aman untuk UI saat ini.
 - Pilihan ketajaman mengubah `sharpen_amount` pada render-quality settings.
-- Jika **Sertakan Subtitle** dipilih dan project memiliki `subtitle_source`, SRT dikompilasi menjadi ASS lalu dibakar ke video.
+- Jika **Sertakan Subtitle** dipilih dan project memiliki `subtitle_source`, SRT dikompilasi menjadi ASS menggunakan `subtitle_style` yang tersimpan pada project lalu dibakar ke video.
 - Jika **Tanpa Subtitle** dipilih, subtitle tidak dimasukkan ke render tersebut.
 - Jika project memiliki `narration_audio`, audio tersebut ikut diteruskan ke `RenderPlan`.
 
@@ -215,9 +215,11 @@ Perubahan dijalankan melalui `ProjectSession.execute()`, sehingga import media m
 
 Format lain ditolak dengan pesan yang jelas. `background_source` belum diaktifkan melalui tombol ini karena render pipeline saat ini belum menggunakannya. Tombol **Rekam Narasi** juga belum dianggap sebagai import audio; perekaman mikrofon membutuhkan recording engine tersendiri.
 
-## 11. Melihat subtitle SRT project
+## 11. Melihat dan mengatur gaya subtitle SRT project
 
-Pada source `main` setelah maintenance live-subtitle-source, tombol **Tambah Teks** tidak lagi memakai cue demo ketika ada project aktif.
+Pada source `main` setelah maintenance live-subtitle-source dan live-subtitle-style, tombol **Tambah Teks** membuka editor subtitle yang membaca source project aktif dan menghubungkan tab **Gaya** ke `ProjectState.subtitle_style`.
+
+### Melihat cue SRT
 
 1. Impor `.srt` melalui **Impor Media**.
 2. Tekan **Tambah Teks**.
@@ -227,17 +229,31 @@ Pada source `main` setelah maintenance live-subtitle-source, tombol **Tambah Tek
 6. Memilih cue menampilkan teks, waktu mulai, dan waktu selesai cue tersebut.
 7. **Muat Ulang SRT** membaca ulang source dari disk, sehingga perubahan eksternal pada SRT dapat ditampilkan tanpa membuka ulang project.
 
-Pada tahap ini panel detail bersifat **read-only**. Tombol **Tambah Cue**, **Pisah Cue**, dan **Gabung** sengaja dinonaktifkan karena repo belum memiliki writer/history model yang aman untuk mutasi isi SRT. Ini mencegah UI terlihat bekerja padahal perubahan tidak dapat dipersist dengan benar.
+Panel detail cue tetap **read-only**. Tombol **Tambah Cue**, **Pisah Cue**, dan **Gabung** sengaja dinonaktifkan karena repo belum memiliki writer/history model yang aman untuk mutasi isi SRT. Ini mencegah UI terlihat bekerja padahal perubahan isi SRT tidak dapat dipersist dengan benar.
+
+### Mengatur gaya subtitle untuk render
+
+1. Di editor subtitle, buka tab **Gaya**.
+2. Pilih preset **Clean**, **Dokumenter**, **Cinematic**, atau **Social**, atau ubah field gaya secara manual.
+3. Field yang dapat diatur meliputi font, ukuran font, warna isi, warna outline, lebar outline, shadow, background box, opacity background, posisi/alignment, dan margin vertikal.
+4. Warna menggunakan format `#RRGGBB`. Nilai font, ukuran, opacity, outline/shadow, alignment, dan margin divalidasi sebelum perubahan diterima.
+5. Klik **Terapkan Gaya**. Perubahan dijalankan melalui `SetSubtitleStyle` pada `ProjectSession.execute()`, sehingga masuk `ProjectHistory` dan dapat di-**Undo/Redo**.
+6. Setelah style diterapkan, klik **Simpan** pada toolbar agar `subtitle_style` ditulis permanen ke file `.aavcproj`.
+7. Saat **Ekspor Video → Sertakan Subtitle** dipilih, style project tersebut dipakai ketika SRT dikompilasi menjadi ASS dan dibakar ke video oleh pipeline render.
+
+Mengubah field tanpa menekan **Terapkan Gaya** tidak mengubah `ProjectState`. Menekan **Terapkan Gaya** tanpa kemudian menekan **Simpan** mengubah state/history sesi aktif, tetapi perubahan tersebut belum dijamin bertahan setelah project ditutup dan dibuka kembali. **Undo/Redo** saat editor subtitle terbuka akan memuat ulang style sesuai state history terbaru.
+
+Preview burn-in subtitle belum tersedia pada layar editor ini, jadi tab **Gaya** tidak mengklaim sebagai preview WYSIWYG. Hasil final mengikuti compiler ASS dan render FFmpeg. Tab **Animasi** juga belum menjadi editor animasi subtitle interaktif; ia hanya menjelaskan bahwa assignment animasi subtitle project dipakai oleh pipeline yang sudah didukung.
 
 Jika project belum memiliki `subtitle_source`, **Tambah Teks** meminta pengguna mengimpor SRT terlebih dahulu. Jika file source hilang atau tidak dapat diparse, aplikasi menampilkan error dan tidak menggantinya dengan data demo. Fixture subtitle lama tetap dipakai hanya untuk no-session STEP09 visual-reference capture.
 
 ## 12. Kontrol yang belum terhubung penuh
 
-Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Playback preview, timeline editing/scrubbing, animasi preview, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final. Timeline scene read-only sudah tersedia dan durasi Scene sudah dapat diubah melalui inspector kanan, tetapi timeline belum dapat dipakai untuk drag/trim/reorder.
+Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Playback preview, timeline editing/scrubbing, preview burn-in subtitle, animasi preview, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final. Timeline scene read-only sudah tersedia dan durasi Scene sudah dapat diubah melalui inspector kanan, tetapi timeline belum dapat dipakai untuk drag/trim/reorder.
 
 Editor assignment animasi juga belum dibuka sebagai kontrol live pada tahap ini. Walaupun model `AnimationAssignment` dan command `SetAnimationAssignment` sudah ada, penggunaan assignment project oleh render pipeline belum dibuktikan end-to-end, sehingga UI tidak mengklaim bahwa perubahan animasi tersebut akan masuk video final.
 
-Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-editor-overview/static-scene-preview/live-readonly-timeline/live-scene-duration berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-subtitle-style/live-editor-overview/static-scene-preview/live-readonly-timeline/live-scene-duration berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
 ## 13. Sebelum ekspor
 
@@ -249,6 +265,7 @@ Sebelum menjalankan ekspor, periksa minimal:
 - Badge/Validation Center tidak menunjukkan asset missing yang belum diperbaiki.
 - FFmpeg tersedia pada `tools/ffmpeg/` atau system `PATH`.
 - Subtitle source valid jika burn-in subtitle digunakan.
+- Jika memakai gaya subtitle kustom, pastikan sudah menekan **Terapkan Gaya** lalu **Simpan**.
 - Pengaturan resolusi, FPS, codec, kualitas, dan ketajaman sesuai kebutuhan.
 
 Gunakan tombol **Validasi** untuk meninjau masalah yang dapat dideteksi sebelum render.
