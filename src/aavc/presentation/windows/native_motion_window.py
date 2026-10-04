@@ -3,13 +3,26 @@ from __future__ import annotations
 from typing import Any
 
 from aavc.application.commands import (
+    RandomizeAnimationAssignments,
     RemoveAnimationAssignment,
     SetAnimationAssignment,
     SetProjectTitle,
 )
 from aavc.bootstrap.composition_root import FoundationServices
-from aavc.presentation.dialogs.asset_motion import show_asset_motion_dialog
+from aavc.presentation.dialogs.asset_motion import (
+    NATIVE_MOTION_CHOICES,
+    show_asset_motion_dialog,
+)
 from aavc.presentation.windows.guarded_main_window import GuardedMainWindow
+
+
+def _stored_animation_seed(metadata: dict[str, str]) -> int:
+    raw = metadata.get("animation_seed", "1")
+    try:
+        value = int(raw)
+    except ValueError:
+        return 1
+    return max(-2147483647, min(2147483647, value))
 
 
 class NativeMotionMainWindow(GuardedMainWindow):
@@ -20,11 +33,14 @@ class NativeMotionMainWindow(GuardedMainWindow):
 
         edit_menu: Any | None = None
         project_menu: Any | None = None
+        animation_menu: Any | None = None
         for menu_action in self.window.menuBar().actions():
             if menu_action.text() == "Edit":
                 edit_menu = menu_action.menu()
             elif menu_action.text() == "Proyek":
                 project_menu = menu_action.menu()
+            elif menu_action.text() == "Animasi":
+                animation_menu = menu_action.menu()
 
         if project_menu is not None:
             rename_action = action_type("Ubah Nama Proyek…", self.window)
@@ -32,6 +48,25 @@ class NativeMotionMainWindow(GuardedMainWindow):
                 lambda _checked=False: self.rename_active_project()
             )
             project_menu.addAction(rename_action)
+
+        if animation_menu is not None:
+            auto_scene_action = action_type(
+                "Auto Motion Scene Terpilih…",
+                self.window,
+            )
+            auto_scene_action.triggered.connect(
+                lambda _checked=False: self.randomize_native_motion(selected_only=True)
+            )
+            animation_menu.addAction(auto_scene_action)
+
+            auto_all_action = action_type(
+                "Auto Motion Semua Scene…",
+                self.window,
+            )
+            auto_all_action.triggered.connect(
+                lambda _checked=False: self.randomize_native_motion(selected_only=False)
+            )
+            animation_menu.addAction(auto_all_action)
 
         if edit_menu is None:
             return
@@ -80,6 +115,68 @@ class NativeMotionMainWindow(GuardedMainWindow):
         self.window.statusBar().showMessage(
             "Nama proyek diperbarui. Path file tetap sama; klik Simpan untuk menyimpan "
             "perubahan atau gunakan Simpan Sebagai untuk mengganti nama file.",
+            8000,
+        )
+
+    def randomize_native_motion(self, *, selected_only: bool) -> None:
+        from PySide6.QtWidgets import QInputDialog
+
+        session = self.services.project_session
+        project = session.current
+        if project is None:
+            self._show_project_notice(
+                "Auto Motion tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu.",
+            )
+            return
+
+        scene_numbers: tuple[int, ...] | None = None
+        scope_label = "semua Scene"
+        if selected_only:
+            scene_number = self._selected_scene_number
+            if scene_number is None:
+                self.window.statusBar().showMessage(
+                    "Pilih Scene terlebih dahulu sebelum menjalankan Auto Motion.",
+                    5000,
+                )
+                return
+            scene_numbers = (scene_number,)
+            scope_label = f"Scene {scene_number:02d}"
+
+        seed, accepted = QInputDialog.getInt(
+            self.window,
+            "Auto Motion",
+            (
+                f"Acak motion native untuk {scope_label}.\n"
+                "Efek yang digunakan: Rise, Pan, Drift.\n"
+                "Seed yang sama menghasilkan pola yang sama:"
+            ),
+            value=_stored_animation_seed(project.metadata),
+            minValue=-2147483647,
+            maxValue=2147483647,
+            step=1,
+        )
+        if not accepted:
+            return
+
+        try:
+            session.execute(
+                RandomizeAnimationAssignments(
+                    seed=seed,
+                    scene_numbers=scene_numbers,
+                    effect_pool=NATIVE_MOTION_CHOICES,
+                )
+            )
+        except ValueError as error:
+            self._show_project_error("Auto Motion gagal", error)
+            return
+
+        self._refresh_window_title()
+        self._refresh_validation_badge()
+        self.refresh_editor_overview()
+        self.window.statusBar().showMessage(
+            f"Auto Motion diterapkan ke {scope_label} dengan seed {seed}. "
+            "Gunakan Undo untuk membatalkan atau klik Simpan untuk menyimpan perubahan.",
             8000,
         )
 
