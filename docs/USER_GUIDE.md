@@ -39,17 +39,25 @@ Input utama yang digunakan oleh engine adalah:
 
 Pada layar Proyek Baru, tahap awal meminta **Scene DOCX**. UI menjelaskan bahwa setiap scene harus mengikuti kontrak Prompt 1 dan memiliki 1 atau 2 Asset ID canonical `Axxx`.
 
-## 4. Memulai proyek dari UI
+## 4. Memulai atau membuka proyek dari UI
 
-Dari layar awal:
+Untuk memulai flow proyek baru:
 
 1. Pilih **Proyek Baru → Mulai**.
 2. Pada layar **Pilih Scene DOCX**, klik **Pilih DOCX**.
 3. Pilih file `.docx` yang sesuai kontrak scene AAVC.
 4. Setelah file dipilih, tombol **Lanjut** menjadi aktif.
-5. Lanjutkan ke editor untuk memeriksa scene, visual, subtitle, animasi, validasi, dan pengaturan ekspor yang tersedia pada build yang sedang digunakan.
+5. Flow Folder Aset/Media masih merupakan area integrasi berikutnya; jangan menganggap pemilihan DOCX saja sudah menghasilkan sesi project canonical yang siap disimpan.
 
-Menu **Buka Proyek** membawa pengguna ke shell editor. Format project state internal menggunakan ekstensi `.aavcproj` dan memiliki versioned schema di engine.
+Untuk membuka project state yang sudah ada:
+
+1. Pilih **Buka Proyek** atau tombol **Buka**.
+2. Pilih file `.aavcproj`.
+3. AAVC memuat file melalui `ProjectRepository` dan membuat sesi aktif baru hanya setelah load berhasil.
+4. Jika file rusak/tidak valid, project aktif sebelumnya tetap dipertahankan.
+5. Setelah berhasil dibuka, judul window mengikuti nama project dan editor ditampilkan.
+
+Format project state internal menggunakan ekstensi `.aavcproj` dan memiliki versioned schema di engine.
 
 ## 5. Bagian editor yang tersedia
 
@@ -68,22 +76,29 @@ Repo saat ini memiliki implementasi untuk beberapa area penting berikut:
 
 Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubung penuh ke sesi proyek pada binary tertentu.
 
-## 6. Kontrol yang sudah mempunyai route UI
+## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` saat panduan ini dibuat, route berikut sudah mempunyai perilaku UI eksplisit:
+Pada source `main` setelah maintenance project-session, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru.
-- **Buka** → membuka editor.
+- **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
+- **Simpan** → menyimpan current `ProjectState` ke path project aktif secara atomic melalui repository.
+- **Undo** → memundurkan perubahan model pada `ProjectHistory` jika tersedia.
+- **Redo** → mengulangi perubahan model pada `ProjectHistory` jika tersedia.
 - **Tambah Teks** → membuka area subtitle.
 - **Validasi** → membuka Validation Center.
 - **Ekspor Video** → membuka pengaturan ekspor.
 - **Keluar** → menutup aplikasi.
 
+Jika **Simpan** dipilih tanpa project aktif, aplikasi memberi penjelasan bahwa penyimpanan belum tersedia untuk sesi tersebut. Undo/Redo yang tidak memiliki aksi juga memberi feedback dan tidak merusak state project.
+
 ## 7. Kontrol yang belum terhubung penuh
 
-Pada source `main`, kontrol seperti **Simpan**, **Undo**, **Redo**, **Impor Media**, dan **Rekam Narasi** tidak lagi diam tanpa penjelasan. Jika integrasi sesi proyek belum tersedia pada shell tersebut, aplikasi memberi pesan **Fitur belum terhubung** dan menegaskan bahwa tidak ada perubahan proyek yang dilakukan.
+Pada source `main`, kontrol seperti **Impor Media** dan **Rekam Narasi** belum memiliki integrasi sesi penuh dari shell utama. Aplikasi tidak lagi diam tanpa penjelasan; ketika fitur belum tersedia, pengguna mendapat pesan **Fitur belum terhubung** dan tidak ada perubahan project yang dilakukan.
 
-Catatan penting: maintenance UI ini berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Beberapa menu placeholder dan Bantuan Cepat juga masih berfungsi sebagai shell UI, bukan workflow final.
+
+Catatan penting: maintenance UI/project-session ini berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
 ## 8. Sebelum ekspor
 
