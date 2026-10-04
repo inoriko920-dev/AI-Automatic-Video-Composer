@@ -161,6 +161,30 @@ def split_subtitle_cue(
     return tuple(items)
 
 
+def merge_subtitle_cues(
+    cues: tuple[SubtitleCue, ...],
+    row: int,
+) -> tuple[SubtitleCue, ...]:
+    if row < 0 or row >= len(cues):
+        raise ValueError("Cue subtitle yang dipilih tidak valid")
+    if row + 1 >= len(cues):
+        raise ValueError("Cue terakhir tidak memiliki cue berikutnya untuk digabung")
+    first = cues[row]
+    second = cues[row + 1]
+    first_text = first.text.replace("\\N", "\n")
+    second_text = second.text.replace("\\N", "\n")
+    merged = SubtitleCue(
+        index=first.index,
+        start_seconds=first.start_seconds,
+        end_seconds=max(first.end_seconds, second.end_seconds),
+        text=_normalize_cue_text(f"{first_text}\n{second_text}"),
+    )
+    _validate_cue(merged)
+    items = list(cues)
+    items[row : row + 2] = [merged]
+    return tuple(items)
+
+
 def serialize_srt(cues: tuple[SubtitleCue, ...]) -> str:
     blocks: list[str] = []
     for cue in cues:

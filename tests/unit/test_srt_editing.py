@@ -9,6 +9,7 @@ from aavc.subtitles import (
     SubtitleCue,
     format_srt_timestamp,
     insert_subtitle_cue,
+    merge_subtitle_cues,
     parse_srt,
     parse_srt_timestamp,
     replace_subtitle_cue,
@@ -131,6 +132,37 @@ def test_split_cue_rejects_invalid_cursor_and_time() -> None:
         split_subtitle_cue(cues, 0, text_offset=5, split_seconds=2.0)
 
 
+def test_merge_adjacent_cues_preserves_first_index_and_full_span() -> None:
+    cues = (
+        SubtitleCue(7, 1.0, 2.0, "Baris pertama"),
+        SubtitleCue(10, 2.5, 4.0, "Baris kedua"),
+        SubtitleCue(12, 5.0, 6.0, "Tetap"),
+    )
+    merged = merge_subtitle_cues(cues, 0)
+
+    assert merged == (
+        SubtitleCue(7, 1.0, 4.0, "Baris pertama\\NBaris kedua"),
+        cues[2],
+    )
+
+
+def test_merge_adjacent_cues_handles_overlap_and_multiline() -> None:
+    cues = (
+        SubtitleCue(2, 1.0, 4.0, "A\\NB"),
+        SubtitleCue(3, 3.0, 5.0, "C\\ND"),
+    )
+    merged = merge_subtitle_cues(cues, 0)
+    assert merged == (SubtitleCue(2, 1.0, 5.0, "A\\NB\\NC\\ND"),)
+
+
+def test_merge_cue_rejects_invalid_or_last_row() -> None:
+    cues = _sample_cues()
+    with pytest.raises(ValueError, match="dipilih tidak valid"):
+        merge_subtitle_cues(cues, -1)
+    with pytest.raises(ValueError, match="tidak memiliki cue berikutnya"):
+        merge_subtitle_cues(cues, len(cues) - 1)
+
+
 def test_serialize_and_atomic_write_round_trip(tmp_path: Path) -> None:
     cues = _sample_cues()
     serialized = serialize_srt(cues)
@@ -167,6 +199,13 @@ def test_split_cue_round_trips_through_copy(tmp_path: Path) -> None:
     destination = tmp_path / "with-split-cue.srt"
     write_srt_atomic(destination, split)
     assert parse_srt(destination) == split
+
+
+def test_merged_cue_round_trips_through_copy(tmp_path: Path) -> None:
+    merged = merge_subtitle_cues(_sample_cues(), 0)
+    destination = tmp_path / "with-merged-cue.srt"
+    write_srt_atomic(destination, merged)
+    assert parse_srt(destination) == merged
 
 
 def test_writing_copy_does_not_touch_original(tmp_path: Path) -> None:

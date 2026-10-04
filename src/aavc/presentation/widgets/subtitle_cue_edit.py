@@ -10,6 +10,7 @@ from aavc.subtitles import (
     SubtitleCue,
     format_srt_timestamp,
     insert_subtitle_cue,
+    merge_subtitle_cues,
     parse_srt,
     parse_srt_timestamp,
     replace_subtitle_cue,
@@ -45,8 +46,8 @@ def create_subtitle_cue_edit_page(
     layout.addWidget(title)
     layout.addWidget(
         muted_label(
-            "Edit teks/timing, tambah cue, atau pisah cue di posisi kursor. Source asli tidak "
-            "ditimpa; Simpan Salinan SRT menulis file baru lalu project diarahkan ke salinan."
+            "Edit teks/timing, tambah, pisah, atau gabungkan cue pada working copy. Source asli "
+            "tidak ditimpa; Simpan Salinan SRT menulis file baru lalu project diarahkan ke salinan."
         )
     )
 
@@ -73,12 +74,14 @@ def create_subtitle_cue_edit_page(
     action_row = QHBoxLayout()
     add_cue = QPushButton("＋ Tambah Cue Setelah Ini")
     split_cue = QPushButton("✂ Pisah Cue di Kursor")
+    merge_cue = QPushButton("⇄ Gabung dengan Cue Berikutnya")
     save_copy = make_primary_button("Simpan Salinan SRT…")
     if on_save_copy is None:
         save_copy.setEnabled(False)
         save_copy.setToolTip("Penyimpanan salinan SRT belum terhubung ke sesi project.")
     action_row.addWidget(add_cue)
     action_row.addWidget(split_cue)
+    action_row.addWidget(merge_cue)
     action_row.addStretch(1)
     action_row.addWidget(save_copy)
     layout.addLayout(action_row)
@@ -106,6 +109,7 @@ def create_subtitle_cue_edit_page(
         current_views = views()
         available = 0 <= row < len(working_cues)
         split_cue.setEnabled(available)
+        merge_cue.setEnabled(0 <= row < len(working_cues) - 1)
         if not available:
             text.clear()
             start.clear()
@@ -175,6 +179,18 @@ def create_subtitle_cue_edit_page(
             return
         refresh_list(row + 1)
 
+    def merge_with_next_cue() -> None:
+        nonlocal working_cues
+        row = cue_list.currentRow()
+        if not apply_current_form():
+            return
+        try:
+            working_cues = merge_subtitle_cues(working_cues, row)
+        except ValueError as error:
+            QMessageBox.warning(page, "Cue tidak dapat digabung", str(error))
+            return
+        refresh_list(row)
+
     def save_selected_copy() -> None:
         if not apply_current_form():
             return
@@ -186,6 +202,7 @@ def create_subtitle_cue_edit_page(
     cue_list.currentRowChanged.connect(show_selected)
     add_cue.clicked.connect(add_new_cue)
     split_cue.clicked.connect(split_current_cue)
+    merge_cue.clicked.connect(merge_with_next_cue)
     if on_save_copy is not None:
         save_copy.clicked.connect(save_selected_copy)
     refresh_list(0 if working_cues else None)
