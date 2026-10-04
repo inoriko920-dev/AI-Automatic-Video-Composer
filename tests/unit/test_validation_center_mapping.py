@@ -44,10 +44,18 @@ def test_validation_category_matches_engine_issue_types() -> None:
         "Durasi pendek",
         2,
     )
+    render_issue = ValidationIssue(
+        "VISUAL_EFFECT_FALLBACK",
+        "WARNING",
+        "Wipe fallback",
+        2,
+        "A001",
+    )
     other_issue = ValidationIssue("OTHER", "WARNING", "Lainnya")
 
     assert validation_category(asset_issue) == "Media"
     assert validation_category(scene_issue) == "Scene"
+    assert validation_category(render_issue) == "Render"
     assert validation_category(other_issue) == "Project"
 
 
