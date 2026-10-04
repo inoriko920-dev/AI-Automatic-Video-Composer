@@ -48,6 +48,16 @@ Canonical evidence:
 - Windows ZIP SHA-256: `c3e4f92656aefd3d57329627c52b8e057d2f8cac5a0a757471b90cb1d68915e8`
 - Source ZIP SHA-256: `1264b1dc483932b496acf87dee21c93f92d4e1b222aa37ca2284fbf99b9df328`
 
+## Historical workflow retirement
+
+The original `release-candidate.yml` and `release-final.yml` workflows are retained only for reproducibility and historical verification. Both are now `workflow_dispatch`-only and use read-only repository permissions.
+
+- RC verification is pinned to `release/step14-rc1` and cannot run automatically from the old `bootstrap/step14` branch.
+- Final 0.1.0 verification is pinned to `release/0.1.0` and no longer contains a GitHub Release publication job or any `contents: write` permission.
+- Their uploaded artifacts are explicitly named as historical verification artifacts so they cannot be confused with canonical published releases.
+
+These historical workflows must not be used to publish a new release. New maintenance versions must use a newly planned, version-specific frozen source and guarded publication workflow.
+
 ## Future releases
 
 Do not move or replace published `v0.1.0` or `v0.1.1` tags in place. Corrections must use an explicitly planned new version under `MAINTENANCE.md`.

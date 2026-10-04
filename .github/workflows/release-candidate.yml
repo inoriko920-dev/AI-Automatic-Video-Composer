@@ -1,11 +1,6 @@
-name: Release Candidate Windows
+name: Historical Verification — RC 0.1.0
 
 on:
-  push:
-    branches:
-      - bootstrap/step14
-    paths-ignore:
-      - STEP14_STATUS.md
   workflow_dispatch:
 
 permissions:
@@ -17,6 +12,8 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: release/step14-rc1
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -40,7 +37,7 @@ jobs:
       - name: Verify portable artifact
         shell: pwsh
         run: ./scripts/verify_portable.ps1
-      - name: Prepare RC archive and checksum
+      - name: Prepare historical RC verification archive
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release | Out-Null
@@ -51,10 +48,10 @@ jobs:
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
           "$hash  AI-Automatic-Video-Composer-0.1.0-rc1-win64.zip" | Set-Content release/SHA256SUMS.txt -Encoding utf8
           Get-ChildItem release | Select-Object Name, Length
-      - name: Upload release candidate
+      - name: Upload historical RC verification artifact
         uses: actions/upload-artifact@v7
         with:
-          name: AAVC-0.1.0-rc1-win64
+          name: AAVC-0.1.0-rc1-historical-verification
           path: release/*
           if-no-files-found: error
           retention-days: 30
