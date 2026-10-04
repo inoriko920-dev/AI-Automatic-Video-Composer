@@ -3,10 +3,20 @@ from __future__ import annotations
 from aavc.domain.project.models import AnimationAssignment
 
 NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift"})
+NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade"})
+NATIVE_VISUAL_EFFECTS = NATIVE_VISUAL_MOTION_EFFECTS | NATIVE_VISUAL_ALPHA_EFFECTS
 
 
 def is_native_visual_motion_effect(name: str) -> bool:
     return name in NATIVE_VISUAL_MOTION_EFFECTS
+
+
+def is_native_visual_alpha_effect(name: str) -> bool:
+    return name in NATIVE_VISUAL_ALPHA_EFFECTS
+
+
+def is_native_visual_effect(name: str) -> bool:
+    return name in NATIVE_VISUAL_EFFECTS
 
 
 def assignment_has_native_motion(
@@ -18,6 +28,40 @@ def assignment_has_native_motion(
         is_native_visual_motion_effect(assignment.enter_effect)
         or is_native_visual_motion_effect(assignment.exit_effect)
     )
+
+
+def assignment_has_native_alpha(
+    assignment: AnimationAssignment | None,
+) -> bool:
+    if assignment is None or assignment.intensity <= 0:
+        return False
+    return (
+        is_native_visual_alpha_effect(assignment.enter_effect)
+        or is_native_visual_alpha_effect(assignment.exit_effect)
+    )
+
+
+def compile_native_alpha_filters(
+    assignment: AnimationAssignment | None,
+    *,
+    duration_seconds: float,
+) -> tuple[str, ...]:
+    """Compile render-safe per-asset alpha transitions for native Fade assignments."""
+
+    if not assignment_has_native_alpha(assignment) or assignment is None:
+        return ()
+
+    duration = max(0.001, float(duration_seconds))
+    window = min(0.25, duration / 2.0)
+    filters: list[str] = ["format=rgba"]
+    if is_native_visual_alpha_effect(assignment.enter_effect):
+        filters.append(f"fade=t=in:st=0:d={window:.6f}:alpha=1")
+    if is_native_visual_alpha_effect(assignment.exit_effect):
+        exit_start = max(0.0, duration - window)
+        filters.append(
+            f"fade=t=out:st={exit_start:.6f}:d={window:.6f}:alpha=1"
+        )
+    return tuple(filters)
 
 
 def _motion_term(
