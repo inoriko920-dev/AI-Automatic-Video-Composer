@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from aavc.bootstrap.composition_root import FoundationServices
+from aavc.domain.errors import AAVCError
 from aavc.presentation.design_tokens import METRICS, app_stylesheet
 from aavc.presentation.navigation import UiRoute, parse_route
 
@@ -82,7 +83,7 @@ class MainWindow:
                 scene_docx=source,
                 asset_directory=asset_directory,
             )
-        except (OSError, ValueError, KeyError, TypeError) as error:
+        except (AAVCError, OSError, ValueError, KeyError, TypeError) as error:
             self._show_project_error("Gagal membaca input proyek", error)
             return
 
@@ -99,7 +100,7 @@ class MainWindow:
 
         try:
             self.services.project_session.create(project, destination)
-        except (OSError, ValueError) as error:
+        except (AAVCError, OSError, ValueError) as error:
             self._show_project_error("Gagal menyimpan proyek baru", error)
             return
 
@@ -120,7 +121,7 @@ class MainWindow:
             return
         try:
             project = self.services.project_session.open(chosen)
-        except (OSError, ValueError, KeyError, TypeError) as error:
+        except (AAVCError, OSError, ValueError, KeyError, TypeError) as error:
             self._show_project_error("Gagal membuka proyek", error)
             return
         self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
@@ -133,7 +134,7 @@ class MainWindow:
         except ValueError as error:
             self._show_project_notice("Simpan tidak tersedia", str(error))
             return
-        except OSError as error:
+        except (AAVCError, OSError) as error:
             self._show_project_error("Gagal menyimpan proyek", error)
             return
         self.window.statusBar().showMessage(f"Proyek disimpan: {saved}", 5000)
