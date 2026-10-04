@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aavc.application.commands import RelinkAsset
+from aavc.application.commands import RelinkAsset, SetNarrationAudio, SetSubtitleSource
 from aavc.application.services.export_service import ExportOptions, render_project
+from aavc.application.services.media_import import classify_media_path
 from aavc.application.services.validation import validate_project
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
@@ -199,6 +200,55 @@ class MainWindow:
         self._refresh_validation_badge()
         self.window.statusBar().showMessage("Redo berhasil", 3000)
 
+    def import_media(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        project = self.services.project_session.current
+        if project is None:
+            self._show_project_notice(
+                "Impor Media tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu sebelum mengimpor media.",
+            )
+            return
+
+        project_path = self.services.project_session.path
+        if project_path is not None:
+            start_directory = str(project_path.parent)
+        else:
+            start_directory = str(Path(project.source_docx).resolve().parent)
+
+        chosen, _ = QFileDialog.getOpenFileName(
+            self.window,
+            "Impor Media",
+            start_directory,
+            (
+                "Media didukung (*.srt *.mp3 *.wav *.m4a *.aac *.flac *.ogg);;"
+                "Subtitle SRT (*.srt);;"
+                "Audio narasi (*.mp3 *.wav *.m4a *.aac *.flac *.ogg);;"
+                "Semua File (*.*)"
+            ),
+        )
+        if not chosen:
+            return
+
+        try:
+            kind = classify_media_path(chosen)
+            if kind == "subtitle":
+                self.services.project_session.execute(SetSubtitleSource(chosen))
+                media_label = "Subtitle SRT"
+            else:
+                self.services.project_session.execute(SetNarrationAudio(chosen))
+                media_label = "Narasi audio"
+        except (AAVCError, OSError, ValueError) as error:
+            self._show_project_error("Impor Media gagal", error)
+            return
+
+        self.window.statusBar().showMessage(
+            f"{media_label} diimpor: {Path(chosen).name}. "
+            "Klik Simpan untuk menyimpan perubahan.",
+            7000,
+        )
+
     def relink_asset_from_validation(self, asset_id: str) -> None:
         from PySide6.QtWidgets import QFileDialog
 
@@ -324,7 +374,7 @@ class MainWindow:
             ("Simpan", self.save_project),
             ("Undo", self.undo_project),
             ("Redo", self.redo_project),
-            ("Impor Media", lambda: self._show_pending_feature("Impor Media")),
+            ("Impor Media", self.import_media),
             ("Tambah Teks", lambda: self.show_route(UiRoute.SUBTITLE_EDITOR)),
             ("Rekam Narasi", lambda: self._show_pending_feature("Rekam Narasi")),
         ]
