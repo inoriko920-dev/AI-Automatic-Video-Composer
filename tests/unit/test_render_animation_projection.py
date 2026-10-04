@@ -54,7 +54,7 @@ def test_render_plan_projects_partial_assignment_in_asset_order(tmp_path: Path) 
     assert planned_scene.animations[1] is assignment
 
 
-def test_animation_projection_does_not_change_ffmpeg_command_yet(tmp_path: Path) -> None:
+def test_animation_projection_reaches_ffmpeg_motion_compiler(tmp_path: Path) -> None:
     project = _project()
     scene = project.scenes[0]
     baseline = build_ffmpeg_command(build_render_plan(project, tmp_path / "baseline.mp4"))
@@ -72,4 +72,9 @@ def test_animation_projection_does_not_change_ffmpeg_command_yet(tmp_path: Path)
         build_render_plan(animated_project, tmp_path / "baseline.mp4")
     )
 
-    assert animated == baseline
+    assert animated != baseline
+    baseline_filter = baseline[baseline.index("-filter_complex") + 1]
+    animated_filter = animated[animated.index("-filter_complex") + 1]
+    assert "overlay=x=(W-w)/2:y=(H-h)/2:shortest=1" in baseline_filter
+    assert "overlay=x='((W-w)/2)+" in animated_filter
+    assert "W*0.075000" in animated_filter

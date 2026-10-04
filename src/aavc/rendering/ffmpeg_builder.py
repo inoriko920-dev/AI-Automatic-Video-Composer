@@ -2,11 +2,49 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .render_plan import RenderPlan
+from aavc.animation.compiler import (
+    assignment_has_native_motion,
+    compile_motion_overlay_position,
+)
+from aavc.domain.project.models import AnimationAssignment
+
+from .render_plan import RenderPlan, SceneRenderPlan
 
 
 def _esc_filter_path(path: str) -> str:
-    return str(Path(path).resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+    return (
+        str(Path(path).resolve())
+        .replace("\\", "/")
+        .replace(":", "\\:")
+        .replace("'", "\\'")
+    )
+
+
+def _animation_at(
+    scene: SceneRenderPlan,
+    asset_index: int,
+) -> AnimationAssignment | None:
+    if asset_index >= len(scene.animations):
+        return None
+    return scene.animations[asset_index]
+
+
+def _overlay_clause(
+    *,
+    base_x: str,
+    base_y: str,
+    assignment: AnimationAssignment | None,
+    duration_seconds: float,
+) -> str:
+    if not assignment_has_native_motion(assignment):
+        return f"overlay=x={base_x}:y={base_y}:shortest=1"
+    x_expr, y_expr = compile_motion_overlay_position(
+        base_x=base_x,
+        base_y=base_y,
+        assignment=assignment,
+        duration_seconds=duration_seconds,
+    )
+    return f"overlay=x='{x_expr}':y='{y_expr}':shortest=1"
 
 
 def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
@@ -47,8 +85,14 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
             )
             out = f"scene{sidx}"
             fade_out_start = max(0.0, duration - 0.25)
+            overlay = _overlay_clause(
+                base_x="(W-w)/2",
+                base_y="(H-h)/2",
+                assignment=_animation_at(scene, 0),
+                duration_seconds=duration,
+            )
             filters.append(
-                f"[{bg}][{scaled}]overlay=x=(W-w)/2:y=(H-h)/2:shortest=1,"
+                f"[{bg}][{scaled}]{overlay},"
                 f"fade=t=in:st=0:d=0.25,fade=t=out:st={fade_out_start:.3f}:d=0.25[{out}]"
             )
         else:
@@ -63,28 +107,47 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
                 )
             tmp = f"tmp{sidx}"
             out = f"scene{sidx}"
+            first_overlay = _overlay_clause(
+                base_x="W/2-w-12",
+                base_y="(H-h)/2",
+                assignment=_animation_at(scene, 0),
+                duration_seconds=duration,
+            )
             filters.append(
-                f"[{bg}][{scaled_names[0]}]overlay=x=W/2-w-12:y=(H-h)/2:shortest=1[{tmp}]"
+                f"[{bg}][{scaled_names[0]}]{first_overlay}[{tmp}]"
             )
             fade_out_start = max(0.0, duration - 0.25)
+            second_overlay = _overlay_clause(
+                base_x="W/2+12",
+                base_y="(H-h)/2",
+                assignment=_animation_at(scene, 1),
+                duration_seconds=duration,
+            )
             filters.append(
-                f"[{tmp}][{scaled_names[1]}]overlay=x=W/2+12:y=(H-h)/2:shortest=1,"
+                f"[{tmp}][{scaled_names[1]}]{second_overlay},"
                 f"fade=t=in:st=0:d=0.25,fade=t=out:st={fade_out_start:.3f}:d=0.25[{out}]"
             )
         scene_outputs.append(f"[{out}]")
 
     concat_out = "vcat"
-    filters.append("".join(scene_outputs) + f"concat=n={len(scene_outputs)}:v=1:a=0[{concat_out}]")
+    filters.append(
+        "".join(scene_outputs)
+        + f"concat=n={len(scene_outputs)}:v=1:a=0[{concat_out}]"
+    )
     final_video = concat_out
     if plan.subtitle_ass:
         final_video = "vsub"
-        filters.append(f"[{concat_out}]ass='{_esc_filter_path(plan.subtitle_ass)}'[{final_video}]")
+        filters.append(
+            f"[{concat_out}]ass='{_esc_filter_path(plan.subtitle_ass)}'[{final_video}]"
+        )
 
     sharpen = max(0.0, min(1.0, plan.quality.sharpen_amount))
     if sharpen > 0:
         sharpened = "vsharp"
         amount = 0.5 + sharpen * 0.8
-        filters.append(f"[{final_video}]unsharp=5:5:{amount:.3f}:5:5:0[{sharpened}]")
+        filters.append(
+            f"[{final_video}]unsharp=5:5:{amount:.3f}:5:5:0[{sharpened}]"
+        )
         final_video = sharpened
 
     cmd += ["-filter_complex", ";".join(filters), "-map", f"[{final_video}]"]
@@ -98,13 +161,20 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
             f"{plan.quality.audio_bitrate_kbps}k",
         ]
     cmd += [
-        "-t", f"{plan.duration_seconds:.3f}",
-        "-r", str(plan.fps),
-        "-c:v", plan.quality.video_codec,
-        "-preset", plan.quality.encoder_preset,
-        "-crf", str(plan.quality.crf),
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
+        "-t",
+        f"{plan.duration_seconds:.3f}",
+        "-r",
+        str(plan.fps),
+        "-c:v",
+        plan.quality.video_codec,
+        "-preset",
+        plan.quality.encoder_preset,
+        "-crf",
+        str(plan.quality.crf),
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
         plan.output_path,
     ]
     return cmd
