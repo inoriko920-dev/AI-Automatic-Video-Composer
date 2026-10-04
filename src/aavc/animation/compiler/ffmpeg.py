@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aavc.domain.project.models import AnimationAssignment
 
-NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift"})
+NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift", "Tectonic"})
 NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade", "Pop", "Stomp"})
 NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop", "Breathe", "Stomp"})
 NATIVE_VISUAL_ROTATION_EFFECTS = frozenset({"Tumble"})
@@ -231,6 +231,25 @@ def _motion_term(
     window_seconds: float,
     intensity: float,
 ) -> tuple[str, str] | None:
+    window = f"{window_seconds:.6f}"
+    if effect == "Tectonic":
+        distance = 0.012 * intensity
+        phase = "18.849556"
+        if entering:
+            expression = (
+                f"if(lt(t,{window}),"
+                f"cos((t/{window})*{phase})*(1-t/{window})*W*{distance:.6f},0)"
+            )
+        else:
+            exit_start = max(0.0, duration_seconds - window_seconds)
+            start = f"{exit_start:.6f}"
+            expression = (
+                f"if(gt(t,{start}),"
+                f"cos(((t-{start})/{window})*{phase})*"
+                f"((t-{start})/{window})*W*{distance:.6f},0)"
+            )
+        return "x", expression
+
     if effect == "Rise":
         dimension = "H"
         distance = 0.08 * intensity
@@ -242,7 +261,6 @@ def _motion_term(
     else:
         return None
 
-    window = f"{window_seconds:.6f}"
     distance_expr = f"{dimension}*{distance:.6f}"
     if entering:
         expression = f"if(lt(t,{window}),(1-t/{window})*{distance_expr},0)"
