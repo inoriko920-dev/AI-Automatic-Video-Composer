@@ -3,6 +3,7 @@ from .presets import ANIMATION_PRESETS, STYLE_PRESETS, get_animation_preset, get
 from .srt import (
     SubtitleCue,
     format_srt_timestamp,
+    insert_subtitle_cue,
     parse_srt,
     parse_srt_timestamp,
     replace_subtitle_cue,
@@ -21,6 +22,7 @@ __all__ = [
     "format_srt_timestamp",
     "get_animation_preset",
     "get_style_preset",
+    "insert_subtitle_cue",
     "parse_srt",
     "parse_srt_timestamp",
     "replace_subtitle_cue",
