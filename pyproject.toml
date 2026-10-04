@@ -23,8 +23,7 @@ dev = [
 aavc = "aavc.bootstrap.startup:main"
 
 [tool.setuptools]
-package-dir = {"" = "src"
-}
+package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
