@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
+from aavc.application.commands.scene_order import MoveScene
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
@@ -32,7 +33,7 @@ def resolve_unsaved_choice(
 
 
 class GuardedMainWindow(MainWindow):
-    """Main window that prevents silent loss of dirty project state."""
+    """Main window that prevents silent loss and exposes safe editor commands."""
 
     def __init__(
         self,
@@ -43,6 +44,44 @@ class GuardedMainWindow(MainWindow):
         self._close_guard: object | None = None
         super().__init__(services, initial_state=initial_state)
         self._install_close_guard()
+
+    def _build_menu(self, action_type: Any) -> None:
+        super()._build_menu(action_type)
+
+        edit_menu: Any | None = None
+        for menu_action in self.window.menuBar().actions():
+            if menu_action.text() == "Edit":
+                edit_menu = menu_action.menu()
+                break
+        if edit_menu is None:
+            return
+
+        edit_menu.clear()
+
+        undo_action = action_type("Undo", self.window)
+        undo_action.setShortcut("Ctrl+Z")
+        undo_action.triggered.connect(self.undo_project)
+        edit_menu.addAction(undo_action)
+
+        redo_action = action_type("Redo", self.window)
+        redo_action.setShortcut("Ctrl+Y")
+        redo_action.triggered.connect(self.redo_project)
+        edit_menu.addAction(redo_action)
+        edit_menu.addSeparator()
+
+        move_up = action_type("Pindah Scene ke Atas", self.window)
+        move_up.setShortcut("Alt+Up")
+        move_up.triggered.connect(
+            lambda _checked=False: self.move_selected_scene(-1)
+        )
+        edit_menu.addAction(move_up)
+
+        move_down = action_type("Pindah Scene ke Bawah", self.window)
+        move_down.setShortcut("Alt+Down")
+        move_down.triggered.connect(
+            lambda _checked=False: self.move_selected_scene(1)
+        )
+        edit_menu.addAction(move_down)
 
     def _install_close_guard(self) -> None:
         from PySide6.QtCore import QEvent, QObject
@@ -96,6 +135,39 @@ class GuardedMainWindow(MainWindow):
         if result == QMessageBox.StandardButton.Discard:
             return resolve_unsaved_choice(True, "discard")
         return resolve_unsaved_choice(True, "cancel")
+
+    def move_selected_scene(self, offset: int) -> None:
+        project = self.services.project_session.current
+        if project is None:
+            self._show_project_notice(
+                "Reorder Scene tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu.",
+            )
+            return
+
+        scene_number = self._selected_scene_number
+        if scene_number is None:
+            self.window.statusBar().showMessage(
+                "Pilih Scene terlebih dahulu sebelum mengubah urutan.",
+                5000,
+            )
+            return
+
+        try:
+            self.services.project_session.execute(MoveScene(scene_number, offset))
+        except ValueError as error:
+            self.window.statusBar().showMessage(str(error), 5000)
+            return
+
+        self._refresh_window_title()
+        self._refresh_validation_badge()
+        self.refresh_editor_overview()
+        direction = "atas" if offset < 0 else "bawah"
+        self.window.statusBar().showMessage(
+            f"Scene {scene_number:02d} dipindah satu posisi ke {direction}. "
+            "Klik Simpan untuk menyimpan perubahan.",
+            7000,
+        )
 
     def open_project(self) -> None:
         from PySide6.QtWidgets import QFileDialog
