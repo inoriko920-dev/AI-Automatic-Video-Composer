@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
-from aavc.domain.project.models import SubtitleStyle
+from aavc.domain.project.models import SubtitleAnimationSettings, SubtitleStyle
 from aavc.subtitles.srt import SubtitleCue
+
+
+@dataclass(frozen=True, slots=True)
+class SubtitlePreviewTransform:
+    opacity: float = 1.0
+    scale: float = 1.0
+    vertical_offset: float = 0.0
 
 
 def active_subtitle_cue(
@@ -17,6 +25,41 @@ def active_subtitle_cue(
         if cue.start_seconds <= current < cue.end_seconds:
             return cue
     return None
+
+
+def subtitle_animation_transform(
+    cue: SubtitleCue,
+    time_seconds: float,
+    animation: SubtitleAnimationSettings,
+) -> SubtitlePreviewTransform:
+    """Approximate the current ASS animation tags used by the final renderer."""
+
+    start = float(cue.start_seconds)
+    end = max(start, float(cue.end_seconds))
+    current = float(time_seconds)
+    if current < start or current >= end or end <= start:
+        return SubtitlePreviewTransform(opacity=0.0)
+
+    local = current - start
+    remaining = end - current
+    enter_seconds = max(0, int(animation.enter_duration_ms)) / 1000.0
+    exit_seconds = max(0, int(animation.exit_duration_ms)) / 1000.0
+
+    enter_alpha = 1.0 if enter_seconds <= 0 else max(0.0, min(1.0, local / enter_seconds))
+    exit_alpha = 1.0 if exit_seconds <= 0 else max(0.0, min(1.0, remaining / exit_seconds))
+    opacity = min(enter_alpha, exit_alpha)
+
+    scale = 1.05 if animation.preset == "Pop" else 1.0
+    vertical_offset = 0.0
+    if animation.preset == "Slide Up" and enter_seconds > 0:
+        enter_progress = max(0.0, min(1.0, local / enter_seconds))
+        vertical_offset = 80.0 * (1.0 - enter_progress)
+
+    return SubtitlePreviewTransform(
+        opacity=opacity,
+        scale=scale,
+        vertical_offset=vertical_offset,
+    )
 
 
 def _alignment_flags(alignment: int) -> Any:
@@ -54,8 +97,10 @@ def overlay_subtitle_pixmap(
     *,
     project_width: int,
     project_height: int,
+    animation: SubtitleAnimationSettings | None = None,
+    time_seconds: float | None = None,
 ) -> Any:
-    """Paint a conservative static subtitle preview onto an existing pixmap copy."""
+    """Paint a conservative subtitle preview onto an existing pixmap copy."""
 
     if cue is None or pixmap.isNull():
         return pixmap
@@ -63,23 +108,35 @@ def overlay_subtitle_pixmap(
     from PySide6.QtCore import QRect, Qt
     from PySide6.QtGui import QColor, QFont, QPainter, QPen
 
+    transform = (
+        subtitle_animation_transform(cue, time_seconds, animation)
+        if animation is not None and time_seconds is not None
+        else SubtitlePreviewTransform()
+    )
+    if transform.opacity <= 0:
+        return pixmap
+
     result = pixmap.copy()
     painter = QPainter(result)
     painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+    painter.setOpacity(max(0.0, min(1.0, transform.opacity)))
 
     height_scale = result.height() / max(1, int(project_height))
     width_scale = result.width() / max(1, int(project_width))
     scale = min(height_scale, width_scale)
     font = QFont(style.font_family)
-    font.setPixelSize(max(8, int(round(style.font_size * scale))))
+    font.setPixelSize(
+        max(8, int(round(style.font_size * scale * transform.scale)))
+    )
     font.setBold(style.preset_name in {"Dokumenter", "Social"})
     painter.setFont(font)
 
     margin_h = max(8, int(round(80 * width_scale)))
     margin_v = max(0, int(round(style.margin_v * height_scale)))
+    vertical_offset = int(round(transform.vertical_offset * height_scale))
     rect = QRect(
         margin_h,
-        margin_v,
+        margin_v + vertical_offset,
         max(1, result.width() - margin_h * 2),
         max(1, result.height() - margin_v * 2),
     )
