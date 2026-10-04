@@ -91,5 +91,5 @@ def install_timeline_preview_seek(root: Any, project: ProjectState) -> bool:
     event_filter = _TimelineSeekFilter(root)
     for button in timeline_buttons:
         button.installEventFilter(event_filter)
-    setattr(root, "_aavc_timeline_seek_filter", event_filter)
+    root._aavc_timeline_seek_filter = event_filter
     return True
