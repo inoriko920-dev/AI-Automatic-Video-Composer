@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from aavc.application.commands.scene_order import DeleteScene, MoveScene
+from aavc.application.commands.scene_order import DeleteScene, DuplicateScene, MoveScene
 from aavc.application.services.project_session import ProjectSession
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.domain.project.models import AnimationAssignment
@@ -140,5 +140,69 @@ def test_delete_scene_rejects_last_scene_without_history_entry(tmp_path: Path) -
         session.execute(DeleteScene(only_scene.scene_number))
 
     assert _numbers(session.current) == (only_scene.scene_number,)
+    assert not session.is_dirty
+    assert not session.can_undo
+
+
+def test_duplicate_scene_updates_history_render_and_clones_animation(tmp_path: Path) -> None:
+    project = _project()
+    source = project.scenes[0]
+    assignment = AnimationAssignment(
+        source.scene_number,
+        source.asset_ids[0],
+        enter_effect="Pop",
+        exit_effect="Fade",
+        intensity=0.8,
+        locked=True,
+    )
+    project = replace(project, animations=(assignment,))
+    original_order = _numbers(project)
+    expected_number = max(original_order) + 1
+    expected_order = (
+        original_order[0],
+        expected_number,
+        *original_order[1:],
+    )
+
+    session = ProjectSession()
+    session.start(project, tmp_path / "scene-duplicate.aavcproj")
+
+    duplicated = session.execute(DuplicateScene(source.scene_number))
+    assert _numbers(duplicated) == expected_order
+    assert duplicated.bindings == project.bindings
+    assert session.is_dirty
+
+    clone = duplicated.scenes[1]
+    assert clone.scene_number == expected_number
+    assert clone.asset_ids == source.asset_ids
+    assert clone.source_quotes == source.source_quotes
+    assert clone.duration_seconds == source.duration_seconds
+
+    cloned_assignment = next(
+        item for item in duplicated.animations if item.scene_number == expected_number
+    )
+    assert replace(cloned_assignment, scene_number=source.scene_number) == assignment
+
+    render_plan = build_render_plan(duplicated, tmp_path / "scene-duplicate.mp4")
+    assert tuple(scene.scene_number for scene in render_plan.scenes) == expected_order
+
+    undone = session.undo()
+    assert undone == project
+    assert not session.is_dirty
+
+    redone = session.redo()
+    assert _numbers(redone) == expected_order
+    assert session.is_dirty
+
+
+def test_duplicate_scene_rejects_unknown_scene_without_history_entry(tmp_path: Path) -> None:
+    project = _project()
+    session = ProjectSession()
+    session.start(project, tmp_path / "scene-duplicate-missing.aavcproj")
+
+    with pytest.raises(ValueError, match="tidak ditemukan"):
+        session.execute(DuplicateScene(999999))
+
+    assert session.current == project
     assert not session.is_dirty
     assert not session.can_undo
