@@ -3,8 +3,8 @@ from __future__ import annotations
 from aavc.domain.project.models import AnimationAssignment
 
 NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift"})
-NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade", "Pop"})
-NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop", "Breathe"})
+NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade", "Pop", "Stomp"})
+NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop", "Breathe", "Stomp"})
 NATIVE_VISUAL_EFFECTS = (
     NATIVE_VISUAL_MOTION_EFFECTS
     | NATIVE_VISUAL_ALPHA_EFFECTS
@@ -85,7 +85,7 @@ def compile_native_alpha_filters(
 
 
 def _scale_floor(effect: str) -> float | None:
-    if effect == "Pop":
+    if effect in {"Pop", "Stomp"}:
         return 0.85
     if effect == "Breathe":
         return 0.98

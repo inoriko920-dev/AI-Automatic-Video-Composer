@@ -95,6 +95,33 @@ def test_native_pop_compiles_alpha_and_dynamic_scale() -> None:
     assert ":h=-2:eval=frame" in scale_filter
 
 
+def test_native_stomp_uses_pop_scale_and_alpha_contract() -> None:
+    assignment = AnimationAssignment(
+        scene_number=1,
+        asset_id="A001",
+        enter_effect="Stomp",
+        exit_effect="Stomp",
+        intensity=1.0,
+    )
+
+    assert is_native_visual_effect("Stomp")
+    assert compile_native_alpha_filters(
+        assignment,
+        duration_seconds=3.0,
+    ) == (
+        "format=rgba",
+        "fade=t=in:st=0:d=0.250000:alpha=1",
+        "fade=t=out:st=2.750000:d=0.250000:alpha=1",
+    )
+    scale_filter = compile_native_scale_filter(
+        assignment,
+        duration_seconds=3.0,
+    )
+    assert scale_filter is not None
+    assert "0.85+0.15*t/0.250000" in scale_filter
+    assert "1-0.15*(t-2.750000)/0.250000" in scale_filter
+
+
 def test_project_without_assignment_keeps_original_overlay_command(tmp_path: Path) -> None:
     plan = build_render_plan(_project(), tmp_path / "out.mp4")
     command = " ".join(build_ffmpeg_command(plan))
@@ -155,6 +182,31 @@ def test_native_pop_is_applied_before_overlay_and_has_no_fallback(tmp_path: Path
         if issue.code == "VISUAL_EFFECT_FALLBACK"
     ]
     assert not any("Pop" in message for message in fallback_messages)
+
+
+def test_native_stomp_reaches_ffmpeg_and_has_no_fallback(tmp_path: Path) -> None:
+    project = _project()
+    scene = project.scenes[0]
+    assignment = AnimationAssignment(
+        scene_number=scene.scene_number,
+        asset_id=scene.asset_ids[0],
+        enter_effect="Stomp",
+        exit_effect="Stomp",
+        intensity=1.0,
+    )
+    project = replace(project, animations=(assignment,))
+    plan = build_render_plan(project, tmp_path / "stomp.mp4")
+    command = " ".join(build_ffmpeg_command(plan))
+
+    assert "eval=frame" in command
+    assert "0.85+0.15*t/0.250000" in command
+    assert "format=rgba,fade=t=in:st=0:d=0.250000:alpha=1" in command
+    fallback_messages = [
+        issue.message
+        for issue in validate_render_plan(plan).issues
+        if issue.code == "VISUAL_EFFECT_FALLBACK"
+    ]
+    assert not any("Stomp" in message for message in fallback_messages)
 
 
 def test_zero_intensity_fade_keeps_baseline_filter_graph(tmp_path: Path) -> None:
@@ -230,7 +282,7 @@ def test_unsupported_effect_keeps_default_motion_and_warns(tmp_path: Path) -> No
     assignment = AnimationAssignment(
         scene_number=scene.scene_number,
         asset_id=scene.asset_ids[0],
-        enter_effect="Stomp",
+        enter_effect="Wipe",
         exit_effect="Blur",
         intensity=1.0,
     )
@@ -244,7 +296,7 @@ def test_unsupported_effect_keeps_default_motion_and_warns(tmp_path: Path) -> No
         for issue in report.issues
         if issue.code == "VISUAL_EFFECT_FALLBACK"
     ]
-    assert any("Stomp" in message for message in fallback_messages)
+    assert any("Wipe" in message for message in fallback_messages)
     assert any("Blur" in message for message in fallback_messages)
     assert report.ok
 
