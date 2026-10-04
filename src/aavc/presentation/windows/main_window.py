@@ -43,6 +43,63 @@ class MainWindow:
         title, message = pending_feature_message(feature)
         QMessageBox.information(self.window, title, message)
 
+    def _show_project_error(self, title: str, error: Exception) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        QMessageBox.critical(self.window, title, str(error))
+
+    def _show_project_notice(self, title: str, message: str) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        QMessageBox.information(self.window, title, message)
+
+    def open_project(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        chosen, _ = QFileDialog.getOpenFileName(
+            self.window,
+            "Buka Proyek AAVC",
+            "",
+            "AAVC Project (*.aavcproj);;Semua File (*.*)",
+        )
+        if not chosen:
+            return
+        try:
+            project = self.services.project_session.open(chosen)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            self._show_project_error("Gagal membuka proyek", error)
+            return
+        self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
+        self.window.statusBar().showMessage(f"Proyek dibuka: {chosen}", 5000)
+        self.show_route(UiRoute.EDITOR)
+
+    def save_project(self) -> None:
+        try:
+            saved = self.services.project_session.save()
+        except ValueError as error:
+            self._show_project_notice("Simpan tidak tersedia", str(error))
+            return
+        except OSError as error:
+            self._show_project_error("Gagal menyimpan proyek", error)
+            return
+        self.window.statusBar().showMessage(f"Proyek disimpan: {saved}", 5000)
+
+    def undo_project(self) -> None:
+        try:
+            self.services.project_session.undo()
+        except ValueError as error:
+            self.window.statusBar().showMessage(f"Undo tidak tersedia: {error}", 5000)
+            return
+        self.window.statusBar().showMessage("Undo berhasil", 3000)
+
+    def redo_project(self) -> None:
+        try:
+            self.services.project_session.redo()
+        except ValueError as error:
+            self.window.statusBar().showMessage(f"Redo tidak tersedia: {error}", 5000)
+            return
+        self.window.statusBar().showMessage("Redo berhasil", 3000)
+
     def _build_menu(self, action_type: Any) -> None:
         menu_bar = self.window.menuBar()
         for name in [
@@ -63,11 +120,11 @@ class MainWindow:
                 )
                 menu.addAction(new_action)
                 open_action = action_type("Buka Proyek", self.window)
-                open_action.triggered.connect(lambda: self.show_route(UiRoute.EDITOR))
+                open_action.triggered.connect(self.open_project)
                 menu.addAction(open_action)
                 menu.addSeparator()
                 save_action = action_type("Simpan", self.window)
-                save_action.triggered.connect(lambda: self._show_pending_feature("Simpan"))
+                save_action.triggered.connect(self.save_project)
                 menu.addAction(save_action)
                 exit_action = action_type("Keluar", self.window)
                 exit_action.triggered.connect(self.window.close)
@@ -105,10 +162,10 @@ class MainWindow:
         toolbar.setFixedHeight(METRICS.toolbar_h)
         actions = [
             ("Baru", lambda: self.show_route(UiRoute.NEW_PROJECT_DOCX)),
-            ("Buka", lambda: self.show_route(UiRoute.EDITOR)),
-            ("Simpan", lambda: self._show_pending_feature("Simpan")),
-            ("Undo", lambda: self._show_pending_feature("Undo")),
-            ("Redo", lambda: self._show_pending_feature("Redo")),
+            ("Buka", self.open_project),
+            ("Simpan", self.save_project),
+            ("Undo", self.undo_project),
+            ("Redo", self.redo_project),
             ("Impor Media", lambda: self._show_pending_feature("Impor Media")),
             ("Tambah Teks", lambda: self.show_route(UiRoute.SUBTITLE_EDITOR)),
             ("Rekam Narasi", lambda: self._show_pending_feature("Rekam Narasi")),
@@ -151,7 +208,7 @@ class MainWindow:
 
         self._route_widgets[UiRoute.HOME] = create_home_screen(
             lambda: self.show_route(UiRoute.NEW_PROJECT_DOCX),
-            lambda: self.show_route(UiRoute.EDITOR),
+            self.open_project,
         )
         self._route_widgets[UiRoute.NEW_PROJECT_DOCX] = create_new_project_screen(
             lambda: self.show_route(UiRoute.HOME),
