@@ -1,12 +1,12 @@
-# PROJECT_STATE — Post STEP 15 / Release 0.1.0
+# PROJECT_STATE — Post STEP 15 / Release 0.1.1
 
 - Factory Steps: 00–15 complete
 - Status: PASS
-- Current release: `0.1.0`
+- Current release: `0.1.1`
 - GitHub Release publication: **PUBLISHED / VERIFIED**
-- Git tag: `v0.1.0`
-- Frozen release source: `release/0.1.0` @ `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`
-- Final publish workflow: `Final Release Windows` run `#6` / `37180132492`
+- Git tag: `v0.1.1`
+- Frozen release source: `release/0.1.1` @ `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`
+- Canonical maintenance release workflow: `Maintenance Release Windows 0.1.1` run `#1` / `37181599863`
 - Maintenance line: `0.1.x`
 - Architecture: ARCH-AAVC-v1.0
 - Product Blueprint: PB-AAVC-v1.0
@@ -16,16 +16,21 @@
 - Primary branch: `main`
 
 ## IMPLEMENTED
-Production source, UI, end-to-end composition flow, external/provider integration, hardening/QA, Windows portable packaging, release-candidate gate, final-release gate, backup/recovery policy, maintenance policy, and guarded GitHub Release publishing workflow are implemented through STEP 15 and post-release maintenance.
+Production source, UI, end-to-end composition flow, external/provider integration, hardening/QA, Windows portable packaging, release-candidate gate, final-release gate, backup/recovery policy, maintenance policy, and guarded GitHub Release publishing are implemented through STEP 15 and the 0.1.x maintenance line.
 
-See `README.md`, `STEP15_STATUS.md`, `FINAL_RELEASE_MANIFEST.md`, and `docs/RELEASE_PUBLISHING.md` for the canonical capability, release, and publishing summary.
+Maintenance release `0.1.1` fixes issue #9 without adding a new product feature wave:
+- the app-local FFmpeg slot is now physically `tools/ffmpeg/` beside `AI Automatic Video Composer.exe`;
+- portable verification requires that exact root slot;
+- the redundant `_internal/tools/ffmpeg/README.md` packaging path is removed;
+- package/runtime version metadata is aligned with `0.1.1`.
+
+FFmpeg and ffprobe remain external dependencies and are not redistributed by AAVC.
 
 ## VERIFIED
-The official GitHub Release `v0.1.0` is published and targets the frozen release commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`.
+Official GitHub Release `v0.1.1` is published and targets frozen source commit `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`.
 
-Final publication run `37180132492` passed:
-- release-input validation;
-- frozen-source resolution;
+Canonical release run `37181599863` passed:
+- frozen-source resolution and version validation;
 - compileall;
 - Ruff;
 - strict mypy;
@@ -33,25 +38,35 @@ Final publication run `37180132492` passed:
 - STEP 09 Qt screenshot capture/verification;
 - PyInstaller Windows onedir build;
 - portable smoke/content verification;
-- release-bundle preparation;
-- Actions artifact upload;
+- release-bundle preparation and Actions artifact upload;
 - existing tag/release overwrite guard;
 - GitHub Release publication.
 
 Published ZIP integrity:
-- Windows ZIP SHA-256: `c3e4f92656aefd3d57329627c52b8e057d2f8cac5a0a757471b90cb1d68915e8`
-- Source ZIP SHA-256: `1264b1dc483932b496acf87dee21c93f92d4e1b222aa37ca2284fbf99b9df328`
+- Windows ZIP SHA-256: `84ad8cc93f055cb95fc2624511a9eecd541505627628090c277a048e5e8495b4`
+- Source ZIP SHA-256: `a5a00b196e76d34684deef97b9dc605b748e1a32f2f92fe6f761c25b13f720bb`
 
-`BUILD_INFO.txt` records release commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5` and version `0.1.0`. `SHA256SUMS.txt` matches independently computed hashes for both ZIP files.
+Independent artifact inspection confirmed:
+- `AI Automatic Video Composer.exe` exists at portable root;
+- `tools/ffmpeg/README.md` exists at portable root;
+- `_internal/tools/ffmpeg/README.md` is absent;
+- `BUILD_INFO.txt` records version `0.1.1` and the same frozen commit;
+- `SHA256SUMS.txt` matches both published ZIP hashes.
+
+A duplicate publication attempt was blocked by the overwrite guard after `v0.1.1` already existed; no published tag or asset was replaced.
+
+## PUBLISHED HISTORY
+- `v0.1.0` remains the immutable original final-release baseline at commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`.
+- `v0.1.1` is the current maintenance release at commit `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`.
 
 ## PROVISIONAL / EXTERNAL WATCH
-No factory blocker remains. Before patch releases, re-check compatibility when Gemini/provider behavior, PySide6/Qt, Python 3.12 support, FFmpeg capability/license profile, or Windows 11 packaging/runtime behavior changes.
+No factory blocker remains. Before later patch releases, re-check compatibility when Gemini/provider behavior, PySide6/Qt, Python 3.12 support, FFmpeg capability/license profile, or Windows 11 packaging/runtime behavior changes.
 
 ## BLOCKERS
 None known for normal `0.1.x` maintenance.
 
 ## ACTIVE TASK
-No release or feature task is currently active. `REL-0.1.0-PUBLISH` is complete.
+No release or feature task is currently active. `REL-0.1.0-PUBLISH` and `REL-0.1.1-PUBLISH` are complete.
 
 ## NEXT EXACT ACTION
 Wait for a concrete bug report, compatibility issue, security hardening need, packaging issue, or explicitly approved new capability.
