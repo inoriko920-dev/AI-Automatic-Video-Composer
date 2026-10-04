@@ -28,6 +28,22 @@ def preview_scrub_seconds(
     return duration * (clamped / upper)
 
 
+def preview_narration_seconds(
+    scene_durations: tuple[float, ...],
+    scene_index: int,
+    local_seconds: float,
+) -> float:
+    """Map a Scene-local preview time to the global narration timeline."""
+
+    index = int(scene_index)
+    if index < 0 or index >= len(scene_durations):
+        return 0.0
+    normalized = tuple(max(0.0, float(duration)) for duration in scene_durations)
+    scene_duration = normalized[index]
+    local = max(0.0, min(float(local_seconds), scene_duration))
+    return sum(normalized[:index]) + local
+
+
 def preview_neighbor_scene_index(
     current_index: int,
     scene_count: int,
