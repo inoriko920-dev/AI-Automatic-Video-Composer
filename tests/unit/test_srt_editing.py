@@ -2,6 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from aavc.application.commands import SetSubtitleSource
+from aavc.application.services.project_session import ProjectSession
+from aavc.application.services.vertical_slice import create_project_state
 from aavc.subtitles import (
     SubtitleCue,
     format_srt_timestamp,
@@ -11,6 +14,8 @@ from aavc.subtitles import (
     serialize_srt,
     write_srt_atomic,
 )
+
+FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 
 
 def _sample_cues() -> tuple[SubtitleCue, ...]:
@@ -92,3 +97,37 @@ def test_writing_copy_does_not_touch_original(tmp_path: Path) -> None:
 def test_atomic_writer_requires_srt_extension(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="berekstensi .srt"):
         write_srt_atomic(tmp_path / "edited.txt", _sample_cues())
+
+
+def test_copied_subtitle_source_participates_in_undo_redo(tmp_path: Path) -> None:
+    original = tmp_path / "original.srt"
+    original.write_text(
+        "1\n00:00:00,000 --> 00:00:01,000\nAsli\n",
+        encoding="utf-8",
+    )
+    edited_path = tmp_path / "original.edited.srt"
+    edited = replace_subtitle_cue(
+        parse_srt(original),
+        0,
+        text="Versi edit",
+        start_seconds=0.1,
+        end_seconds=1.25,
+    )
+    write_srt_atomic(edited_path, edited)
+
+    project = create_project_state(
+        title="subtitle-edit",
+        scene_docx=FIXTURE / "scene_asset_demo.docx",
+        asset_directory=FIXTURE / "assets",
+    )
+    session = ProjectSession()
+    session.start(project)
+    session.execute(SetSubtitleSource(str(original)))
+    session.execute(SetSubtitleSource(str(edited_path)))
+
+    assert session.current is not None
+    assert session.current.subtitle_source == str(edited_path.resolve())
+    session.undo()
+    assert session.current.subtitle_source == str(original.resolve())
+    session.redo()
+    assert session.current.subtitle_source == str(edited_path.resolve())
