@@ -5,6 +5,7 @@ from typing import Any
 from aavc.domain.project.models import AnimationAssignment, ProjectState
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
+    preview_neighbor_scene_index,
     preview_scrub_seconds,
 )
 from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
@@ -111,24 +112,30 @@ def _find_preview_canvas(root: Any) -> Any | None:
 
 
 def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
-    """Enable native visual playback and scrubbing without mutating project state."""
+    """Enable native visual playback, scrubbing, and Scene transport without mutating project state."""
 
     from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QPushButton, QSlider
 
     scene_list = _find_scene_list(root, project)
     canvas = _find_preview_canvas(root)
-    play_button = next(
-        (button for button in root.findChildren(QPushButton) if button.text() == "▶"),
-        None,
-    )
+    buttons = root.findChildren(QPushButton)
+    previous_button = next((button for button in buttons if button.text() == "◀"), None)
+    play_button = next((button for button in buttons if button.text() == "▶"), None)
+    next_button = next((button for button in buttons if button.text() == "▶|"), None)
     sliders = root.findChildren(QSlider)
     progress_slider = sliders[0] if sliders else None
-    if scene_list is None or canvas is None or play_button is None:
+    if (
+        scene_list is None
+        or canvas is None
+        or previous_button is None
+        or play_button is None
+        or next_button is None
+    ):
         return False
 
-    has_scene = scene_list.currentRow() >= 0
-    play_button.setEnabled(has_scene)
+    previous_button.setToolTip("Pilih Scene sebelumnya pada preview.")
+    next_button.setToolTip("Pilih Scene berikutnya pada preview.")
     play_button.setToolTip(
         "Putar preview motion native Rise/Pan/Drift untuk Scene terpilih. "
         "Audio dan subtitle overlay belum aktif."
@@ -136,7 +143,6 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     if progress_slider is not None:
         progress_slider.setRange(0, 1000)
         progress_slider.setValue(0)
-        progress_slider.setEnabled(has_scene)
         progress_slider.setToolTip(
             "Geser untuk melihat frame motion pada waktu tertentu di Scene terpilih."
         )
@@ -153,6 +159,18 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         if row < 0 or row >= len(project.scenes):
             return None
         return build_scene_preview_plan(project, project.scenes[row])
+
+    def update_transport_state(row: int) -> None:
+        valid_scene = 0 <= row < len(project.scenes)
+        previous_button.setEnabled(
+            preview_neighbor_scene_index(row, len(project.scenes), -1) is not None
+        )
+        next_button.setEnabled(
+            preview_neighbor_scene_index(row, len(project.scenes), 1) is not None
+        )
+        play_button.setEnabled(valid_scene)
+        if progress_slider is not None:
+            progress_slider.setEnabled(valid_scene)
 
     def render_frame(time_seconds: float | None) -> None:
         plan = selected_plan()
@@ -248,18 +266,27 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         if progress_slider is not None:
             scrub_to_value(progress_slider.value())
 
+    def navigate_scene(step: int) -> None:
+        target = preview_neighbor_scene_index(
+            scene_list.currentRow(),
+            len(project.scenes),
+            step,
+        )
+        if target is not None:
+            scene_list.setCurrentRow(target)
+
     def scene_changed(row: int) -> None:
-        valid_scene = 0 <= row < len(project.scenes)
         stop_playback(restore_static=False)
-        play_button.setEnabled(valid_scene)
-        if progress_slider is not None:
-            progress_slider.setEnabled(valid_scene)
+        update_transport_state(row)
 
     timer.timeout.connect(tick)
+    previous_button.clicked.connect(lambda: navigate_scene(-1))
     play_button.clicked.connect(toggle_playback)
+    next_button.clicked.connect(lambda: navigate_scene(1))
     scene_list.currentRowChanged.connect(scene_changed)
     if progress_slider is not None:
         progress_slider.sliderPressed.connect(scrub_started)
         progress_slider.sliderMoved.connect(scrub_to_value)
         progress_slider.sliderReleased.connect(scrub_released)
+    update_transport_state(scene_list.currentRow())
     return True
