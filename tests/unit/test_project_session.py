@@ -6,16 +6,22 @@ from aavc.application.commands import SetSceneDuration
 from aavc.application.services.project_session import ProjectSession
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.domain.project.models import ProjectState
+from aavc.persistence.project_repository import ProjectRepository
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 
 
-def _project() -> ProjectState:
+def _project(title: str = "demo-session") -> ProjectState:
     return create_project_state(
-        title="demo-session",
+        title=title,
         scene_docx=FIXTURE / "scene_asset_demo.docx",
         asset_directory=FIXTURE / "assets",
     )
+
+
+class FailingSaveRepository(ProjectRepository):
+    def save(self, project: ProjectState, path: str | Path) -> Path:
+        raise OSError("disk penuh")
 
 
 def test_session_start_save_and_reopen(tmp_path: Path) -> None:
@@ -32,6 +38,32 @@ def test_session_start_save_and_reopen(tmp_path: Path) -> None:
     assert project.title == "demo-session"
     assert reopened.current == project
     assert reopened.path == destination.resolve()
+
+
+def test_create_persists_project_before_activating_session(tmp_path: Path) -> None:
+    destination = tmp_path / "created.aavcproj"
+    project = _project("project-baru")
+    session = ProjectSession()
+
+    created = session.create(project, destination)
+
+    assert destination.is_file()
+    assert created == project
+    assert session.current == project
+    assert session.path == destination.resolve()
+
+
+def test_failed_create_preserves_previous_session(tmp_path: Path) -> None:
+    previous = _project("project-lama")
+    previous_path = tmp_path / "previous.aavcproj"
+    session = ProjectSession(FailingSaveRepository())
+    session.start(previous, previous_path)
+
+    with pytest.raises(OSError, match="disk penuh"):
+        session.create(_project("project-baru"), tmp_path / "new.aavcproj")
+
+    assert session.current == previous
+    assert session.path == previous_path.resolve()
 
 
 def test_session_execute_undo_redo_uses_project_history() -> None:
