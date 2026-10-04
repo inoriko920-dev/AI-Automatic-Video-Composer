@@ -34,6 +34,8 @@ def validation_category(issue: ValidationIssue) -> str:
         return "Media"
     if issue.code == "SCENE_DURATION_SHORT":
         return "Scene"
+    if issue.code == "VISUAL_EFFECT_FALLBACK":
+        return "Render"
     return "Project"
 
 
