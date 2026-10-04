@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from .registry import validate_effect
@@ -28,6 +29,10 @@ def evaluate_effect(name: str, progress: float, *, entering: bool = True) -> Tra
         return TransformDelta(opacity=p, offset_y=(1.0 - p) * 0.08)
     if name in {"Pan", "Drift"}:
         return TransformDelta(opacity=p, offset_x=(1.0 - p) * 0.06)
+    if name == "Tectonic":
+        return TransformDelta(
+            offset_x=math.cos(p * 6.0 * math.pi) * (1.0 - p) * 0.012
+        )
     if name == "Breathe":
         return TransformDelta(opacity=1.0, scale=0.98 + 0.02 * p)
     if name == "Tumble":
