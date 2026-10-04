@@ -64,6 +64,8 @@ Untuk membuka project state yang sudah ada:
 4. Jika file rusak/tidak valid, project aktif sebelumnya tetap dipertahankan.
 5. Setelah berhasil dibuka, judul window mengikuti nama project dan editor ditampilkan.
 
+Jika project aktif memiliki perubahan belum disimpan, judul window menampilkan tanda `*`. Sebelum **Buka Proyek**, mengganti sesi melalui **Proyek Baru**, atau **Keluar**, AAVC meminta pilihan **Simpan / Abaikan / Batal**. Jika penyimpanan gagal, aksi destruktif dibatalkan sehingga state lama tidak hilang diam-diam.
+
 Format project state internal menggunakan ekstensi `.aavcproj` dan memiliki versioned schema di engine.
 
 ## 5. Bagian editor yang tersedia
@@ -85,23 +87,24 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, live-subtitle-style, live-subtitle-animation, live-editor-overview, static-scene-preview, live-readonly-timeline, dan live-scene-duration, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, live-subtitle-style, live-subtitle-animation, live-editor-overview, static-scene-preview, live-readonly-timeline, live-scene-duration, dirty-state, unsaved-change-guard, dan scene-reorder, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
 - **Simpan** → menyimpan current `ProjectState` ke path project aktif secara atomic melalui repository.
 - **Undo** → memundurkan perubahan model pada `ProjectHistory` jika tersedia.
 - **Redo** → mengulangi perubahan model pada `ProjectHistory` jika tersedia.
+- **Edit → Pindah Scene ke Atas/Bawah** → memindahkan Scene terpilih satu posisi melalui `ProjectHistory`; shortcut yang sama tersedia melalui `Alt+Up` dan `Alt+Down`.
 - **Impor Media** → memasukkan subtitle SRT atau audio narasi yang didukung ke project aktif melalui history.
 - **Tambah Teks** → membaca `subtitle_source` project aktif, menampilkan cue/timing SRT yang sebenarnya, serta membuka tab **Gaya** dan **Animasi** yang dipakai render.
 - **Terapkan Durasi** pada inspector Scene → mengubah `duration_seconds` Scene terpilih melalui `ProjectHistory`.
 - **Validasi** → menghitung issue dari `ProjectState` aktif dan membuka Validation Center dengan data nyata.
 - **Ekspor Video** → membuka pengaturan ekspor; **Mulai Render** menjalankan render pipeline FFmpeg nyata untuk project aktif.
-- **Keluar** → menutup aplikasi.
+- **Keluar** → menutup aplikasi setelah guard perubahan belum disimpan bila diperlukan.
 
 Jika **Simpan** dipilih tanpa project aktif, aplikasi memberi penjelasan bahwa penyimpanan belum tersedia untuk sesi tersebut. Undo/Redo yang tidak memiliki aksi juga memberi feedback dan tidak merusak state project.
 
-## 7. Editor Overview, preview statis, timeline read-only, dan durasi Scene
+## 7. Editor Overview, preview statis, timeline read-only, durasi, dan urutan Scene
 
 Pada source `main` setelah maintenance live-editor-overview, editor yang dibuka setelah **Buat/Buka Project** tidak lagi memakai daftar Scene/Aset demo sebagai data project.
 
@@ -148,7 +151,20 @@ Pada source `main` setelah maintenance live-scene-duration, panel kanan mengikut
 
 Mengubah angka pada field tanpa menekan **Terapkan Durasi** tidak mengubah project. Perubahan yang sudah diterapkan masih berada di state/history sampai tombol **Simpan** dipakai. Jika kemudian **Undo** atau **Redo** dipilih, editor kembali menampilkan durasi hasil history sambil mempertahankan Scene yang sedang dipilih bila Scene tersebut masih ada.
 
-Timeline sendiri tetap **read-only**. Drag/drop, trim, resize, split, ripple, perubahan urutan, waveform, dan scrubbing timeline belum diaktifkan. Durasi Scene diubah melalui inspector kanan, bukan dengan menarik tepi blok timeline. Preview juga belum merupakan pemutar video: playback, audio, subtitle overlay, dan animasi enter/exit belum aktif. Kontrol transport/scrub preview tetap dinonaktifkan agar tidak terlihat seolah-olah sudah berfungsi. Fixture editor lama tetap dipertahankan hanya untuk no-session STEP09 visual-reference capture.
+Untuk mengubah urutan Scene pada source `main` setelah maintenance scene-reorder:
+
+1. Pilih Scene dari daftar kiri atau timeline.
+2. Gunakan **Edit → Pindah Scene ke Atas** atau tekan `Alt+Up` untuk memindahkannya satu posisi ke atas.
+3. Gunakan **Edit → Pindah Scene ke Bawah** atau tekan `Alt+Down` untuk memindahkannya satu posisi ke bawah.
+4. Nomor Scene tetap stabil; yang berubah adalah urutan Scene pada `ProjectState.scenes`.
+5. Timeline dibangun ulang menurut urutan baru dan Scene yang sama tetap terpilih.
+6. Perubahan masuk `ProjectHistory`, sehingga dapat di-**Undo/Redo** dan ikut dirty-state `*`.
+7. `RenderPlan` membaca urutan Scene yang sama, sehingga ekspor final mengikuti urutan baru.
+8. Klik **Simpan** untuk menyimpan urutan baru ke `.aavcproj`.
+
+Jika Scene sudah berada di posisi paling atas atau paling bawah, perintah yang melewati batas ditolak tanpa membuat entry Undo dan tanpa membuat project menjadi dirty.
+
+Timeline sendiri tetap **read-only** untuk manipulasi langsung. Drag/drop, trim, resize, split, ripple, waveform, dan scrubbing timeline belum diaktifkan. Reorder Scene dilakukan melalui menu **Edit**/shortcut, bukan dengan drag blok timeline. Durasi Scene diubah melalui inspector kanan, bukan dengan menarik tepi blok timeline. Preview juga belum merupakan pemutar video: playback, audio, subtitle overlay, dan animasi enter/exit belum aktif. Kontrol transport/scrub preview tetap dinonaktifkan agar tidak terlihat seolah-olah sudah berfungsi. Fixture editor lama tetap dipertahankan hanya untuk no-session STEP09 visual-reference capture.
 
 ## 8. Validasi project dan relink aset
 
@@ -262,11 +278,11 @@ Jika project belum memiliki `subtitle_source`, **Tambah Teks** meminta pengguna 
 
 ## 12. Kontrol yang belum terhubung penuh
 
-Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Playback preview, timeline editing/scrubbing, preview burn-in subtitle, animasi preview, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final. Timeline scene read-only sudah tersedia dan durasi Scene sudah dapat diubah melalui inspector kanan, tetapi timeline belum dapat dipakai untuk drag/trim/reorder.
+Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Playback preview, timeline drag/trim/split/scrub, preview burn-in subtitle, animasi preview, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final. Timeline scene read-only sudah tersedia, durasi Scene sudah dapat diubah melalui inspector kanan, dan urutan Scene sudah dapat diubah melalui menu **Edit**/shortcut, tetapi timeline belum dapat dipakai untuk manipulasi drag/drop langsung.
 
 Editor assignment animasi visual aset juga belum dibuka sebagai kontrol live pada tahap ini. Walaupun model `AnimationAssignment` dan command `SetAnimationAssignment` sudah ada, penggunaan assignment visual per-aset oleh render pipeline belum dibuktikan end-to-end, sehingga UI tidak mengklaim bahwa perubahan assignment visual tersebut akan masuk video final. Ini terpisah dari **Animasi Subtitle**, yang sudah render-backed melalui compiler ASS.
 
-Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-subtitle-style/live-subtitle-animation/live-editor-overview/static-scene-preview/live-readonly-timeline/live-scene-duration berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-subtitle-style/live-subtitle-animation/live-editor-overview/static-scene-preview/live-readonly-timeline/live-scene-duration/dirty-state/unsaved-change-guard/scene-reorder berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
 ## 13. Sebelum ekspor
 
@@ -280,6 +296,7 @@ Sebelum menjalankan ekspor, periksa minimal:
 - Subtitle source valid jika burn-in subtitle digunakan.
 - Jika memakai gaya subtitle kustom, pastikan sudah menekan **Terapkan Gaya** lalu **Simpan**.
 - Jika memakai animasi subtitle kustom, pastikan sudah menekan **Terapkan Animasi** lalu **Simpan**.
+- Pastikan urutan Scene pada timeline sesuai sebelum render; urutan ini juga dipakai `RenderPlan`.
 - Pengaturan resolusi, FPS, codec, kualitas, dan ketajaman sesuai kebutuhan.
 
 Gunakan tombol **Validasi** untuk meninjau masalah yang dapat dideteksi sebelum render.
