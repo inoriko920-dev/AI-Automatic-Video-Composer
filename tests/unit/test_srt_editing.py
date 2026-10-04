@@ -8,6 +8,7 @@ from aavc.application.services.vertical_slice import create_project_state
 from aavc.subtitles import (
     SubtitleCue,
     format_srt_timestamp,
+    insert_subtitle_cue,
     parse_srt,
     parse_srt_timestamp,
     replace_subtitle_cue,
@@ -57,6 +58,41 @@ def test_replace_cue_preserves_index_and_other_cues() -> None:
         replace_subtitle_cue(cues, 99, text="Valid", start_seconds=0.0, end_seconds=1.0)
 
 
+def test_insert_cue_after_selected_preserves_existing_indexes() -> None:
+    cues = _sample_cues()
+    inserted = insert_subtitle_cue(
+        cues,
+        0,
+        text="Cue tambahan",
+        start_seconds=1.5,
+        end_seconds=2.0,
+    )
+
+    assert [cue.index for cue in inserted] == [1, 3, 2]
+    assert inserted[1] == SubtitleCue(3, 1.5, 2.0, "Cue tambahan")
+    assert inserted[0] is cues[0]
+    assert inserted[2] is cues[1]
+
+
+def test_insert_first_cue_into_empty_source() -> None:
+    inserted = insert_subtitle_cue(
+        (),
+        -1,
+        text="Cue pertama",
+        start_seconds=0.0,
+        end_seconds=1.0,
+    )
+    assert inserted == (SubtitleCue(1, 0.0, 1.0, "Cue pertama"),)
+
+
+def test_insert_cue_rejects_invalid_position_and_content() -> None:
+    cues = _sample_cues()
+    with pytest.raises(ValueError, match="Posisi cue baru tidak valid"):
+        insert_subtitle_cue(cues, 2, text="Valid", start_seconds=4.0, end_seconds=5.0)
+    with pytest.raises(ValueError, match="Teks cue tidak boleh kosong"):
+        insert_subtitle_cue(cues, 1, text=" ", start_seconds=4.0, end_seconds=5.0)
+
+
 def test_serialize_and_atomic_write_round_trip(tmp_path: Path) -> None:
     cues = _sample_cues()
     serialized = serialize_srt(cues)
@@ -69,6 +105,19 @@ def test_serialize_and_atomic_write_round_trip(tmp_path: Path) -> None:
     assert resolved == destination.resolve()
     assert parse_srt(destination) == cues
     assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_added_cue_round_trips_through_copy(tmp_path: Path) -> None:
+    added = insert_subtitle_cue(
+        _sample_cues(),
+        1,
+        text="Cue ketiga",
+        start_seconds=4.0,
+        end_seconds=5.25,
+    )
+    destination = tmp_path / "with-added-cue.srt"
+    write_srt_atomic(destination, added)
+    assert parse_srt(destination) == added
 
 
 def test_writing_copy_does_not_touch_original(tmp_path: Path) -> None:
