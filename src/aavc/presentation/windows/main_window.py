@@ -7,6 +7,14 @@ from aavc.presentation.design_tokens import METRICS, app_stylesheet
 from aavc.presentation.navigation import UiRoute, parse_route
 
 
+def pending_feature_message(feature: str) -> tuple[str, str]:
+    return (
+        "Fitur belum terhubung",
+        f"{feature} belum terhubung ke sesi proyek pada build ini. "
+        "Tidak ada perubahan proyek yang dilakukan.",
+    )
+
+
 class MainWindow:
     def __init__(self, services: FoundationServices, initial_state: str = "UI-002") -> None:
         from PySide6.QtGui import QAction
@@ -28,6 +36,12 @@ class MainWindow:
         self._build_toolbar(QToolBar, QAction)
         self._build_pages()
         self.show_route(parse_route(initial_state))
+
+    def _show_pending_feature(self, feature: str) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        title, message = pending_feature_message(feature)
+        QMessageBox.information(self.window, title, message)
 
     def _build_menu(self, action_type: Any) -> None:
         menu_bar = self.window.menuBar()
@@ -52,16 +66,30 @@ class MainWindow:
                 open_action.triggered.connect(lambda: self.show_route(UiRoute.EDITOR))
                 menu.addAction(open_action)
                 menu.addSeparator()
-                menu.addAction("Simpan")
-                menu.addAction("Keluar")
+                save_action = action_type("Simpan", self.window)
+                save_action.triggered.connect(lambda: self._show_pending_feature("Simpan"))
+                menu.addAction(save_action)
+                exit_action = action_type("Keluar", self.window)
+                exit_action.triggered.connect(self.window.close)
+                menu.addAction(exit_action)
             elif name == "Ekspor":
                 export_action = action_type("Ekspor Video", self.window)
                 export_action.triggered.connect(self.open_export)
                 menu.addAction(export_action)
             elif name == "Bantuan":
-                menu.addAction("Shortcut & Bantuan Cepat")
+                help_action = action_type("Shortcut & Bantuan Cepat", self.window)
+                help_action.triggered.connect(
+                    lambda: self._show_pending_feature("Shortcut & Bantuan Cepat")
+                )
+                menu.addAction(help_action)
             else:
-                menu.addAction(f"{name} — menu")
+                placeholder_action = action_type(f"{name} — menu", self.window)
+                placeholder_action.triggered.connect(
+                    lambda _checked=False, feature=name: self._show_pending_feature(
+                        f"Menu {feature}"
+                    )
+                )
+                menu.addAction(placeholder_action)
 
     def _build_toolbar(self, toolbar_type: Any, action_type: Any) -> None:
         from PySide6.QtWidgets import (
@@ -78,12 +106,12 @@ class MainWindow:
         actions = [
             ("Baru", lambda: self.show_route(UiRoute.NEW_PROJECT_DOCX)),
             ("Buka", lambda: self.show_route(UiRoute.EDITOR)),
-            ("Simpan", lambda: None),
-            ("Undo", lambda: None),
-            ("Redo", lambda: None),
-            ("Impor Media", lambda: None),
+            ("Simpan", lambda: self._show_pending_feature("Simpan")),
+            ("Undo", lambda: self._show_pending_feature("Undo")),
+            ("Redo", lambda: self._show_pending_feature("Redo")),
+            ("Impor Media", lambda: self._show_pending_feature("Impor Media")),
             ("Tambah Teks", lambda: self.show_route(UiRoute.SUBTITLE_EDITOR)),
-            ("Rekam Narasi", lambda: None),
+            ("Rekam Narasi", lambda: self._show_pending_feature("Rekam Narasi")),
         ]
         for text, callback in actions:
             action = action_type(text, self.window)
