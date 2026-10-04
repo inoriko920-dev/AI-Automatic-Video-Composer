@@ -10,6 +10,7 @@ NATIVE_MOTION_CHOICES = (
     "Pop",
     "Breathe",
     "Stomp",
+    "Tumble",
     "Rise",
     "Pan",
     "Drift",
@@ -81,8 +82,8 @@ def show_asset_motion_dialog(
 
     root = QVBoxLayout(dialog)
     intro = QLabel(
-        "Pilihan ini sudah memiliki backing render FFmpeg dan preview editor: "
-        "Fade, Pop, Breathe, Stomp, Rise, Pan, dan Drift."
+        "Pilihan ini sudah memiliki backing render FFmpeg: "
+        "Fade, Pop, Breathe, Stomp, Tumble, Rise, Pan, dan Drift."
     )
     intro.setWordWrap(True)
     root.addWidget(intro)
@@ -163,7 +164,7 @@ def show_asset_motion_dialog(
             status.setText(
                 "Assignment lama memakai efek yang belum native. "
                 "Terapkan akan menggantinya dengan pilihan "
-                "Fade/Pop/Breathe/Stomp/Rise/Pan/Drift; "
+                "Fade/Pop/Breathe/Stomp/Tumble/Rise/Pan/Drift; "
                 f"Hapus akan menghapus assignment tersebut.{lock_label}"
             )
 
