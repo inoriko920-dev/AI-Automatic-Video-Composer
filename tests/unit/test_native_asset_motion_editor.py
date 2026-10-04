@@ -30,7 +30,7 @@ def _project():
 
 
 def test_native_motion_choices_match_render_backed_contract() -> None:
-    assert NATIVE_MOTION_CHOICES == ("Fade", "Rise", "Pan", "Drift")
+    assert NATIVE_MOTION_CHOICES == ("Fade", "Pop", "Rise", "Pan", "Drift")
 
 
 def test_find_asset_motion_assignment_is_target_specific() -> None:
@@ -57,7 +57,7 @@ def test_build_asset_motion_assignment_maps_lock_state() -> None:
     assignment = build_asset_motion_assignment(
         scene_number=7,
         asset_id="A007",
-        enter_effect="Fade",
+        enter_effect="Pop",
         exit_effect="Pan",
         intensity=1.25,
         locked=True,
@@ -65,7 +65,7 @@ def test_build_asset_motion_assignment_maps_lock_state() -> None:
 
     assert assignment.scene_number == 7
     assert assignment.asset_id == "A007"
-    assert assignment.enter_effect == "Fade"
+    assert assignment.enter_effect == "Pop"
     assert assignment.exit_effect == "Pan"
     assert assignment.intensity == 1.25
     assert assignment.locked
@@ -78,7 +78,7 @@ def test_apply_remove_and_undo_native_motion_reaches_ffmpeg(tmp_path: Path) -> N
     assignment = AnimationAssignment(
         scene_number=scene.scene_number,
         asset_id=asset_id,
-        enter_effect="Fade",
+        enter_effect="Pop",
         exit_effect="Drift",
         intensity=1.2,
     )
@@ -88,6 +88,8 @@ def test_apply_remove_and_undo_native_motion_reaches_ffmpeg(tmp_path: Path) -> N
     applied = session.execute(SetAnimationAssignment(assignment))
     command = build_ffmpeg_command(build_render_plan(applied, tmp_path / "animated.mp4"))
     filter_graph = command[command.index("-filter_complex") + 1]
+    assert "eval=frame" in filter_graph
+    assert "0.85+0.15*t/0.250000" in filter_graph
     assert "format=rgba,fade=t=in:st=0:d=0.250000:alpha=1" in filter_graph
     assert "overlay=x='" in filter_graph
     assert find_asset_motion_assignment(applied.animations, scene.scene_number, asset_id) == assignment

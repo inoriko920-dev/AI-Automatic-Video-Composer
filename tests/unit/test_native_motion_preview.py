@@ -4,6 +4,7 @@ from aavc.domain.project.models import AnimationAssignment
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
     native_visual_preview_opacity,
+    native_visual_preview_scale,
     preview_continuation_scene_index,
     preview_narration_seconds,
     preview_neighbor_scene_index,
@@ -123,7 +124,60 @@ def test_native_fade_exit_preview_opacity_matches_render_window() -> None:
     ) == pytest.approx(0.0)
 
 
-def test_preview_opacity_is_opaque_without_active_native_fade() -> None:
+def test_native_pop_preview_matches_scale_and_alpha_window() -> None:
+    assignment = _assignment("Pop", "Pop")
+
+    assert native_visual_preview_scale(
+        assignment,
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.85)
+    assert native_visual_preview_scale(
+        assignment,
+        time_seconds=0.125,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.925)
+    assert native_visual_preview_scale(
+        assignment,
+        time_seconds=0.25,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+    assert native_visual_preview_scale(
+        assignment,
+        time_seconds=1.875,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.925)
+    assert native_visual_preview_scale(
+        assignment,
+        time_seconds=2.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.85)
+    assert native_visual_preview_opacity(
+        assignment,
+        time_seconds=0.125,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.5)
+
+
+def test_preview_scale_is_identity_without_active_native_pop() -> None:
+    assert native_visual_preview_scale(
+        None,
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+    assert native_visual_preview_scale(
+        _assignment("Rise", "Drift"),
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+    assert native_visual_preview_scale(
+        _assignment("Pop", "Pop", intensity=0.0),
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+
+
+def test_preview_opacity_is_opaque_without_active_native_alpha() -> None:
     assert native_visual_preview_opacity(
         None,
         time_seconds=0.0,

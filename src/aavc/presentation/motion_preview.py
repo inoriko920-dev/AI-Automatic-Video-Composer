@@ -6,6 +6,7 @@ from aavc.animation import evaluate_effect
 from aavc.animation.compiler import (
     is_native_visual_alpha_effect,
     is_native_visual_motion_effect,
+    is_native_visual_scale_effect,
 )
 from aavc.domain.project.models import AnimationAssignment
 
@@ -91,7 +92,7 @@ def native_visual_preview_opacity(
     time_seconds: float,
     duration_seconds: float,
 ) -> float:
-    """Evaluate native Fade opacity using the same timing window as FFmpeg."""
+    """Evaluate native alpha using the same timing window as FFmpeg."""
 
     if assignment is None or assignment.intensity <= 0:
         return 1.0
@@ -115,6 +116,38 @@ def native_visual_preview_opacity(
         opacity *= evaluate_effect(effect, progress, entering=entering).opacity
 
     return max(0.0, min(1.0, opacity))
+
+
+def native_visual_preview_scale(
+    assignment: AnimationAssignment | None,
+    *,
+    time_seconds: float,
+    duration_seconds: float,
+) -> float:
+    """Evaluate native Pop scale using the same timing window as FFmpeg."""
+
+    if assignment is None or assignment.intensity <= 0:
+        return 1.0
+
+    duration = max(0.001, float(duration_seconds))
+    current = max(0.0, min(float(time_seconds), duration))
+    window = min(0.25, duration / 2.0)
+    scale = 1.0
+
+    for effect, entering in (
+        (assignment.enter_effect, True),
+        (assignment.exit_effect, False),
+    ):
+        if not is_native_visual_scale_effect(effect):
+            continue
+        if entering:
+            progress = current / window
+        else:
+            exit_start = max(0.0, duration - window)
+            progress = (current - exit_start) / window
+        scale *= evaluate_effect(effect, progress, entering=entering).scale
+
+    return max(0.01, scale)
 
 
 def native_motion_preview_offset(

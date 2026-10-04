@@ -3,8 +3,13 @@ from __future__ import annotations
 from aavc.domain.project.models import AnimationAssignment
 
 NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift"})
-NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade"})
-NATIVE_VISUAL_EFFECTS = NATIVE_VISUAL_MOTION_EFFECTS | NATIVE_VISUAL_ALPHA_EFFECTS
+NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade", "Pop"})
+NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop"})
+NATIVE_VISUAL_EFFECTS = (
+    NATIVE_VISUAL_MOTION_EFFECTS
+    | NATIVE_VISUAL_ALPHA_EFFECTS
+    | NATIVE_VISUAL_SCALE_EFFECTS
+)
 
 
 def is_native_visual_motion_effect(name: str) -> bool:
@@ -13,6 +18,10 @@ def is_native_visual_motion_effect(name: str) -> bool:
 
 def is_native_visual_alpha_effect(name: str) -> bool:
     return name in NATIVE_VISUAL_ALPHA_EFFECTS
+
+
+def is_native_visual_scale_effect(name: str) -> bool:
+    return name in NATIVE_VISUAL_SCALE_EFFECTS
 
 
 def is_native_visual_effect(name: str) -> bool:
@@ -41,12 +50,23 @@ def assignment_has_native_alpha(
     )
 
 
+def assignment_has_native_scale(
+    assignment: AnimationAssignment | None,
+) -> bool:
+    if assignment is None or assignment.intensity <= 0:
+        return False
+    return (
+        is_native_visual_scale_effect(assignment.enter_effect)
+        or is_native_visual_scale_effect(assignment.exit_effect)
+    )
+
+
 def compile_native_alpha_filters(
     assignment: AnimationAssignment | None,
     *,
     duration_seconds: float,
 ) -> tuple[str, ...]:
-    """Compile render-safe per-asset alpha transitions for native Fade assignments."""
+    """Compile render-safe per-asset alpha transitions for native alpha effects."""
 
     if not assignment_has_native_alpha(assignment) or assignment is None:
         return ()
@@ -62,6 +82,51 @@ def compile_native_alpha_filters(
             f"fade=t=out:st={exit_start:.6f}:d={window:.6f}:alpha=1"
         )
     return tuple(filters)
+
+
+def _native_scale_factor(
+    assignment: AnimationAssignment,
+    *,
+    duration_seconds: float,
+) -> str:
+    duration = max(0.001, float(duration_seconds))
+    window_seconds = min(0.25, duration / 2.0)
+    window = f"{window_seconds:.6f}"
+    exit_start_seconds = max(0.0, duration - window_seconds)
+    exit_start = f"{exit_start_seconds:.6f}"
+    has_enter = is_native_visual_scale_effect(assignment.enter_effect)
+    has_exit = is_native_visual_scale_effect(assignment.exit_effect)
+
+    enter_expr = f"0.85+0.15*t/{window}"
+    exit_expr = f"1-0.15*(t-{exit_start})/{window}"
+    if has_enter and has_exit:
+        return (
+            f"if(lt(t,{window}),{enter_expr},"
+            f"if(gt(t,{exit_start}),{exit_expr},1))"
+        )
+    if has_enter:
+        return f"if(lt(t,{window}),{enter_expr},1)"
+    if has_exit:
+        return f"if(gt(t,{exit_start}),{exit_expr},1)"
+    return "1"
+
+
+def compile_native_scale_filter(
+    assignment: AnimationAssignment | None,
+    *,
+    duration_seconds: float,
+) -> str | None:
+    """Compile frame-evaluated per-asset scale for native Pop assignments."""
+
+    if not assignment_has_native_scale(assignment) or assignment is None:
+        return None
+
+    factor = _native_scale_factor(
+        assignment,
+        duration_seconds=duration_seconds,
+    )
+    width = f"max(2,trunc(iw*({factor})/2)*2)"
+    return f"scale=w='{width}':h=-2:eval=frame"
 
 
 def _motion_term(
