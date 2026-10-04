@@ -3,6 +3,7 @@ import pytest
 from aavc.domain.project.models import AnimationAssignment
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
+    preview_narration_seconds,
     preview_neighbor_scene_index,
     preview_scrub_seconds,
 )
@@ -41,6 +42,22 @@ def test_preview_scrub_seconds_maps_and_clamps_scene_time() -> None:
     assert preview_scrub_seconds(1200, 1000, 8.0) == pytest.approx(8.0)
     assert preview_scrub_seconds(0, 0, 8.0) == pytest.approx(0.0)
     assert preview_scrub_seconds(500, 1000, -2.0) == pytest.approx(0.0)
+
+
+def test_preview_narration_seconds_maps_scene_local_time_to_global_timeline() -> None:
+    durations = (2.0, 3.5, 1.0)
+
+    assert preview_narration_seconds(durations, 0, 1.25) == pytest.approx(1.25)
+    assert preview_narration_seconds(durations, 1, 0.0) == pytest.approx(2.0)
+    assert preview_narration_seconds(durations, 1, 1.5) == pytest.approx(3.5)
+    assert preview_narration_seconds(durations, 1, 99.0) == pytest.approx(5.5)
+    assert preview_narration_seconds(durations, 2, -5.0) == pytest.approx(5.5)
+    assert preview_narration_seconds(durations, -1, 1.0) == pytest.approx(0.0)
+    assert preview_narration_seconds(durations, 3, 1.0) == pytest.approx(0.0)
+
+
+def test_preview_narration_seconds_normalizes_negative_scene_durations() -> None:
+    assert preview_narration_seconds((2.0, -4.0, 3.0), 2, 1.0) == pytest.approx(3.0)
 
 
 def test_preview_offset_is_zero_without_assignment() -> None:
