@@ -249,6 +249,47 @@ class MainWindow:
             7000,
         )
 
+    def open_subtitle_editor(self) -> None:
+        from aavc.presentation.screens.live_subtitle import create_live_subtitle_screen
+
+        project = self.services.project_session.current
+        if project is None:
+            self._show_project_notice(
+                "Subtitle tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu.",
+            )
+            return
+        if not project.subtitle_source:
+            self._show_project_notice(
+                "Subtitle belum ada",
+                "Impor file SRT melalui tombol Impor Media terlebih dahulu.",
+            )
+            return
+
+        try:
+            replacement = create_live_subtitle_screen(
+                project.subtitle_source,
+                on_reload=self.open_subtitle_editor,
+            )
+        except (OSError, ValueError) as error:
+            self._show_project_error("Gagal membaca subtitle", error)
+            return
+
+        previous = self._route_widgets[UiRoute.SUBTITLE_EDITOR]
+        previous_index = self.stack.indexOf(previous)
+        self.stack.removeWidget(previous)
+        previous.deleteLater()
+        self._route_widgets[UiRoute.SUBTITLE_EDITOR] = replacement
+        if previous_index >= 0:
+            self.stack.insertWidget(previous_index, replacement)
+        else:
+            self.stack.addWidget(replacement)
+        self.show_route(UiRoute.SUBTITLE_EDITOR)
+        self.window.statusBar().showMessage(
+            f"Subtitle dimuat: {Path(project.subtitle_source).name}",
+            5000,
+        )
+
     def relink_asset_from_validation(self, asset_id: str) -> None:
         from PySide6.QtWidgets import QFileDialog
 
@@ -375,7 +416,7 @@ class MainWindow:
             ("Undo", self.undo_project),
             ("Redo", self.redo_project),
             ("Impor Media", self.import_media),
-            ("Tambah Teks", lambda: self.show_route(UiRoute.SUBTITLE_EDITOR)),
+            ("Tambah Teks", self.open_subtitle_editor),
             ("Rekam Narasi", lambda: self._show_pending_feature("Rekam Narasi")),
         ]
         for text, callback in actions:

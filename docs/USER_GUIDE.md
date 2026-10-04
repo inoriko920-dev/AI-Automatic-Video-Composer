@@ -85,7 +85,7 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, dan supported-media-import, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, dan live-subtitle-source, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
@@ -93,7 +93,7 @@ Pada source `main` setelah maintenance project-session, new-project-session, rea
 - **Undo** → memundurkan perubahan model pada `ProjectHistory` jika tersedia.
 - **Redo** → mengulangi perubahan model pada `ProjectHistory` jika tersedia.
 - **Impor Media** → memasukkan subtitle SRT atau audio narasi yang didukung ke project aktif melalui history.
-- **Tambah Teks** → membuka area subtitle.
+- **Tambah Teks** → membaca `subtitle_source` project aktif dan menampilkan cue/timing SRT yang sebenarnya.
 - **Validasi** → menghitung issue dari `ProjectState` aktif dan membuka Validation Center dengan data nyata.
 - **Ekspor Video** → membuka pengaturan ekspor; **Mulai Render** menjalankan render pipeline FFmpeg nyata untuk project aktif.
 - **Keluar** → menutup aplikasi.
@@ -165,13 +165,29 @@ Perubahan dijalankan melalui `ProjectSession.execute()`, sehingga import media m
 
 Format lain ditolak dengan pesan yang jelas. `background_source` belum diaktifkan melalui tombol ini karena render pipeline saat ini belum menggunakannya. Tombol **Rekam Narasi** juga belum dianggap sebagai import audio; perekaman mikrofon membutuhkan recording engine tersendiri.
 
-## 10. Kontrol yang belum terhubung penuh
+## 10. Melihat subtitle SRT project
+
+Pada source `main` setelah maintenance live-subtitle-source, tombol **Tambah Teks** tidak lagi memakai cue demo ketika ada project aktif.
+
+1. Impor `.srt` melalui **Impor Media**.
+2. Tekan **Tambah Teks**.
+3. AAVC membaca file `subtitle_source` dari disk melalui parser SRT yang sama dengan pipeline subtitle.
+4. Daftar menampilkan jumlah cue, timing milidetik, dan teks yang sebenarnya.
+5. Cue yang mulai sebelum cue sebelumnya selesai diberi tanda overlap `⚠`.
+6. Memilih cue menampilkan teks, waktu mulai, dan waktu selesai cue tersebut.
+7. **Muat Ulang SRT** membaca ulang source dari disk, sehingga perubahan eksternal pada SRT dapat ditampilkan tanpa membuka ulang project.
+
+Pada tahap ini panel detail bersifat **read-only**. Tombol **Tambah Cue**, **Pisah Cue**, dan **Gabung** sengaja dinonaktifkan karena repo belum memiliki writer/history model yang aman untuk mutasi isi SRT. Ini mencegah UI terlihat bekerja padahal perubahan tidak dapat dipersist dengan benar.
+
+Jika project belum memiliki `subtitle_source`, **Tambah Teks** meminta pengguna mengimpor SRT terlebih dahulu. Jika file source hilang atau tidak dapat diparse, aplikasi menampilkan error dan tidak menggantinya dengan data demo. Fixture subtitle lama tetap dipakai hanya untuk no-session STEP09 visual-reference capture.
+
+## 11. Kontrol yang belum terhubung penuh
 
 Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Beberapa menu placeholder dan Bantuan Cepat juga masih berfungsi sebagai shell UI, bukan workflow final.
 
-Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
-## 11. Sebelum ekspor
+## 12. Sebelum ekspor
 
 Sebelum menjalankan ekspor, periksa minimal:
 
@@ -185,7 +201,7 @@ Sebelum menjalankan ekspor, periksa minimal:
 
 Gunakan tombol **Validasi** untuk meninjau masalah yang dapat dideteksi sebelum render.
 
-## 12. Jika proyek bermasalah
+## 13. Jika proyek bermasalah
 
 Jangan menghapus file proyek asli ketika melakukan recovery.
 
@@ -193,7 +209,7 @@ Repo menyediakan mekanisme versioned project state dan recovery snapshot. Untuk 
 
 Jika asset berpindah folder, gunakan workflow relink/validation daripada mengganti ID canonical secara acak.
 
-## 13. Untuk developer
+## 14. Untuk developer
 
 Baseline pengembangan aktif:
 
@@ -212,7 +228,7 @@ Perintah PowerShell utama:
 ./scripts/verify_portable.ps1
 ```
 
-## 14. Batas dokumen ini
+## 15. Batas dokumen ini
 
 Panduan ini menjelaskan kemampuan yang dapat dibuktikan dari source dan release metadata repo. Ia tidak menjanjikan bahwa semua kontrol visual telah terhubung end-to-end pada setiap binary historis.
 
