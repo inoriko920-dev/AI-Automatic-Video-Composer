@@ -48,11 +48,27 @@ class GuardedMainWindow(MainWindow):
     def _build_menu(self, action_type: Any) -> None:
         super()._build_menu(action_type)
 
+        file_menu: Any | None = None
         edit_menu: Any | None = None
         for menu_action in self.window.menuBar().actions():
-            if menu_action.text() == "Edit":
+            if menu_action.text() == "File":
+                file_menu = menu_action.menu()
+            elif menu_action.text() == "Edit":
                 edit_menu = menu_action.menu()
-                break
+
+        if file_menu is not None:
+            save_as_action = action_type("Simpan Sebagai…", self.window)
+            save_as_action.setShortcut("Ctrl+Shift+S")
+            save_as_action.triggered.connect(self.save_project_as)
+            exit_action = next(
+                (action for action in file_menu.actions() if action.text() == "Keluar"),
+                None,
+            )
+            if exit_action is not None:
+                file_menu.insertAction(exit_action, save_as_action)
+            else:
+                file_menu.addAction(save_as_action)
+
         if edit_menu is None:
             return
 
@@ -135,6 +151,47 @@ class GuardedMainWindow(MainWindow):
         if result == QMessageBox.StandardButton.Discard:
             return resolve_unsaved_choice(True, "discard")
         return resolve_unsaved_choice(True, "cancel")
+
+    def save_project_as(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        session = self.services.project_session
+        project = session.current
+        if project is None:
+            self._show_project_notice(
+                "Simpan Sebagai tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu.",
+            )
+            return
+
+        current_path = session.path
+        if current_path is not None:
+            default_destination = str(current_path)
+        else:
+            source_parent = Path(project.source_docx).resolve().parent
+            default_destination = str(source_parent / f"{project.title}.aavcproj")
+
+        destination, _ = QFileDialog.getSaveFileName(
+            self.window,
+            "Simpan Proyek AAVC Sebagai",
+            default_destination,
+            "AAVC Project (*.aavcproj)",
+        )
+        if not destination:
+            return
+        destination = ensure_project_suffix(destination)
+
+        try:
+            saved = session.save(destination)
+        except (AAVCError, OSError, ValueError) as error:
+            self._show_project_error("Simpan Sebagai gagal", error)
+            return
+
+        self._refresh_window_title()
+        self.window.statusBar().showMessage(
+            f"Proyek disimpan sebagai: {saved}",
+            6000,
+        )
 
     def move_selected_scene(self, offset: int) -> None:
         project = self.services.project_session.current
