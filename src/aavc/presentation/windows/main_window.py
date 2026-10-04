@@ -7,6 +7,7 @@ from aavc.application.commands import (
     RelinkAsset,
     SetNarrationAudio,
     SetSceneDuration,
+    SetSubtitleAnimation,
     SetSubtitleSource,
     SetSubtitleStyle,
 )
@@ -15,7 +16,7 @@ from aavc.application.services.media_import import classify_media_path
 from aavc.application.services.validation import validate_project
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
-from aavc.domain.project.models import SubtitleStyle
+from aavc.domain.project.models import SubtitleAnimationSettings, SubtitleStyle
 from aavc.presentation.design_tokens import METRICS, app_stylesheet
 from aavc.presentation.navigation import UiRoute, parse_route
 
@@ -292,6 +293,20 @@ class MainWindow:
             7000,
         )
 
+    def set_subtitle_animation(self, animation: SubtitleAnimationSettings) -> None:
+        try:
+            self.services.project_session.execute(SetSubtitleAnimation(animation))
+        except (AAVCError, ValueError) as error:
+            self._show_project_error("Gagal mengubah animasi subtitle", error)
+            return
+        self.refresh_editor_overview()
+        self.open_subtitle_editor()
+        self.window.statusBar().showMessage(
+            f"Animasi subtitle diterapkan: {animation.preset}. "
+            "Klik Simpan untuk menyimpan perubahan.",
+            7000,
+        )
+
     def import_media(self) -> None:
         from PySide6.QtWidgets import QFileDialog
 
@@ -363,7 +378,9 @@ class MainWindow:
             replacement = create_live_subtitle_screen(
                 project.subtitle_source,
                 style=project.subtitle_style,
+                animation=project.subtitle_animation,
                 on_apply_style=self.set_subtitle_style,
+                on_apply_animation=self.set_subtitle_animation,
                 on_reload=self.open_subtitle_editor,
             )
         except (OSError, ValueError) as error:
