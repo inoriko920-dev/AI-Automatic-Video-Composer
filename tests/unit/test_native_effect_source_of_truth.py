@@ -22,7 +22,7 @@ def test_native_effect_choices_share_one_ordered_source() -> None:
         "Pan",
         "Drift",
     )
-    assert NATIVE_MOTION_CHOICES == native_visual_effect_names()
+    assert native_visual_effect_names() == NATIVE_MOTION_CHOICES
     assert frozenset(NATIVE_MOTION_CHOICES) == NATIVE_VISUAL_EFFECTS
 
 
@@ -34,4 +34,4 @@ def test_native_capability_sets_cover_exact_native_effect_set() -> None:
         | NATIVE_VISUAL_SCALE_EFFECTS
     )
     assert capability_union == NATIVE_VISUAL_EFFECTS
-    assert NATIVE_VISUAL_EFFECTS <= frozenset(effect_names())
+    assert frozenset(effect_names()) >= NATIVE_VISUAL_EFFECTS
