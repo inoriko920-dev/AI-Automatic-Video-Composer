@@ -1,9 +1,20 @@
-# STEP 09 READY TASKS
+# ACTIVE TASKS — Post Release 0.1.0
 
-1. S09-T01 — Canonical Qt application shell and design tokens.
-2. S09-T02 — Main editor workspace layout: left workspace, preview, right inspector, bottom timeline, status bar.
-3. S09-T03 — Navigation/state routing for Home, New Project wizard, Editor, Settings, Export.
-4. S09-T04 — Implement representative P0 screens and dialogs from frozen UI references.
-5. S09-T05 — Actual-vs-reference screenshot capture and parity review at 1920x1080.
+## Current queue
+No product feature task is active.
 
-No feature-wave business logic is allowed to leak into widgets. UI emits intents and renders presentation state.
+Software Factory STEP 00–15 is complete. The old STEP 09 ready-task list is retired and must not be treated as pending work.
+
+## Maintenance intake checklist
+When a concrete request arrives:
+1. record the symptom or requested capability and expected behavior;
+2. search existing implementation/tests before creating modules;
+3. classify patch/minor/major impact using `MAINTENANCE.md`;
+4. identify affected architecture/UI/schema/provider/packaging contracts;
+5. define focused implementation and regression-test tasks;
+6. run the required gates and preserve evidence;
+7. update this file with the active task IDs while work is in progress;
+8. clear completed task entries and synchronize `PROJECT_STATE.md` at closure.
+
+## Guardrail
+Do not invent a new feature wave or STEP number from stale documents. New user-visible capabilities require explicit approval and version planning; regressions and compatibility fixes may proceed on the `0.1.x` maintenance line.
