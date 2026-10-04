@@ -7,6 +7,7 @@ from aavc.domain.project.models import AnimationAssignment, ProjectState
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
     native_visual_preview_opacity,
+    native_visual_preview_rotation,
     native_visual_preview_scale,
     preview_continuation_scene_index,
     preview_narration_seconds,
@@ -40,6 +41,24 @@ def _draw_missing_asset(painter: Any, asset: Any, width: int, height: int) -> No
         int(Qt.AlignmentFlag.AlignCenter),
         f"{asset.asset_id}\n{asset.status}\nFile tidak tersedia",
     )
+
+
+def _rotate_pixmap_same_size(pixmap: Any, angle_degrees: float) -> Any:
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QPainter, QPixmap
+
+    if abs(angle_degrees) < 1e-9:
+        return pixmap
+    rotated = QPixmap(pixmap.size())
+    rotated.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(rotated)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+    painter.translate(rotated.width() / 2, rotated.height() / 2)
+    painter.rotate(angle_degrees)
+    painter.translate(-pixmap.width() / 2, -pixmap.height() / 2)
+    painter.drawPixmap(0, 0, pixmap)
+    painter.end()
+    return rotated
 
 
 def render_native_motion_pixmap(
@@ -109,6 +128,12 @@ def render_native_motion_pixmap(
                     Qt.AspectRatioMode.IgnoreAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
+            rotation_degrees = native_visual_preview_rotation(
+                assignment,
+                time_seconds=time_seconds,
+                duration_seconds=plan.duration_seconds,
+            )
+            scaled = _rotate_pixmap_same_size(scaled, rotation_degrees)
             offset_x = width * offset.x
             offset_y = height * offset.y
 
