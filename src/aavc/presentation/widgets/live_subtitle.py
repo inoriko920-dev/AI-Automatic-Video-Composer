@@ -4,7 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from aavc.domain.project.models import SubtitleStyle
+from aavc.domain.project.models import SubtitleAnimationSettings, SubtitleStyle
 from aavc.presentation.subtitle_view import SubtitleCueView, build_subtitle_views
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 from aavc.subtitles import STYLE_PRESETS, get_style_preset, parse_srt
@@ -20,6 +20,12 @@ ALIGNMENT_OPTIONS: tuple[tuple[str, int], ...] = (
     ("Atas Tengah", 8),
     ("Atas Kanan", 9),
 )
+SUBTITLE_ANIMATION_PRESETS: tuple[str, ...] = (
+    "Fade",
+    "Clean Documentary",
+    "Pop",
+    "Slide Up",
+)
 
 
 def load_subtitle_views(source: str | Path) -> tuple[SubtitleCueView, ...]:
@@ -30,7 +36,9 @@ def create_live_subtitle_inspector(
     source: str | Path,
     *,
     style: SubtitleStyle | None = None,
+    animation: SubtitleAnimationSettings | None = None,
     on_apply_style: Callable[[SubtitleStyle], None] | None = None,
+    on_apply_animation: Callable[[SubtitleAnimationSettings], None] | None = None,
     on_reload: Callable[[], None] | None = None,
 ) -> Any:
     from PySide6.QtWidgets import (
@@ -54,6 +62,7 @@ def create_live_subtitle_inspector(
     source_path = Path(source).resolve()
     views = load_subtitle_views(source_path)
     current_style = style or SubtitleStyle()
+    current_animation = animation or SubtitleAnimationSettings()
 
     tabs = QTabWidget()
     text_page = QWidget()
@@ -250,10 +259,69 @@ def create_live_subtitle_inspector(
 
     animation_page = QWidget()
     animation_layout = QVBoxLayout(animation_page)
+    animation_layout.addWidget(section_title("Animasi Subtitle untuk Render"))
     animation_layout.addWidget(
         muted_label(
-            "Animasi subtitle project digunakan saat kompilasi ASS. Editor animasi "
-            "interaktif belum terhubung pada layar ini."
+            "Preset dan durasi di tab ini disimpan pada ProjectState dan diteruskan ke "
+            "compiler ASS saat burn-in subtitle. Klik Terapkan Animasi lalu Simpan project."
+        )
+    )
+
+    animation_form = QFormLayout()
+    animation_preset = QComboBox()
+    animation_presets = list(SUBTITLE_ANIMATION_PRESETS)
+    if current_animation.preset not in animation_presets:
+        animation_presets.append(current_animation.preset)
+    animation_preset.addItems(animation_presets)
+    animation_preset.setCurrentText(current_animation.preset)
+
+    enter_duration = QSpinBox()
+    enter_duration.setRange(0, 10000)
+    enter_duration.setSuffix(" ms")
+    enter_duration.setValue(current_animation.enter_duration_ms)
+    exit_duration = QSpinBox()
+    exit_duration.setRange(0, 10000)
+    exit_duration.setSuffix(" ms")
+    exit_duration.setValue(current_animation.exit_duration_ms)
+    highlight_color = QLineEdit()
+    highlight_color.setPlaceholderText("#FFD400")
+    highlight_color.setText(current_animation.highlight_color)
+
+    animation_form.addRow("Preset", animation_preset)
+    animation_form.addRow("Durasi Masuk", enter_duration)
+    animation_form.addRow("Durasi Keluar", exit_duration)
+    animation_form.addRow("Warna Highlight", highlight_color)
+    animation_layout.addLayout(animation_form)
+
+    animation_layout.addWidget(
+        muted_label(
+            "Catatan: field intensity tetap dipertahankan di project tetapi belum ditampilkan "
+            "karena compiler ASS saat ini belum menggunakannya."
+        )
+    )
+
+    apply_animation = make_primary_button("Terapkan Animasi")
+    if on_apply_animation is None:
+        apply_animation.setEnabled(False)
+        apply_animation.setToolTip("Editor animasi belum terhubung ke sesi project.")
+    else:
+
+        def apply_current_animation() -> None:
+            target = SubtitleAnimationSettings(
+                preset=animation_preset.currentText(),
+                enter_duration_ms=enter_duration.value(),
+                exit_duration_ms=exit_duration.value(),
+                intensity=current_animation.intensity,
+                highlight_color=highlight_color.text().strip(),
+            )
+            on_apply_animation(target)
+
+        apply_animation.clicked.connect(apply_current_animation)
+    animation_layout.addWidget(apply_animation)
+    animation_layout.addWidget(
+        muted_label(
+            "Preview animasi belum tersedia pada layar ini. Hasil final mengikuti compiler "
+            "ASS saat Ekspor Video dengan Sertakan Subtitle aktif."
         )
     )
     animation_layout.addStretch(1)
