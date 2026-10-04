@@ -1,6 +1,9 @@
 name: Package Windows Foundation
 
 on:
+  push:
+    branches:
+      - validation/portable-ffmpeg-slot
   workflow_dispatch:
 
 permissions:
