@@ -6,6 +6,7 @@ from aavc.presentation.motion_preview import (
     preview_narration_seconds,
     preview_neighbor_scene_index,
     preview_scrub_seconds,
+    preview_timecode,
 )
 
 
@@ -58,6 +59,18 @@ def test_preview_narration_seconds_maps_scene_local_time_to_global_timeline() ->
 
 def test_preview_narration_seconds_normalizes_negative_scene_durations() -> None:
     assert preview_narration_seconds((2.0, -4.0, 3.0), 2, 1.0) == pytest.approx(3.0)
+
+
+def test_preview_timecode_formats_project_position_at_project_fps() -> None:
+    assert preview_timecode(0.0, 30) == "00:00:00:00"
+    assert preview_timecode(61.5, 30) == "00:01:01:15"
+    assert preview_timecode(1.5, 60) == "00:00:01:30"
+    assert preview_timecode(3661.0, 30) == "01:01:01:00"
+
+
+def test_preview_timecode_clamps_negative_time_and_invalid_fps() -> None:
+    assert preview_timecode(-4.0, 30) == "00:00:00:00"
+    assert preview_timecode(1.0, 0) == "00:00:01:00"
 
 
 def test_preview_offset_is_zero_without_assignment() -> None:
