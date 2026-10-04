@@ -25,7 +25,7 @@ tools/ffmpeg/
 
 pada folder portable yang sama dengan aplikasi. Gunakan binary FFmpeg/ffprobe yang Anda peroleh dari sumber yang Anda pilih sendiri dan pastikan lisensinya sesuai dengan penggunaan Anda.
 
-Jika FFmpeg/ffprobe tidak tersedia saat operasi media membutuhkannya, proses terkait tidak dapat dijalankan dengan benar.
+Saat render, AAVC mencari FFmpeg pada slot app-local tersebut terlebih dahulu, lalu pada system `PATH`. Jika FFmpeg tidak ditemukan, render dihentikan dengan pesan error; aplikasi tidak mengunduh binary secara otomatis.
 
 ## 3. Input proyek utama
 
@@ -35,7 +35,7 @@ Input utama yang digunakan oleh engine adalah:
 
 - Scene DOCX dengan daftar scene dan mapping aset.
 - Aset gambar canonical dengan pola ID `Axxx`, misalnya `A001.png`, `A002.png`, dan seterusnya.
-- Media pendukung sesuai proyek, seperti narasi/audio ketika workflow yang digunakan membutuhkannya.
+- Media pendukung sesuai proyek, seperti narasi/audio dan subtitle ketika workflow yang digunakan membutuhkannya.
 
 Pada layar Proyek Baru, tahap awal meminta **Scene DOCX**. UI menjelaskan bahwa setiap scene harus mengikuti kontrak Prompt 1 dan memiliki 1 atau 2 Asset ID canonical `Axxx`.
 
@@ -85,7 +85,7 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session dan new-project-session, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, dan real-export-render, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
@@ -94,20 +94,41 @@ Pada source `main` setelah maintenance project-session dan new-project-session, 
 - **Redo** → mengulangi perubahan model pada `ProjectHistory` jika tersedia.
 - **Tambah Teks** → membuka area subtitle.
 - **Validasi** → membuka Validation Center.
-- **Ekspor Video** → membuka pengaturan ekspor.
+- **Ekspor Video** → membuka pengaturan ekspor; **Mulai Render** menjalankan render pipeline FFmpeg nyata untuk project aktif.
 - **Keluar** → menutup aplikasi.
 
 Jika **Simpan** dipilih tanpa project aktif, aplikasi memberi penjelasan bahwa penyimpanan belum tersedia untuk sesi tersebut. Undo/Redo yang tidak memiliki aksi juga memberi feedback dan tidak merusak state project.
 
-## 7. Kontrol yang belum terhubung penuh
+## 7. Ekspor video nyata pada source main
+
+Pada source `main` setelah maintenance real-export-render, dialog ekspor meneruskan pilihan yang didukung ke render engine:
+
+- **MP4 (H.264)** → `libx264`.
+- **MP4 (H.265)** → `libx265`.
+- Preset encoder yang tersedia pada dialog diteruskan ke FFmpeg.
+- Resolusi **1920×1080**, **2560×1440**, atau **3840×2160** benar-benar mengubah frame render.
+- Frame rate **30 fps** atau **60 fps** benar-benar diteruskan ke render plan/FFmpeg.
+- Slider kualitas dipetakan ke CRF pada rentang yang aman untuk UI saat ini.
+- Pilihan ketajaman mengubah `sharpen_amount` pada render-quality settings.
+- Jika **Sertakan Subtitle** dipilih dan project memiliki `subtitle_source`, SRT dikompilasi menjadi ASS lalu dibakar ke video.
+- Jika **Tanpa Subtitle** dipilih, subtitle tidak dimasukkan ke render tersebut.
+- Jika project memiliki `narration_audio`, audio tersebut ikut diteruskan ke `RenderPlan`.
+
+Sebelum FFmpeg dijalankan, AAVC membangun `RenderPlan` dan menjalankan preflight. Asset yang belum READY, narasi yang hilang, subtitle hasil kompilasi yang hilang, resolusi/FPS tidak valid, atau error render lain akan menghentikan proses dan ditampilkan sebagai error UI.
+
+Render UI pertama ini bersifat **synchronous**: aplikasi menampilkan wait cursor/status selama FFmpeg bekerja dan tidak menampilkan progress persentase palsu. **GPU acceleration** dan **Pengaturan Lanjutan** sengaja dinonaktifkan pada dialog karena pipeline tersebut belum diimplementasikan; jangan menganggap keduanya sudah berfungsi.
+
+Jika tidak ada project aktif, **Mulai Render** ditolak dan pengguna diminta membuat atau membuka project terlebih dahulu.
+
+## 8. Kontrol yang belum terhubung penuh
 
 Pada source `main`, kontrol seperti **Impor Media** dan **Rekam Narasi** belum memiliki integrasi sesi penuh dari shell utama. Aplikasi tidak lagi diam tanpa penjelasan; ketika fitur belum tersedia, pengguna mendapat pesan **Fitur belum terhubung** dan tidak ada perubahan project yang dilakukan.
 
 Beberapa menu placeholder dan Bantuan Cepat juga masih berfungsi sebagai shell UI, bukan workflow final.
 
-Catatan penting: maintenance UI/project-session ini berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Catatan penting: maintenance project-session/new-project-session/real-export-render berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
-## 8. Sebelum ekspor
+## 9. Sebelum ekspor
 
 Sebelum menjalankan ekspor, periksa minimal:
 
@@ -115,12 +136,13 @@ Sebelum menjalankan ekspor, periksa minimal:
 - Asset ID yang diminta tersedia dan nama canonical-nya benar.
 - Media/audio yang dibutuhkan proyek tersedia.
 - Tidak ada asset missing pada Validation Center.
-- FFmpeg/ffprobe tersedia untuk operasi yang membutuhkannya.
-- Pengaturan subtitle dan animasi sesuai kebutuhan.
+- FFmpeg tersedia pada `tools/ffmpeg/` atau system `PATH`.
+- Subtitle source valid jika burn-in subtitle digunakan.
+- Pengaturan resolusi, FPS, codec, kualitas, dan ketajaman sesuai kebutuhan.
 
 Gunakan tombol **Validasi** untuk meninjau masalah yang dapat dideteksi sebelum render.
 
-## 9. Jika proyek bermasalah
+## 10. Jika proyek bermasalah
 
 Jangan menghapus file proyek asli ketika melakukan recovery.
 
@@ -128,7 +150,7 @@ Repo menyediakan mekanisme versioned project state dan recovery snapshot. Untuk 
 
 Jika asset berpindah folder, gunakan workflow relink/validation daripada mengganti ID canonical secara acak.
 
-## 10. Untuk developer
+## 11. Untuk developer
 
 Baseline pengembangan aktif:
 
@@ -147,7 +169,7 @@ Perintah PowerShell utama:
 ./scripts/verify_portable.ps1
 ```
 
-## 11. Batas dokumen ini
+## 12. Batas dokumen ini
 
 Panduan ini menjelaskan kemampuan yang dapat dibuktikan dari source dan release metadata repo. Ia tidak menjanjikan bahwa semua kontrol visual telah terhubung end-to-end pada setiap binary historis.
 

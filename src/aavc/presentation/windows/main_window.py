@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from aavc.application.services.export_service import ExportOptions, render_project
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
 from aavc.presentation.design_tokens import METRICS, app_stylesheet
@@ -155,6 +156,35 @@ class MainWindow:
             return
         self.window.statusBar().showMessage("Redo berhasil", 3000)
 
+    def render_active_project(self, options: ExportOptions) -> bool:
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QApplication
+
+        project = self.services.project_session.current
+        if project is None:
+            self._show_project_notice(
+                "Render tidak tersedia",
+                "Buat atau buka proyek terlebih dahulu sebelum mengekspor video.",
+            )
+            return False
+
+        self.window.statusBar().showMessage("Render sedang berjalan…")
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        QApplication.processEvents()
+        try:
+            result = render_project(project, options)
+        except (AAVCError, OSError, RuntimeError, ValueError) as error:
+            self._show_project_error("Render gagal", error)
+            self.window.statusBar().showMessage("Render gagal", 5000)
+            return False
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        self.window.statusBar().showMessage(f"Render selesai: {result.output_path}", 8000)
+        self._show_project_notice("Render selesai", f"Video berhasil dibuat:\n{result.output_path}")
+        return True
+
     def _build_menu(self, action_type: Any) -> None:
         menu_bar = self.window.menuBar()
         for name in [
@@ -294,7 +324,25 @@ class MainWindow:
     def open_export(self) -> None:
         from aavc.presentation.dialogs.export_settings import create_export_dialog
 
-        dialog = create_export_dialog(self.window)
+        project = self.services.project_session.current
+        project_path = self.services.project_session.path
+        if project is not None:
+            default_name = f"{project.title} - Final"
+            if project_path is not None:
+                default_directory = str(project_path.parent)
+            else:
+                default_directory = str(Path(project.source_docx).resolve().parent)
+            dialog = create_export_dialog(
+                self.window,
+                default_directory=default_directory,
+                default_name=default_name,
+                on_render=self.render_active_project,
+            )
+        else:
+            dialog = create_export_dialog(
+                self.window,
+                on_render=self.render_active_project,
+            )
         dialog.setModal(True)
         dialog.show()
         self._active_dialog = dialog

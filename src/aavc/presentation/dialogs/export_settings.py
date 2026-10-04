@@ -1,11 +1,80 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
+from aavc.application.services.export_service import ExportOptions
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 
+_CODEC_BY_LABEL = {
+    "MP4 (H.264)": "libx264",
+    "MP4 (H.265)": "libx265",
+}
+_PRESET_BY_LABEL = {
+    "Kualitas Tinggi (Rekomendasi)": "slow",
+    "YouTube Clean": "medium",
+    "Documentary Crisp": "medium",
+}
+_RESOLUTION_BY_LABEL = {
+    "1920 × 1080 (Full HD)": (1920, 1080),
+    "2560 × 1440": (2560, 1440),
+    "3840 × 2160 (4K)": (3840, 2160),
+}
+_FPS_BY_LABEL = {"30 fps": 30, "60 fps": 60}
+_SHARPEN_BY_LABEL = {
+    "Normal": 0.0,
+    "Tajam Ringan": 0.10,
+    "Documentary Crisp": 0.18,
+}
 
-def create_export_dialog(parent: Any = None) -> Any:
+
+def quality_slider_to_crf(value: int) -> int:
+    clamped = max(0, min(100, value))
+    return round(30 - (clamped * 15 / 100))
+
+
+def build_export_options(
+    *,
+    output_directory: str,
+    output_name: str,
+    format_label: str,
+    preset_label: str,
+    resolution_label: str,
+    fps_label: str,
+    quality_value: int,
+    sharpen_label: str,
+    burn_subtitles: bool,
+) -> ExportOptions:
+    directory_text = output_directory.strip()
+    name = output_name.strip()
+    if not directory_text:
+        raise ValueError("Lokasi output wajib diisi")
+    if not name:
+        raise ValueError("Nama file output wajib diisi")
+
+    filename = name if name.lower().endswith(".mp4") else f"{name}.mp4"
+    width, height = _RESOLUTION_BY_LABEL[resolution_label]
+    return ExportOptions(
+        output_path=str(Path(directory_text).expanduser() / filename),
+        video_codec=_CODEC_BY_LABEL[format_label],
+        encoder_preset=_PRESET_BY_LABEL[preset_label],
+        crf=quality_slider_to_crf(quality_value),
+        width=width,
+        height=height,
+        fps=_FPS_BY_LABEL[fps_label],
+        sharpen_amount=_SHARPEN_BY_LABEL[sharpen_label],
+        burn_subtitles=burn_subtitles,
+    )
+
+
+def create_export_dialog(
+    parent: Any = None,
+    *,
+    default_directory: str = r"D:\Video Projects\Liburan ke Bromo\Hasil Akhir",
+    default_name: str = "Liburan ke Bromo - Final",
+    on_render: Callable[[ExportOptions], bool] | None = None,
+) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
         QCheckBox,
@@ -14,6 +83,7 @@ def create_export_dialog(parent: Any = None) -> Any:
         QFormLayout,
         QHBoxLayout,
         QLineEdit,
+        QMessageBox,
         QPushButton,
         QSlider,
         QVBoxLayout,
@@ -32,20 +102,16 @@ def create_export_dialog(parent: Any = None) -> Any:
     )
 
     form = QFormLayout()
-    output_path = QLineEdit(r"D:\Video Projects\Liburan ke Bromo\Hasil Akhir")
-    output_name = QLineEdit("Liburan ke Bromo - Final")
+    output_path = QLineEdit(default_directory)
+    output_name = QLineEdit(default_name)
     format_box = QComboBox()
-    format_box.addItems(["MP4 (H.264)", "MP4 (H.265)"])
+    format_box.addItems(list(_CODEC_BY_LABEL))
     preset = QComboBox()
-    preset.addItems(
-        ["Kualitas Tinggi (Rekomendasi)", "YouTube Clean", "Documentary Crisp"]
-    )
+    preset.addItems(list(_PRESET_BY_LABEL))
     resolution = QComboBox()
-    resolution.addItems(
-        ["1920 × 1080 (Full HD)", "2560 × 1440", "3840 × 2160 (4K)"]
-    )
+    resolution.addItems(list(_RESOLUTION_BY_LABEL))
     fps = QComboBox()
-    fps.addItems(["30 fps", "60 fps"])
+    fps.addItems(list(_FPS_BY_LABEL))
     form.addRow("Lokasi Output", output_path)
     form.addRow("Nama File", output_name)
     form.addRow("Format", format_box)
@@ -55,23 +121,63 @@ def create_export_dialog(parent: Any = None) -> Any:
     layout.addLayout(form)
 
     quality = QSlider(Qt.Orientation.Horizontal)
+    quality.setRange(0, 100)
     quality.setValue(78)
     form2 = QFormLayout()
     form2.addRow("Bitrate / Kualitas", quality)
     sharpen = QComboBox()
-    sharpen.addItems(["Normal", "Tajam Ringan", "Documentary Crisp"])
+    sharpen.addItems(list(_SHARPEN_BY_LABEL))
     form2.addRow("Ketajaman Video", sharpen)
     subtitle = QComboBox()
     subtitle.addItems(["Sertakan Subtitle (Burn-in ke Video)", "Tanpa Subtitle"])
     form2.addRow("Subtitle", subtitle)
     layout.addLayout(form2)
-    layout.addWidget(QCheckBox("Gunakan akselerasi GPU jika tersedia"))
+
+    gpu = QCheckBox("Gunakan akselerasi GPU jika tersedia")
+    gpu.setEnabled(False)
+    gpu.setToolTip("GPU encoder belum diaktifkan pada render pipeline saat ini.")
+    layout.addWidget(gpu)
     layout.addStretch(1)
 
     footer = QHBoxLayout()
-    footer.addWidget(QPushButton("Pengaturan Lanjutan"))
+    advanced = QPushButton("Pengaturan Lanjutan")
+    advanced.setEnabled(False)
+    advanced.setToolTip("Pengaturan lanjutan belum tersedia pada build ini.")
+    cancel = QPushButton("Batal")
+    cancel.clicked.connect(dialog.reject)
+    render = make_primary_button("Mulai Render")
+
+    def submit_render() -> None:
+        try:
+            options = build_export_options(
+                output_directory=output_path.text(),
+                output_name=output_name.text(),
+                format_label=format_box.currentText(),
+                preset_label=preset.currentText(),
+                resolution_label=resolution.currentText(),
+                fps_label=fps.currentText(),
+                quality_value=quality.value(),
+                sharpen_label=sharpen.currentText(),
+                burn_subtitles=subtitle.currentIndex() == 0,
+            )
+        except (KeyError, ValueError) as error:
+            QMessageBox.warning(dialog, "Pengaturan ekspor tidak valid", str(error))
+            return
+
+        if on_render is None:
+            QMessageBox.information(
+                dialog,
+                "Render belum terhubung",
+                "Tidak ada render callback untuk dialog ini.",
+            )
+            return
+        if on_render(options):
+            dialog.accept()
+
+    render.clicked.connect(submit_render)
+    footer.addWidget(advanced)
     footer.addStretch(1)
-    footer.addWidget(QPushButton("Batal"))
-    footer.addWidget(make_primary_button("Mulai Render"))
+    footer.addWidget(cancel)
+    footer.addWidget(render)
     layout.addLayout(footer)
     return dialog
