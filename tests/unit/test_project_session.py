@@ -5,11 +5,12 @@ import pytest
 from aavc.application.commands import SetSceneDuration
 from aavc.application.services.project_session import ProjectSession
 from aavc.application.services.vertical_slice import create_project_state
+from aavc.domain.project.models import ProjectState
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 
 
-def _project():
+def _project() -> ProjectState:
     return create_project_state(
         title="demo-session",
         scene_docx=FIXTURE / "scene_asset_demo.docx",
@@ -37,17 +38,16 @@ def test_session_execute_undo_redo_uses_project_history() -> None:
     session = ProjectSession()
     session.start(_project())
 
-    session.execute(SetSceneDuration(1, 4.5))
-    assert session.current is not None
-    assert session.current.scenes[0].duration_seconds == 4.5
+    changed = session.execute(SetSceneDuration(1, 4.5))
+    assert changed.scenes[0].duration_seconds == 4.5
     assert session.can_undo
 
-    session.undo()
-    assert session.current.scenes[0].duration_seconds == 3.0
+    undone = session.undo()
+    assert undone.scenes[0].duration_seconds == 3.0
     assert session.can_redo
 
-    session.redo()
-    assert session.current.scenes[0].duration_seconds == 4.5
+    redone = session.redo()
+    assert redone.scenes[0].duration_seconds == 4.5
 
 
 def test_failed_open_preserves_existing_session(tmp_path: Path) -> None:
