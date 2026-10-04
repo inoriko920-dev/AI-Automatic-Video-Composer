@@ -8,7 +8,7 @@ from aavc.presentation.widgets.common import make_primary_button, muted_label
 
 def create_new_project_screen(
     on_back: Callable[[], None],
-    on_continue: Callable[[], None],
+    on_continue: Callable[[str], None],
 ) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
@@ -205,7 +205,7 @@ def create_new_project_screen(
     back_button.setEnabled(False)
     next_button = make_primary_button("Lanjut")
     next_button.setEnabled(False)
-    next_button.clicked.connect(on_continue)
+    next_button.clicked.connect(lambda _checked=False: on_continue(path.text()))
     footer.addWidget(cancel_button)
     footer.addStretch(1)
     footer.addWidget(back_button)
