@@ -97,7 +97,7 @@ def validate_render_plan(plan: RenderPlan) -> PreflightReport:
                 )
             )
         for assignment in scene.animations:
-            if assignment is None:
+            if assignment is None or assignment.intensity <= 0:
                 continue
             for effect in {assignment.enter_effect, assignment.exit_effect}:
                 if not is_native_visual_effect(effect):
