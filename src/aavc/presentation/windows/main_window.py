@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from aavc.bootstrap.composition_root import FoundationServices
@@ -13,6 +14,10 @@ def pending_feature_message(feature: str) -> tuple[str, str]:
         f"{feature} belum terhubung ke sesi proyek pada build ini. "
         "Tidak ada perubahan proyek yang dilakukan.",
     )
+
+
+def ensure_project_suffix(path: str) -> str:
+    return path if Path(path).suffix.lower() == ".aavcproj" else f"{path}.aavcproj"
 
 
 class MainWindow:
@@ -52,6 +57,55 @@ class MainWindow:
         from PySide6.QtWidgets import QMessageBox
 
         QMessageBox.information(self.window, title, message)
+
+    def create_project_from_docx(self, scene_docx: str) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        from aavc.application.services.vertical_slice import create_project_state
+
+        source = Path(scene_docx).resolve()
+        if not source.is_file():
+            self._show_project_notice("Scene DOCX belum dipilih", "Pilih file Scene DOCX terlebih dahulu.")
+            return
+
+        asset_directory = QFileDialog.getExistingDirectory(
+            self.window,
+            "Pilih Folder Aset",
+            str(source.parent),
+        )
+        if not asset_directory:
+            return
+
+        try:
+            project = create_project_state(
+                title=source.stem,
+                scene_docx=source,
+                asset_directory=asset_directory,
+            )
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            self._show_project_error("Gagal membaca input proyek", error)
+            return
+
+        default_destination = str(source.with_suffix(".aavcproj"))
+        destination, _ = QFileDialog.getSaveFileName(
+            self.window,
+            "Simpan Proyek AAVC",
+            default_destination,
+            "AAVC Project (*.aavcproj)",
+        )
+        if not destination:
+            return
+        destination = ensure_project_suffix(destination)
+
+        try:
+            self.services.project_session.create(project, destination)
+        except (OSError, ValueError) as error:
+            self._show_project_error("Gagal menyimpan proyek baru", error)
+            return
+
+        self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
+        self.window.statusBar().showMessage(f"Proyek dibuat: {destination}", 5000)
+        self.show_route(UiRoute.EDITOR)
 
     def open_project(self) -> None:
         from PySide6.QtWidgets import QFileDialog
@@ -212,7 +266,7 @@ class MainWindow:
         )
         self._route_widgets[UiRoute.NEW_PROJECT_DOCX] = create_new_project_screen(
             lambda: self.show_route(UiRoute.HOME),
-            lambda: self.show_route(UiRoute.EDITOR),
+            self.create_project_from_docx,
         )
         self._route_widgets[UiRoute.EDITOR] = create_editor_shell("overview").root
         self._route_widgets[UiRoute.SCENE_SINGLE] = create_editor_shell("single").root
