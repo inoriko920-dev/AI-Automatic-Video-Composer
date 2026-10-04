@@ -28,6 +28,23 @@ def preview_scrub_seconds(
     return duration * (clamped / upper)
 
 
+def preview_neighbor_scene_index(
+    current_index: int,
+    scene_count: int,
+    step: int,
+) -> int | None:
+    """Return an adjacent preview Scene index, or None when navigation hits a boundary."""
+
+    count = max(0, int(scene_count))
+    current = int(current_index)
+    if count == 0 or current < 0 or current >= count or step == 0:
+        return None
+    target = current + (1 if step > 0 else -1)
+    if target < 0 or target >= count:
+        return None
+    return target
+
+
 def native_motion_preview_offset(
     assignment: AnimationAssignment | None,
     *,
