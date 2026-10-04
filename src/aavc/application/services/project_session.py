@@ -9,12 +9,13 @@ from aavc.persistence.project_repository import ProjectRepository
 
 
 class ProjectSession:
-    """Own the active project, its file path, and model-level edit history."""
+    """Own the active project, its file path, persistence baseline, and edit history."""
 
     def __init__(self, repository: ProjectRepository | None = None) -> None:
         self._repository = repository or ProjectRepository()
         self._history: ProjectHistory | None = None
         self._path: Path | None = None
+        self._saved_state: ProjectState | None = None
 
     @property
     def current(self) -> ProjectState | None:
@@ -29,6 +30,15 @@ class ProjectSession:
         return self._history is not None
 
     @property
+    def is_dirty(self) -> bool:
+        current = self.current
+        if current is None:
+            return False
+        if self._saved_state is None:
+            return True
+        return current != self._saved_state
+
+    @property
     def can_undo(self) -> bool:
         return self._history.can_undo if self._history is not None else False
 
@@ -39,6 +49,10 @@ class ProjectSession:
     def start(self, project: ProjectState, path: str | Path | None = None) -> ProjectState:
         self._history = ProjectHistory(project)
         self._path = Path(path).resolve() if path is not None else None
+        # ``start`` is primarily an in-memory/test entrypoint. With an explicit
+        # path, callers are declaring the supplied state to be the persisted
+        # baseline. Without a path there is no persisted baseline yet.
+        self._saved_state = project if path is not None else None
         return project
 
     def create(self, project: ProjectState, path: str | Path) -> ProjectState:
@@ -49,6 +63,7 @@ class ProjectSession:
         # Do not replace the active session until persistence succeeds.
         self._history = ProjectHistory(project)
         self._path = saved.resolve()
+        self._saved_state = project
         return project
 
     def open(self, path: str | Path) -> ProjectState:
@@ -58,6 +73,7 @@ class ProjectSession:
         # destroy the previously active project.
         self._history = ProjectHistory(project)
         self._path = source
+        self._saved_state = project
         return project
 
     def save(self, path: str | Path | None = None) -> Path:
@@ -67,6 +83,7 @@ class ProjectSession:
             raise ValueError("Lokasi proyek belum ditentukan")
         saved = self._repository.save(project, destination)
         self._path = saved.resolve()
+        self._saved_state = project
         return self._path
 
     def execute(self, command: ProjectCommand) -> ProjectState:
