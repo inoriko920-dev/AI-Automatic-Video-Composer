@@ -5,7 +5,15 @@ from typing import Any, Literal
 
 from aavc.domain.project.models import AnimationAssignment, Scene
 
-NATIVE_MOTION_CHOICES = ("Fade", "Pop", "Breathe", "Rise", "Pan", "Drift")
+NATIVE_MOTION_CHOICES = (
+    "Fade",
+    "Pop",
+    "Breathe",
+    "Stomp",
+    "Rise",
+    "Pan",
+    "Drift",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +82,7 @@ def show_asset_motion_dialog(
     root = QVBoxLayout(dialog)
     intro = QLabel(
         "Pilihan ini sudah memiliki backing render FFmpeg dan preview editor: "
-        "Fade, Pop, Breathe, Rise, Pan, dan Drift."
+        "Fade, Pop, Breathe, Stomp, Rise, Pan, dan Drift."
     )
     intro.setWordWrap(True)
     root.addWidget(intro)
@@ -155,7 +163,7 @@ def show_asset_motion_dialog(
             status.setText(
                 "Assignment lama memakai efek yang belum native. "
                 "Terapkan akan menggantinya dengan pilihan "
-                "Fade/Pop/Breathe/Rise/Pan/Drift; "
+                "Fade/Pop/Breathe/Stomp/Rise/Pan/Drift; "
                 f"Hapus akan menghapus assignment tersebut.{lock_label}"
             )
 
