@@ -1,25 +1,40 @@
-# ACTIVE TASKS — Post Release 0.1.0
+# ACTIVE TASKS — Maintenance Release 0.1.1
 
 ## Current queue
 No product feature task is active.
 
-Software Factory STEP 00–15 is complete. The old STEP 09 ready-task list is retired and must not be treated as pending work.
+Software Factory STEP 00–15 remains complete. Maintenance work stays on the `0.1.x` line.
+
+### REL-0.1.1-PUBLISH — Publish maintenance patch
+Status: **IN PROGRESS**
+
+Scope is limited to maintenance issue #9 and release metadata:
+- correct the portable app-local FFmpeg slot to `tools/ffmpeg/` beside the EXE;
+- enforce that structure in portable verification;
+- remove the redundant `_internal/tools/ffmpeg/README.md` packaging path;
+- align package/runtime version metadata to `0.1.1`;
+- publish a new immutable `v0.1.1` release without altering `v0.1.0`.
+
+Evidence already passed before release preparation:
+- PR #10 CI: PASS;
+- independent Windows PyInstaller packaging: PASS;
+- portable verifier: PASS;
+- direct ZIP inspection confirmed root EXE + `tools/ffmpeg/README.md` and no internal duplicate;
+- issue #9 closed after the fix merged to `main`.
+
+Required closure checks:
+1. final CI on frozen `release/0.1.1` source passes;
+2. maintenance release workflow passes all build/QA gates;
+3. GitHub Release `v0.1.1` exists and targets the frozen 0.1.1 source commit;
+4. expected Windows/source ZIPs and release documents are attached;
+5. published ZIP hashes match `SHA256SUMS.txt`;
+6. `BUILD_INFO.txt` records version `0.1.1` and the same frozen commit;
+7. release state is synchronized back to `main`.
 
 ### REL-0.1.0-PUBLISH — Publish official GitHub Release
 Status: **COMPLETE**
 
-Official GitHub Release `v0.1.0` was published successfully on 2026-10-04 from frozen source `release/0.1.0`, commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`.
-
-Verified evidence:
-- Final Release Windows run: `#6` / `37180132492`
-- Tag: `v0.1.0`
-- Release target commit: `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`
-- Windows ZIP SHA-256: `c3e4f92656aefd3d57329627c52b8e057d2f8cac5a0a757471b90cb1d68915e8`
-- Source ZIP SHA-256: `1264b1dc483932b496acf87dee21c93f92d4e1b222aa37ca2284fbf99b9df328`
-- `BUILD_INFO.txt` records version `0.1.0` and the same frozen release commit.
-- `SHA256SUMS.txt` matches independently computed hashes for both release ZIP files.
-
-The temporary one-shot publish trigger used to bridge tooling limitations has been retired. The canonical workflow returns to guarded manual publication behavior and refuses to overwrite an existing tag/release.
+Official GitHub Release `v0.1.0` remains the immutable published baseline at commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`.
 
 ## Maintenance intake checklist
 When a concrete request arrives:
