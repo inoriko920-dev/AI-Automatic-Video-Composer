@@ -45,6 +45,8 @@ def validate_project(project: ProjectState) -> tuple[ValidationIssue, ...]:
                 )
 
     for assignment in project.animations:
+        if assignment.intensity <= 0:
+            continue
         unsupported = sorted(
             {
                 effect
