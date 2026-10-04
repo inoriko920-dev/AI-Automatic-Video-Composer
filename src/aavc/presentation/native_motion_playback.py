@@ -7,6 +7,7 @@ from aavc.domain.project.models import AnimationAssignment, ProjectState
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
     native_visual_preview_opacity,
+    native_visual_preview_scale,
     preview_continuation_scene_index,
     preview_narration_seconds,
     preview_neighbor_scene_index,
@@ -81,10 +82,10 @@ def render_native_motion_pixmap(
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
-        x = int(width * asset.anchor_x - scaled.width() / 2)
-        y = int(height * asset.anchor_y - scaled.height() / 2)
         assignment = assignment_by_asset.get(asset.asset_id)
         opacity = 1.0
+        offset_x = 0.0
+        offset_y = 0.0
         if time_seconds is not None:
             offset = native_motion_preview_offset(
                 assignment,
@@ -96,8 +97,23 @@ def render_native_motion_pixmap(
                 time_seconds=time_seconds,
                 duration_seconds=plan.duration_seconds,
             )
-            x += int(round(width * offset.x))
-            y += int(round(height * offset.y))
+            scale_factor = native_visual_preview_scale(
+                assignment,
+                time_seconds=time_seconds,
+                duration_seconds=plan.duration_seconds,
+            )
+            if scale_factor != 1.0:
+                scaled = scaled.scaled(
+                    max(1, int(round(scaled.width() * scale_factor))),
+                    max(1, int(round(scaled.height() * scale_factor))),
+                    Qt.AspectRatioMode.IgnoreAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            offset_x = width * offset.x
+            offset_y = height * offset.y
+
+        x = int(round(width * asset.anchor_x - scaled.width() / 2 + offset_x))
+        y = int(round(height * asset.anchor_y - scaled.height() / 2 + offset_y))
         painter.setOpacity(opacity)
         painter.drawPixmap(x, y, scaled)
         painter.setOpacity(1.0)
@@ -185,13 +201,13 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     next_button.setToolTip("Pilih Scene berikutnya pada preview.")
     play_button.setToolTip(
         "Putar preview kontinu mulai Scene terpilih sampai akhir project. "
-        "Motion native, Fade, narasi, subtitle, dan animasi subtitle ikut preview bila tersedia."
+        "Motion native, Fade/Pop, narasi, subtitle, dan animasi subtitle ikut preview bila tersedia."
     )
     if progress_slider is not None:
         progress_slider.setRange(0, 1000)
         progress_slider.setValue(0)
         progress_slider.setToolTip(
-            "Geser untuk melihat frame motion/Fade, subtitle, dan posisi narasi pada waktu tertentu."
+            "Geser untuk melihat frame motion/Fade/Pop, subtitle, dan posisi narasi pada waktu tertentu."
         )
 
     media_player: Any | None = None
