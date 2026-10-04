@@ -80,3 +80,43 @@ class DeleteScene:
 
     def describe(self) -> str:
         return f"Hapus Scene {self.scene_number}"
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateScene:
+    """Duplicate one scene immediately after its source with a new stable number."""
+
+    scene_number: int
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        source_index = next(
+            (
+                index
+                for index, scene in enumerate(project.scenes)
+                if scene.scene_number == self.scene_number
+            ),
+            None,
+        )
+        if source_index is None:
+            raise ValueError(f"Scene {self.scene_number} tidak ditemukan")
+
+        new_scene_number = max(scene.scene_number for scene in project.scenes) + 1
+        source_scene = project.scenes[source_index]
+        duplicate = replace(source_scene, scene_number=new_scene_number)
+
+        scenes = list(project.scenes)
+        scenes.insert(source_index + 1, duplicate)
+
+        cloned_animations = tuple(
+            replace(assignment, scene_number=new_scene_number)
+            for assignment in project.animations
+            if assignment.scene_number == self.scene_number
+        )
+        return replace(
+            project,
+            scenes=tuple(scenes),
+            animations=(*project.animations, *cloned_animations),
+        )
+
+    def describe(self) -> str:
+        return f"Duplikasi Scene {self.scene_number}"
