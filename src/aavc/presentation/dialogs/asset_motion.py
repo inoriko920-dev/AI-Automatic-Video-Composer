@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from aavc.domain.project.models import AnimationAssignment, Scene
 
@@ -31,7 +31,7 @@ def find_asset_motion_assignment(
 
 
 def show_asset_motion_dialog(
-    parent: object,
+    parent: Any,
     scene: Scene,
     assignments: tuple[AnimationAssignment, ...],
 ) -> AssetMotionDialogResult | None:
