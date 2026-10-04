@@ -41,6 +41,16 @@ class ProjectSession:
         self._path = Path(path).resolve() if path is not None else None
         return project
 
+    def create(self, project: ProjectState, path: str | Path) -> ProjectState:
+        """Persist a new project first, then make it the active session."""
+
+        destination = Path(path).resolve()
+        saved = self._repository.save(project, destination)
+        # Do not replace the active session until persistence succeeds.
+        self._history = ProjectHistory(project)
+        self._path = saved.resolve()
+        return project
+
     def open(self, path: str | Path) -> ProjectState:
         source = Path(path).resolve()
         project = self._repository.load(source)
