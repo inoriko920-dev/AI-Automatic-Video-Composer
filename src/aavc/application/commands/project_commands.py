@@ -6,13 +6,28 @@ from typing import Protocol
 
 from aavc.animation.registry import validate_effect
 from aavc.application.media_import import classify_media_path
-from aavc.domain.project.models import AnimationAssignment, AssetBinding, ProjectState, Scene
+from aavc.domain.project.models import (
+    AnimationAssignment,
+    AssetBinding,
+    ProjectState,
+    Scene,
+    SubtitleStyle,
+)
 
 
 class ProjectCommand(Protocol):
     def apply(self, project: ProjectState) -> ProjectState: ...
 
     def describe(self) -> str: ...
+
+
+def _validate_hex_color(value: str, field_name: str) -> None:
+    if len(value) != 7 or not value.startswith("#"):
+        raise ValueError(f"{field_name} harus berformat #RRGGBB")
+    try:
+        int(value[1:], 16)
+    except ValueError as exc:
+        raise ValueError(f"{field_name} harus berformat #RRGGBB") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +105,34 @@ class SetSubtitleSource:
 
     def describe(self) -> str:
         return f"Atur subtitle: {Path(self.source_path).name}"
+
+
+@dataclass(frozen=True, slots=True)
+class SetSubtitleStyle:
+    style: SubtitleStyle
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        style = self.style
+        if not style.font_family.strip():
+            raise ValueError("Font subtitle tidak boleh kosong")
+        if not 1 <= style.font_size <= 400:
+            raise ValueError("Ukuran font subtitle harus 1–400")
+        _validate_hex_color(style.fill_color, "Warna isi subtitle")
+        _validate_hex_color(style.outline_color, "Warna outline subtitle")
+        if not 0 <= style.outline_width <= 20:
+            raise ValueError("Outline subtitle harus 0–20")
+        if not 0 <= style.shadow <= 20:
+            raise ValueError("Shadow subtitle harus 0–20")
+        if not 0 <= style.background_opacity <= 100:
+            raise ValueError("Opacity background subtitle harus 0–100")
+        if not 1 <= style.alignment <= 9:
+            raise ValueError("Alignment subtitle harus 1–9")
+        if not 0 <= style.margin_v <= 5000:
+            raise ValueError("Margin vertikal subtitle harus 0–5000")
+        return replace(project, subtitle_style=style)
+
+    def describe(self) -> str:
+        return f"Atur gaya subtitle: {self.style.preset_name}"
 
 
 @dataclass(frozen=True, slots=True)
