@@ -171,13 +171,13 @@ def merge_subtitle_cues(
         raise ValueError("Cue terakhir tidak memiliki cue berikutnya untuk digabung")
     first = cues[row]
     second = cues[row + 1]
+    first_text = first.text.replace("\\N", "\n")
+    second_text = second.text.replace("\\N", "\n")
     merged = SubtitleCue(
         index=first.index,
-        start_seconds=min(first.start_seconds, second.start_seconds),
+        start_seconds=first.start_seconds,
         end_seconds=max(first.end_seconds, second.end_seconds),
-        text=_normalize_cue_text(
-            f"{first.text.replace('\\N', '\n')}\n{second.text.replace('\\N', '\n')}"
-        ),
+        text=_normalize_cue_text(f"{first_text}\n{second_text}"),
     )
     _validate_cue(merged)
     items = list(cues)
