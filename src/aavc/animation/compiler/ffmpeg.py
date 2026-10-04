@@ -2,16 +2,42 @@ from __future__ import annotations
 
 from aavc.domain.project.models import AnimationAssignment
 
-NATIVE_VISUAL_MOTION_EFFECTS = frozenset({"Rise", "Pan", "Drift", "Tectonic"})
-NATIVE_VISUAL_ALPHA_EFFECTS = frozenset({"Fade", "Pop", "Stomp"})
-NATIVE_VISUAL_SCALE_EFFECTS = frozenset({"Pop", "Breathe", "Stomp"})
-NATIVE_VISUAL_ROTATION_EFFECTS = frozenset({"Tumble"})
-NATIVE_VISUAL_EFFECTS = (
-    NATIVE_VISUAL_MOTION_EFFECTS
-    | NATIVE_VISUAL_ALPHA_EFFECTS
-    | NATIVE_VISUAL_SCALE_EFFECTS
-    | NATIVE_VISUAL_ROTATION_EFFECTS
+_NATIVE_VISUAL_EFFECT_CAPABILITIES = (
+    ("Fade", frozenset({"alpha"})),
+    ("Pop", frozenset({"alpha", "scale"})),
+    ("Breathe", frozenset({"scale"})),
+    ("Stomp", frozenset({"alpha", "scale"})),
+    ("Tumble", frozenset({"rotation"})),
+    ("Tectonic", frozenset({"motion"})),
+    ("Rise", frozenset({"motion"})),
+    ("Pan", frozenset({"motion"})),
+    ("Drift", frozenset({"motion"})),
 )
+
+NATIVE_VISUAL_EFFECT_NAMES = tuple(
+    name for name, _capabilities in _NATIVE_VISUAL_EFFECT_CAPABILITIES
+)
+
+
+def _native_effects_with(capability: str) -> frozenset[str]:
+    return frozenset(
+        name
+        for name, capabilities in _NATIVE_VISUAL_EFFECT_CAPABILITIES
+        if capability in capabilities
+    )
+
+
+NATIVE_VISUAL_MOTION_EFFECTS = _native_effects_with("motion")
+NATIVE_VISUAL_ALPHA_EFFECTS = _native_effects_with("alpha")
+NATIVE_VISUAL_SCALE_EFFECTS = _native_effects_with("scale")
+NATIVE_VISUAL_ROTATION_EFFECTS = _native_effects_with("rotation")
+NATIVE_VISUAL_EFFECTS = frozenset(NATIVE_VISUAL_EFFECT_NAMES)
+
+
+def native_visual_effect_names() -> tuple[str, ...]:
+    """Return render-backed asset effects in deterministic Auto Motion order."""
+
+    return NATIVE_VISUAL_EFFECT_NAMES
 
 
 def is_native_visual_motion_effect(name: str) -> bool:
