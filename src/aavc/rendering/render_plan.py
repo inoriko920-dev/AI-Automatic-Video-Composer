@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from aavc.domain.layout import Placement, solve_layout
-from aavc.domain.project.models import ProjectState, RenderQualitySettings
+from aavc.domain.project.models import (
+    AnimationAssignment,
+    ProjectState,
+    RenderQualitySettings,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,6 +17,7 @@ class SceneRenderPlan:
     duration_seconds: float
     asset_paths: tuple[str, ...]
     placements: tuple[Placement, ...]
+    animations: tuple[AnimationAssignment | None, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,22 +36,35 @@ class RenderPlan:
         return sum(scene.duration_seconds for scene in self.scenes)
 
 
-def build_render_plan(project: ProjectState, output_path: str | Path, subtitle_ass: str | None = None) -> RenderPlan:
+def build_render_plan(
+    project: ProjectState,
+    output_path: str | Path,
+    subtitle_ass: str | None = None,
+) -> RenderPlan:
     by_id = {binding.asset_id: binding for binding in project.bindings}
+    animations_by_key = {
+        (assignment.scene_number, assignment.asset_id): assignment
+        for assignment in project.animations
+    }
     scenes: list[SceneRenderPlan] = []
     for scene in project.scenes:
         paths: list[str] = []
+        animations: list[AnimationAssignment | None] = []
         for asset_id in scene.asset_ids:
             binding = by_id[asset_id]
             if binding.status != "READY" or binding.path is None:
                 raise ValueError(f"Asset {asset_id} tidak READY")
             paths.append(binding.path)
+            animations.append(
+                animations_by_key.get((scene.scene_number, asset_id))
+            )
         scenes.append(
             SceneRenderPlan(
                 scene_number=scene.scene_number,
                 duration_seconds=scene.duration_seconds,
                 asset_paths=tuple(paths),
                 placements=solve_layout(scene),
+                animations=tuple(animations),
             )
         )
     return RenderPlan(
