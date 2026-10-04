@@ -1,3 +1,4 @@
+from .animation_assignment import RemoveAnimationAssignment
 from .project_commands import (
     ProjectCommand,
     RelinkAsset,
@@ -16,6 +17,7 @@ __all__ = [
     "MoveScene",
     "ProjectCommand",
     "RelinkAsset",
+    "RemoveAnimationAssignment",
     "SetAnimationAssignment",
     "SetNarrationAudio",
     "SetSceneDuration",
