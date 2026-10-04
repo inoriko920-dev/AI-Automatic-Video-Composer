@@ -40,3 +40,43 @@ class MoveScene:
     def describe(self) -> str:
         direction = "atas" if self.offset < 0 else "bawah"
         return f"Pindah Scene {self.scene_number} ke {direction}"
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteScene:
+    """Delete one scene while preserving a renderable project."""
+
+    scene_number: int
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        if len(project.scenes) <= 1:
+            raise ValueError("Scene terakhir tidak boleh dihapus")
+
+        if not any(scene.scene_number == self.scene_number for scene in project.scenes):
+            raise ValueError(f"Scene {self.scene_number} tidak ditemukan")
+
+        scenes = tuple(
+            scene for scene in project.scenes if scene.scene_number != self.scene_number
+        )
+        used_asset_ids = {
+            asset_id
+            for scene in scenes
+            for asset_id in scene.asset_ids
+        }
+        bindings = tuple(
+            binding for binding in project.bindings if binding.asset_id in used_asset_ids
+        )
+        animations = tuple(
+            assignment
+            for assignment in project.animations
+            if assignment.scene_number != self.scene_number
+        )
+        return replace(
+            project,
+            scenes=scenes,
+            bindings=bindings,
+            animations=animations,
+        )
+
+    def describe(self) -> str:
+        return f"Hapus Scene {self.scene_number}"
