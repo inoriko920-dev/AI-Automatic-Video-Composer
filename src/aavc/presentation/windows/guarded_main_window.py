@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from aavc.application.services.vertical_slice import create_project_state
+from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
 from aavc.presentation.navigation import UiRoute
 from aavc.presentation.windows.main_window import MainWindow, ensure_project_suffix
@@ -33,10 +34,14 @@ def resolve_unsaved_choice(
 class GuardedMainWindow(MainWindow):
     """Main window that prevents silent loss of dirty project state."""
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
+    def __init__(
+        self,
+        services: FoundationServices,
+        initial_state: str = "UI-002",
+    ) -> None:
         self._allow_close = False
         self._close_guard: object | None = None
-        super().__init__(*args, **kwargs)
+        super().__init__(services, initial_state=initial_state)
         self._install_close_guard()
 
     def _install_close_guard(self) -> None:
@@ -45,7 +50,7 @@ class GuardedMainWindow(MainWindow):
         owner = self
 
         class CloseGuard(QObject):
-            def eventFilter(self, watched: object, event: object) -> bool:
+            def eventFilter(self, watched: Any, event: Any) -> bool:
                 if watched is owner.window and event.type() == QEvent.Type.Close:
                     if owner._allow_close:
                         return False
@@ -72,9 +77,7 @@ class GuardedMainWindow(MainWindow):
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle("Perubahan belum disimpan")
         box.setText(f"{project_title} memiliki perubahan yang belum disimpan.")
-        box.setInformativeText(
-            f"Simpan perubahan sebelum {action_label}?"
-        )
+        box.setInformativeText(f"Simpan perubahan sebelum {action_label}?")
         box.setStandardButtons(
             QMessageBox.StandardButton.Save
             | QMessageBox.StandardButton.Discard
@@ -84,15 +87,15 @@ class GuardedMainWindow(MainWindow):
         result = QMessageBox.StandardButton(box.exec())
 
         if result == QMessageBox.StandardButton.Save:
-            saved = self.save_project()
-            return resolve_unsaved_choice(True, "save", save_succeeded=saved)
+            super().save_project()
+            return resolve_unsaved_choice(
+                True,
+                "save",
+                save_succeeded=not session.is_dirty,
+            )
         if result == QMessageBox.StandardButton.Discard:
             return resolve_unsaved_choice(True, "discard")
         return resolve_unsaved_choice(True, "cancel")
-
-    def save_project(self) -> bool:
-        super().save_project()
-        return not self.services.project_session.is_dirty
 
     def open_project(self) -> None:
         from PySide6.QtWidgets import QFileDialog
@@ -183,7 +186,7 @@ class GuardedMainWindow(MainWindow):
 
 
 def create_guarded_main_window(
-    services: object,
+    services: FoundationServices,
     initial_state: str = "UI-002",
 ) -> GuardedMainWindow:
     return GuardedMainWindow(services, initial_state=initial_state)
