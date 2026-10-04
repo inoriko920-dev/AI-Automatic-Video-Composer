@@ -35,7 +35,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         from PySide6.QtGui import QFont, QFontDatabase
         from PySide6.QtWidgets import QApplication
 
-        from aavc.presentation.windows.main_window import create_main_window
+        from aavc.presentation.windows.guarded_main_window import (
+            create_guarded_main_window as create_main_window,
+        )
     except ModuleNotFoundError as exc:
         print(f"Qt runtime belum terpasang: {exc}", file=sys.stderr)
         return 2
