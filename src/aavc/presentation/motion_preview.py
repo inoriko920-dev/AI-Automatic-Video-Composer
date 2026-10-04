@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from aavc.animation import evaluate_effect
-from aavc.animation.compiler import is_native_visual_motion_effect
+from aavc.animation.compiler import (
+    is_native_visual_alpha_effect,
+    is_native_visual_motion_effect,
+)
 from aavc.domain.project.models import AnimationAssignment
 
 
@@ -82,13 +85,45 @@ def preview_continuation_scene_index(
     return preview_neighbor_scene_index(current_index, scene_count, 1)
 
 
+def native_visual_preview_opacity(
+    assignment: AnimationAssignment | None,
+    *,
+    time_seconds: float,
+    duration_seconds: float,
+) -> float:
+    """Evaluate native Fade opacity using the same timing window as FFmpeg."""
+
+    if assignment is None or assignment.intensity <= 0:
+        return 1.0
+
+    duration = max(0.001, float(duration_seconds))
+    current = max(0.0, min(float(time_seconds), duration))
+    window = min(0.25, duration / 2.0)
+    opacity = 1.0
+
+    for effect, entering in (
+        (assignment.enter_effect, True),
+        (assignment.exit_effect, False),
+    ):
+        if not is_native_visual_alpha_effect(effect):
+            continue
+        if entering:
+            progress = current / window
+        else:
+            exit_start = max(0.0, duration - window)
+            progress = (current - exit_start) / window
+        opacity *= evaluate_effect(effect, progress, entering=entering).opacity
+
+    return max(0.0, min(1.0, opacity))
+
+
 def native_motion_preview_offset(
     assignment: AnimationAssignment | None,
     *,
     time_seconds: float,
     duration_seconds: float,
 ) -> PreviewMotionOffset:
-    """Evaluate phase-one native motion using the same 0.25s timing contract as FFmpeg."""
+    """Evaluate native motion using the same 0.25s timing contract as FFmpeg."""
 
     if assignment is None or assignment.intensity <= 0:
         return PreviewMotionOffset()

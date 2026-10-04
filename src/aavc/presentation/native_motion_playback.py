@@ -6,6 +6,7 @@ from typing import Any
 from aavc.domain.project.models import AnimationAssignment, ProjectState
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
+    native_visual_preview_opacity,
     preview_continuation_scene_index,
     preview_narration_seconds,
     preview_neighbor_scene_index,
@@ -82,15 +83,24 @@ def render_native_motion_pixmap(
         )
         x = int(width * asset.anchor_x - scaled.width() / 2)
         y = int(height * asset.anchor_y - scaled.height() / 2)
+        assignment = assignment_by_asset.get(asset.asset_id)
+        opacity = 1.0
         if time_seconds is not None:
             offset = native_motion_preview_offset(
-                assignment_by_asset.get(asset.asset_id),
+                assignment,
+                time_seconds=time_seconds,
+                duration_seconds=plan.duration_seconds,
+            )
+            opacity = native_visual_preview_opacity(
+                assignment,
                 time_seconds=time_seconds,
                 duration_seconds=plan.duration_seconds,
             )
             x += int(round(width * offset.x))
             y += int(round(height * offset.y))
+        painter.setOpacity(opacity)
         painter.drawPixmap(x, y, scaled)
+        painter.setOpacity(1.0)
 
     painter.end()
     return canvas
@@ -175,13 +185,13 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     next_button.setToolTip("Pilih Scene berikutnya pada preview.")
     play_button.setToolTip(
         "Putar preview kontinu mulai Scene terpilih sampai akhir project. "
-        "Motion native, narasi, subtitle, dan animasi subtitle ikut preview bila tersedia."
+        "Motion native, Fade, narasi, subtitle, dan animasi subtitle ikut preview bila tersedia."
     )
     if progress_slider is not None:
         progress_slider.setRange(0, 1000)
         progress_slider.setValue(0)
         progress_slider.setToolTip(
-            "Geser untuk melihat frame motion, subtitle, dan posisi narasi pada waktu tertentu."
+            "Geser untuk melihat frame motion/Fade, subtitle, dan posisi narasi pada waktu tertentu."
         )
 
     media_player: Any | None = None
