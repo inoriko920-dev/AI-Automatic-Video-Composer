@@ -1,4 +1,5 @@
 from .animation_assignment import RemoveAnimationAssignment
+from .animation_randomization import RandomizeAnimationAssignments
 from .project_commands import (
     ProjectCommand,
     RelinkAsset,
@@ -17,6 +18,7 @@ __all__ = [
     "DuplicateScene",
     "MoveScene",
     "ProjectCommand",
+    "RandomizeAnimationAssignments",
     "RelinkAsset",
     "RemoveAnimationAssignment",
     "SetAnimationAssignment",
