@@ -3,7 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aavc.application.commands import RelinkAsset, SetNarrationAudio, SetSubtitleSource
+from aavc.application.commands import (
+    RelinkAsset,
+    SetNarrationAudio,
+    SetSceneDuration,
+    SetSubtitleSource,
+)
 from aavc.application.services.export_service import ExportOptions, render_project
 from aavc.application.services.media_import import classify_media_path
 from aavc.application.services.validation import validate_project
@@ -43,6 +48,7 @@ class MainWindow:
         self._active_dialog: Any | None = None
         self._toolbar: Any | None = None
         self._validation_button: Any | None = None
+        self._selected_scene_number: int | None = None
         self._build_menu(QAction)
         self._build_toolbar(QToolBar, QAction)
         self._build_pages()
@@ -114,6 +120,9 @@ class MainWindow:
                 "border-radius:6px; padding:5px 9px; font-weight:600;"
             )
 
+    def _remember_selected_scene(self, scene_number: int) -> None:
+        self._selected_scene_number = scene_number
+
     def refresh_editor_overview(self) -> None:
         from aavc.presentation.screens.live_editor_overview import (
             create_live_editor_overview,
@@ -122,7 +131,12 @@ class MainWindow:
         project = self.services.project_session.current
         if project is None:
             return
-        replacement = create_live_editor_overview(project)
+        replacement = create_live_editor_overview(
+            project,
+            on_set_scene_duration=self.set_scene_duration,
+            selected_scene_number=self._selected_scene_number,
+            on_scene_selected=self._remember_selected_scene,
+        )
         self._replace_route_widget(UiRoute.EDITOR, replacement)
 
     def create_project_from_docx(self, scene_docx: str) -> None:
@@ -170,6 +184,9 @@ class MainWindow:
             self._show_project_error("Gagal menyimpan proyek baru", error)
             return
 
+        self._selected_scene_number = (
+            project.scenes[0].scene_number if project.scenes else None
+        )
         self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
         self.window.statusBar().showMessage(f"Proyek dibuat: {destination}", 5000)
         self._refresh_validation_badge()
@@ -192,6 +209,9 @@ class MainWindow:
         except (AAVCError, OSError, ValueError, KeyError, TypeError) as error:
             self._show_project_error("Gagal membuka proyek", error)
             return
+        self._selected_scene_number = (
+            project.scenes[0].scene_number if project.scenes else None
+        )
         self.window.setWindowTitle(f"{self.services.app_name} — Project: {project.title}")
         self.window.statusBar().showMessage(f"Proyek dibuka: {chosen}", 5000)
         self._refresh_validation_badge()
@@ -228,6 +248,23 @@ class MainWindow:
         self._refresh_validation_badge()
         self.refresh_editor_overview()
         self.window.statusBar().showMessage("Redo berhasil", 3000)
+
+    def set_scene_duration(self, scene_number: int, duration_seconds: float) -> None:
+        try:
+            self.services.project_session.execute(
+                SetSceneDuration(scene_number, duration_seconds)
+            )
+        except (AAVCError, ValueError) as error:
+            self._show_project_error("Gagal mengubah durasi Scene", error)
+            return
+        self._selected_scene_number = scene_number
+        self._refresh_validation_badge()
+        self.refresh_editor_overview()
+        self.window.statusBar().showMessage(
+            f"Durasi Scene {scene_number:02d} diubah menjadi {duration_seconds:.3f} detik. "
+            "Klik Simpan untuk menyimpan perubahan.",
+            7000,
+        )
 
     def import_media(self) -> None:
         from PySide6.QtWidgets import QFileDialog
