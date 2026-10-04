@@ -18,6 +18,11 @@ on:
         required: false
         default: v0.1.0
         type: string
+      release_source_ref:
+        description: Frozen source ref to build and tag for the official 0.1.0 release
+        required: false
+        default: release/0.1.0
+        type: string
 
 permissions:
   contents: read
@@ -26,10 +31,33 @@ jobs:
   final-release:
     runs-on: windows-latest
     timeout-minutes: 40
+    outputs:
+      release_commit: ${{ steps.release_source.outputs.commit }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_source_ref || github.sha }}
+      - name: Validate official release inputs
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_github_release }}
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_SOURCE_REF: ${{ inputs.release_source_ref }}
+        run: |
+          if ($env:RELEASE_TAG -ne "v0.1.0") {
+            throw "This workflow is sealed for v0.1.0; got release_tag=$env:RELEASE_TAG"
+          }
+          if ($env:RELEASE_SOURCE_REF -ne "release/0.1.0") {
+            throw "Official v0.1.0 must be built from release/0.1.0; got release_source_ref=$env:RELEASE_SOURCE_REF"
+          }
+      - name: Resolve release source commit
+        id: release_source
+        shell: pwsh
+        run: |
+          $commit = (git rev-parse HEAD).Trim()
+          "commit=$commit" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Release source commit: $commit"
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -104,7 +132,7 @@ jobs:
         with:
           name: AAVC-0.1.0-final-win64
           path: release
-      - name: Refuse to overwrite an existing release
+      - name: Refuse to overwrite an existing tag or release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -115,16 +143,21 @@ jobs:
             echo "GitHub Release $RELEASE_TAG already exists; refusing to overwrite it."
             exit 1
           fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Git tag $RELEASE_TAG already exists; refusing to overwrite it."
+            exit 1
+          fi
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_COMMIT: ${{ needs.final-release.outputs.release_commit }}
         shell: bash
         run: |
           set -euo pipefail
           gh release create "$RELEASE_TAG" \
             release/* \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --target "$RELEASE_COMMIT" \
             --title "AI Automatic Video Composer 0.1.0" \
             --notes-file release/RELEASE_NOTES_0.1.0.md
