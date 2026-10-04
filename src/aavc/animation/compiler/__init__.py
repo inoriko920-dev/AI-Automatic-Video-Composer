@@ -1,5 +1,6 @@
 from .ffmpeg import (
     NATIVE_VISUAL_ALPHA_EFFECTS,
+    NATIVE_VISUAL_EFFECT_NAMES,
     NATIVE_VISUAL_EFFECTS,
     NATIVE_VISUAL_MOTION_EFFECTS,
     NATIVE_VISUAL_ROTATION_EFFECTS,
@@ -17,10 +18,12 @@ from .ffmpeg import (
     is_native_visual_motion_effect,
     is_native_visual_rotation_effect,
     is_native_visual_scale_effect,
+    native_visual_effect_names,
 )
 
 __all__ = [
     "NATIVE_VISUAL_ALPHA_EFFECTS",
+    "NATIVE_VISUAL_EFFECT_NAMES",
     "NATIVE_VISUAL_EFFECTS",
     "NATIVE_VISUAL_MOTION_EFFECTS",
     "NATIVE_VISUAL_ROTATION_EFFECTS",
@@ -38,4 +41,5 @@ __all__ = [
     "is_native_visual_motion_effect",
     "is_native_visual_rotation_effect",
     "is_native_visual_scale_effect",
+    "native_visual_effect_names",
 ]
