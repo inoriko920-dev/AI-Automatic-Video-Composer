@@ -48,7 +48,7 @@ class GuardedMainWindow(MainWindow):
     def _build_menu(self, action_type: Any) -> None:
         super()._build_menu(action_type)
 
-        edit_menu = None
+        edit_menu: Any | None = None
         for menu_action in self.window.menuBar().actions():
             if menu_action.text() == "Edit":
                 edit_menu = menu_action.menu()
