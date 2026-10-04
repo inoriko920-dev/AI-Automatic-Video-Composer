@@ -11,6 +11,7 @@ class TransformDelta:
     scale: float = 1.0
     offset_x: float = 0.0
     offset_y: float = 0.0
+    rotation_degrees: float = 0.0
 
 
 def evaluate_effect(name: str, progress: float, *, entering: bool = True) -> TransformDelta:
@@ -29,4 +30,7 @@ def evaluate_effect(name: str, progress: float, *, entering: bool = True) -> Tra
         return TransformDelta(opacity=p, offset_x=(1.0 - p) * 0.06)
     if name == "Breathe":
         return TransformDelta(opacity=1.0, scale=0.98 + 0.02 * p)
+    if name == "Tumble":
+        direction = -1.0 if entering else 1.0
+        return TransformDelta(rotation_degrees=direction * 12.0 * (1.0 - p))
     return TransformDelta(opacity=p)
