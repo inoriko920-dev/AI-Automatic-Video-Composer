@@ -147,8 +147,8 @@ def test_native_pop_is_applied_before_overlay_and_has_no_fallback(tmp_path: Path
     assert "eval=frame" in command
     assert "0.85+0.15*t/0.250000" in command
     assert "format=rgba,fade=t=in:st=0:d=0.250000:alpha=1" in command
-    assert "overlay=x='" not in command
-    assert "overlay=x=(W-w)/2:y='" in command
+    assert "overlay=x='(W-w)/2':y='" in command
+    assert "H*0.080000" in command
     fallback_messages = [
         issue.message
         for issue in validate_render_plan(plan).issues
