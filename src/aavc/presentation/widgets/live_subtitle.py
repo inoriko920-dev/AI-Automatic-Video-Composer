@@ -9,7 +9,6 @@ from aavc.presentation.subtitle_view import SubtitleCueView, build_subtitle_view
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 from aavc.subtitles import STYLE_PRESETS, get_style_preset, parse_srt
 
-
 ALIGNMENT_OPTIONS: tuple[tuple[str, int], ...] = (
     ("Bawah Kiri", 1),
     ("Bawah Tengah", 2),
