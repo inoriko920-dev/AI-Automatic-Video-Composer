@@ -9,6 +9,7 @@ from .project_commands import (
     SetSubtitleSource,
     SetSubtitleStyle,
 )
+from .project_metadata import SetProjectTitle
 from .scene_order import DeleteScene, DuplicateScene, MoveScene
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "RemoveAnimationAssignment",
     "SetAnimationAssignment",
     "SetNarrationAudio",
+    "SetProjectTitle",
     "SetSceneDuration",
     "SetSubtitleAnimation",
     "SetSubtitleSource",
