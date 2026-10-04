@@ -41,13 +41,20 @@ Pada layar Proyek Baru, tahap awal meminta **Scene DOCX**. UI menjelaskan bahwa 
 
 ## 4. Memulai atau membuka proyek dari UI
 
-Untuk memulai flow proyek baru:
+Untuk membuat proyek baru pada source `main` setelah maintenance new-project-session:
 
 1. Pilih **Proyek Baru → Mulai**.
 2. Pada layar **Pilih Scene DOCX**, klik **Pilih DOCX**.
 3. Pilih file `.docx` yang sesuai kontrak scene AAVC.
 4. Setelah file dipilih, tombol **Lanjut** menjadi aktif.
-5. Flow Folder Aset/Media masih merupakan area integrasi berikutnya; jangan menganggap pemilihan DOCX saja sudah menghasilkan sesi project canonical yang siap disimpan.
+5. Klik **Lanjut**, lalu pilih **Folder Aset** yang berisi file canonical `A001.png`, `A002.png`, dan seterusnya.
+6. AAVC membaca DOCX dan membangun `ProjectState` serta asset binding dari folder yang dipilih.
+7. Pilih lokasi penyimpanan project `.aavcproj`.
+8. File project disimpan terlebih dahulu; hanya setelah penyimpanan berhasil project baru menjadi sesi aktif dan editor dibuka.
+
+Jika pengguna membatalkan pemilihan Folder Aset atau lokasi penyimpanan, sesi project yang sebelumnya aktif tidak diganti. Jika penyimpanan project baru gagal, sesi lama juga tetap dipertahankan.
+
+Aset yang belum ditemukan tetap dapat ditangani melalui validation/relink workflow. Narasi, subtitle, dan media tambahan belum dipaksa pada flow pembuatan awal ini dan dapat ditambahkan melalui workflow yang tersedia pada build terkait.
 
 Untuk membuka project state yang sudah ada:
 
@@ -78,9 +85,9 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session dan new-project-session, kontrol berikut memiliki perilaku eksplisit:
 
-- **Baru** → membuka flow Proyek Baru.
+- **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
 - **Simpan** → menyimpan current `ProjectState` ke path project aktif secara atomic melalui repository.
 - **Undo** → memundurkan perubahan model pada `ProjectHistory` jika tersedia.
