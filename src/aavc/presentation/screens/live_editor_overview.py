@@ -13,6 +13,7 @@ from aavc.presentation.project_view import (
     format_duration,
 )
 from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
+from aavc.presentation.timeline_view import TimelinePlan, build_timeline_plan
 from aavc.presentation.widgets.common import muted_label, section_title
 from aavc.presentation.widgets.editor_shell import create_editor_shell
 
@@ -162,6 +163,93 @@ def _render_scene_pixmap(plan: ScenePreviewPlan, width: int = 1280, height: int 
     return canvas
 
 
+def _clear_layout(layout: Any) -> None:
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        child_layout = item.layout()
+        if widget is not None:
+            widget.setParent(None)
+            widget.deleteLater()
+        elif child_layout is not None:
+            _clear_layout(child_layout)
+
+
+def _configure_live_timeline(
+    timeline: Any,
+    plan: TimelinePlan,
+    on_scene_clicked: Any,
+) -> tuple[Any, ...]:
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+
+    layout = timeline.layout()
+    if layout is None:
+        layout = QVBoxLayout(timeline)
+    else:
+        _clear_layout(layout)
+    layout.setContentsMargins(8, 8, 8, 8)
+    layout.setSpacing(6)
+
+    header = QHBoxLayout()
+    title = QLabel("Timeline Scene · Read-only")
+    title.setStyleSheet("font-weight:700;")
+    header.addWidget(title)
+    header.addStretch(1)
+    header.addWidget(QLabel(f"Total {format_duration(plan.total_duration_seconds)}"))
+    layout.addLayout(header)
+
+    if not plan.segments:
+        empty = QLabel("Project belum memiliki scene.")
+        empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(empty, 1)
+        return ()
+
+    track = QHBoxLayout()
+    track.setSpacing(3)
+    name = QLabel("V1  Scene")
+    name.setMinimumWidth(92)
+    name.setStyleSheet("font-weight:650;")
+    track.addWidget(name)
+
+    group = QButtonGroup(timeline)
+    group.setExclusive(True)
+    buttons: list[QPushButton] = []
+    for segment in plan.segments:
+        button = QPushButton(
+            f"Sc{segment.scene_number:02d}\n{format_duration(segment.duration_seconds)}"
+        )
+        button.setCheckable(True)
+        button.setMinimumWidth(44)
+        button.setToolTip(
+            f"Scene {segment.scene_number:02d} · {segment.mode} · "
+            f"{format_duration(segment.start_seconds)} → "
+            f"{format_duration(segment.end_seconds)}\n"
+            "Timeline read-only: klik untuk memilih scene."
+        )
+        button.setStyleSheet(
+            "QPushButton {background:#DBEAFE; border:1px solid #93C5FD; "
+            "border-radius:4px; padding:6px 4px;} "
+            "QPushButton:checked {background:#BFDBFE; border:2px solid #2563EB; "
+            "font-weight:700;}"
+        )
+        group.addButton(button, segment.scene_index)
+        stretch = max(1, int(round(segment.duration_seconds * 1000)))
+        track.addWidget(button, stretch)
+        buttons.append(button)
+    group.idClicked.connect(on_scene_clicked)
+    layout.addLayout(track, 1)
+
+    note = QLabel(
+        "Lebar blok mengikuti durasi scene. Drag/drop, trim, split, resize, dan scrub belum aktif."
+    )
+    note.setStyleSheet("color:#64748B; font-size:9px;")
+    layout.addWidget(note)
+    timeline.setEnabled(True)
+    timeline.setToolTip("Timeline scene berasal dari ProjectState aktif dan bersifat read-only.")
+    return tuple(buttons)
+
+
 def create_live_editor_overview(project: ProjectState) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QLabel, QPushButton, QSlider
@@ -204,7 +292,16 @@ def create_live_editor_overview(project: ProjectState) -> Any:
             slider.setEnabled(False)
             slider.setToolTip("Scrubbing preview belum diaktifkan pada tahap ini.")
 
+    timeline_plan = build_timeline_plan(project)
+    timeline_buttons = _configure_live_timeline(
+        parts.timeline,
+        timeline_plan,
+        scene_list.setCurrentRow,
+    )
+
     def show_scene(row: int) -> None:
+        for index, button in enumerate(timeline_buttons):
+            button.setChecked(index == row)
         if row < 0 or row >= len(project.scenes):
             preview_header.setText("Tidak ada scene terpilih")
             parts.preview_label.clear()
@@ -228,11 +325,6 @@ def create_live_editor_overview(project: ProjectState) -> Any:
         show_scene(0)
     else:
         show_scene(-1)
-
-    parts.timeline.setEnabled(False)
-    parts.timeline.setToolTip(
-        "Timeline masih berupa shell visual pada tahap ini dan belum membaca ProjectState."
-    )
 
     status = (
         "✓ Project siap"
