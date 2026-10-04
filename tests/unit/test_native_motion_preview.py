@@ -3,6 +3,7 @@ import pytest
 from aavc.domain.project.models import AnimationAssignment
 from aavc.presentation.motion_preview import (
     native_motion_preview_offset,
+    native_visual_preview_opacity,
     preview_continuation_scene_index,
     preview_narration_seconds,
     preview_neighbor_scene_index,
@@ -80,6 +81,64 @@ def test_preview_timecode_formats_project_position_at_project_fps() -> None:
 def test_preview_timecode_clamps_negative_time_and_invalid_fps() -> None:
     assert preview_timecode(-4.0, 30) == "00:00:00:00"
     assert preview_timecode(1.0, 0) == "00:00:01:00"
+
+
+def test_native_fade_enter_preview_opacity_matches_render_window() -> None:
+    assignment = _assignment("Fade", "Drift")
+
+    assert native_visual_preview_opacity(
+        assignment,
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.0)
+    assert native_visual_preview_opacity(
+        assignment,
+        time_seconds=0.125,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.5)
+    assert native_visual_preview_opacity(
+        assignment,
+        time_seconds=0.25,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+
+
+def test_native_fade_exit_preview_opacity_matches_render_window() -> None:
+    assignment = _assignment("Rise", "Fade")
+
+    assert native_visual_preview_opacity(
+        assignment,
+        time_seconds=1.75,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+    assert native_visual_preview_opacity(
+        assignment,
+        time_seconds=1.875,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.5)
+    assert native_visual_preview_opacity(
+        assignment,
+        time_seconds=2.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(0.0)
+
+
+def test_preview_opacity_is_opaque_without_active_native_fade() -> None:
+    assert native_visual_preview_opacity(
+        None,
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+    assert native_visual_preview_opacity(
+        _assignment("Rise", "Drift"),
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
+    assert native_visual_preview_opacity(
+        _assignment("Fade", "Fade", intensity=0.0),
+        time_seconds=0.0,
+        duration_seconds=2.0,
+    ) == pytest.approx(1.0)
 
 
 def test_preview_offset_is_zero_without_assignment() -> None:
