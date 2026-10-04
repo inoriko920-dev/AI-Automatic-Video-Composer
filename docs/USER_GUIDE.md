@@ -85,7 +85,7 @@ Keberadaan engine tidak selalu berarti setiap tombol pada shell UI sudah terhubu
 
 ## 6. Kontrol yang sudah mempunyai perilaku UI nyata di source main
 
-Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, dan live-subtitle-source, kontrol berikut memiliki perilaku eksplisit:
+Pada source `main` setelah maintenance project-session, new-project-session, real-export-render, real-validation-center, supported-media-import, live-subtitle-source, dan live-editor-overview, kontrol berikut memiliki perilaku eksplisit:
 
 - **Baru** → membuka flow Proyek Baru; DOCX + Folder Aset dipakai untuk membangun dan menyimpan sesi canonical `.aavcproj`.
 - **Buka** → membuka file picker `.aavcproj`, memuat project, lalu masuk editor.
@@ -100,7 +100,25 @@ Pada source `main` setelah maintenance project-session, new-project-session, rea
 
 Jika **Simpan** dipilih tanpa project aktif, aplikasi memberi penjelasan bahwa penyimpanan belum tersedia untuk sesi tersebut. Undo/Redo yang tidak memiliki aksi juga memberi feedback dan tidak merusak state project.
 
-## 7. Validasi project dan relink aset
+## 7. Editor Overview dari project aktif
+
+Pada source `main` setelah maintenance live-editor-overview, editor yang dibuka setelah **Buat/Buka Project** tidak lagi memakai daftar Scene/Aset demo sebagai data project.
+
+Bagian yang sekarang berasal dari `ProjectState` aktif:
+
+- judul project;
+- resolusi dan FPS;
+- durasi total dan jumlah scene;
+- jumlah aset READY dan belum READY;
+- nama file narasi dan subtitle bila sudah diimpor;
+- seluruh daftar Scene beserta nomor, mode SINGLE/DOUBLE, durasi, dan canonical Asset ID;
+- seluruh asset binding beserta status, nama file, dan source quote.
+
+Aset yang belum ditemukan ditampilkan sebagai `MISSING`/belum READY, bukan thumbnail contoh. Overview dibangun ulang setelah Create/Open dan setelah perubahan model melalui Undo/Redo, Relink, atau Impor Media.
+
+**Pratinjau project nyata dan timeline editing belum terhubung pada tahap ini.** Pada live overview, area preview menampilkan penjelasan bahwa preview belum aktif dan timeline dinonaktifkan. Hal ini sengaja dilakukan agar data demo lama tidak tampak seperti hasil project aktif. Fixture editor lama tetap dipertahankan hanya untuk no-session STEP09 visual-reference capture.
+
+## 8. Validasi project dan relink aset
 
 Pada source `main` setelah maintenance real-validation-center, tombol validasi tidak lagi mengandalkan contoh statis ketika ada project aktif.
 
@@ -126,7 +144,7 @@ Di Validation Center:
 
 Fixture `2 Error, 3 Peringatan` yang lama hanya dipertahankan sebagai fallback tanpa sesi untuk frozen STEP09 visual-reference capture. Pada penggunaan normal, toolbar editor tidak tersedia dari Home/New Project sebelum ada project aktif.
 
-## 8. Ekspor video nyata pada source main
+## 9. Ekspor video nyata pada source main
 
 Pada source `main` setelah maintenance real-export-render, dialog ekspor meneruskan pilihan yang didukung ke render engine:
 
@@ -147,7 +165,7 @@ Render UI pertama ini bersifat **synchronous**: aplikasi menampilkan wait cursor
 
 Jika tidak ada project aktif, **Mulai Render** ditolak dan pengguna diminta membuat atau membuka project terlebih dahulu.
 
-## 9. Impor Media yang didukung
+## 10. Impor Media yang didukung
 
 Pada source `main` setelah maintenance supported-media-import, tombol **Impor Media** menggunakan file picker nyata dan hanya menerima tipe yang sudah terhubung sampai render pipeline.
 
@@ -165,7 +183,7 @@ Perubahan dijalankan melalui `ProjectSession.execute()`, sehingga import media m
 
 Format lain ditolak dengan pesan yang jelas. `background_source` belum diaktifkan melalui tombol ini karena render pipeline saat ini belum menggunakannya. Tombol **Rekam Narasi** juga belum dianggap sebagai import audio; perekaman mikrofon membutuhkan recording engine tersendiri.
 
-## 10. Melihat subtitle SRT project
+## 11. Melihat subtitle SRT project
 
 Pada source `main` setelah maintenance live-subtitle-source, tombol **Tambah Teks** tidak lagi memakai cue demo ketika ada project aktif.
 
@@ -181,13 +199,13 @@ Pada tahap ini panel detail bersifat **read-only**. Tombol **Tambah Cue**, **Pis
 
 Jika project belum memiliki `subtitle_source`, **Tambah Teks** meminta pengguna mengimpor SRT terlebih dahulu. Jika file source hilang atau tidak dapat diparse, aplikasi menampilkan error dan tidak menggantinya dengan data demo. Fixture subtitle lama tetap dipakai hanya untuk no-session STEP09 visual-reference capture.
 
-## 11. Kontrol yang belum terhubung penuh
+## 12. Kontrol yang belum terhubung penuh
 
-Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Beberapa menu placeholder dan Bantuan Cepat juga masih berfungsi sebagai shell UI, bukan workflow final.
+Pada source `main`, **Rekam Narasi** masih belum memiliki recording engine dan tetap memberi pesan **Fitur belum terhubung** tanpa mengubah project. Preview project nyata, timeline editing, beberapa menu placeholder, dan Bantuan Cepat juga belum merupakan workflow final.
 
-Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
+Catatan penting: maintenance project-session/new-project-session/real-export-render/real-validation-center/supported-media-import/live-subtitle-source/live-editor-overview berada setelah frozen release `v0.1.1`. Binary `v0.1.1` yang sudah dipublikasikan tidak otomatis berubah ketika `main` berubah.
 
-## 12. Sebelum ekspor
+## 13. Sebelum ekspor
 
 Sebelum menjalankan ekspor, periksa minimal:
 
@@ -201,7 +219,7 @@ Sebelum menjalankan ekspor, periksa minimal:
 
 Gunakan tombol **Validasi** untuk meninjau masalah yang dapat dideteksi sebelum render.
 
-## 13. Jika proyek bermasalah
+## 14. Jika proyek bermasalah
 
 Jangan menghapus file proyek asli ketika melakukan recovery.
 
@@ -209,7 +227,7 @@ Repo menyediakan mekanisme versioned project state dan recovery snapshot. Untuk 
 
 Jika asset berpindah folder, gunakan workflow relink/validation daripada mengganti ID canonical secara acak.
 
-## 14. Untuk developer
+## 15. Untuk developer
 
 Baseline pengembangan aktif:
 
@@ -228,7 +246,7 @@ Perintah PowerShell utama:
 ./scripts/verify_portable.ps1
 ```
 
-## 15. Batas dokumen ini
+## 16. Batas dokumen ini
 
 Panduan ini menjelaskan kemampuan yang dapat dibuktikan dari source dan release metadata repo. Ia tidak menjanjikan bahwa semua kontrol visual telah terhubung end-to-end pada setiap binary historis.
 
