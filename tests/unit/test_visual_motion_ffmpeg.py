@@ -1,7 +1,10 @@
 from dataclasses import replace
 from pathlib import Path
 
-from aavc.animation.compiler import compile_motion_overlay_position
+from aavc.animation.compiler import (
+    compile_motion_overlay_position,
+    compile_native_alpha_filters,
+)
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.domain.project.models import AnimationAssignment
 from aavc.rendering import build_ffmpeg_command, build_render_plan, validate_render_plan
@@ -43,12 +46,78 @@ def test_motion_compiler_combines_enter_and_exit_axes() -> None:
     )
 
 
+def test_native_fade_compiler_uses_alpha_window() -> None:
+    assignment = AnimationAssignment(
+        scene_number=1,
+        asset_id="A001",
+        enter_effect="Fade",
+        exit_effect="Fade",
+        intensity=1.0,
+    )
+
+    assert compile_native_alpha_filters(
+        assignment,
+        duration_seconds=3.0,
+    ) == (
+        "format=rgba",
+        "fade=t=in:st=0:d=0.250000:alpha=1",
+        "fade=t=out:st=2.750000:d=0.250000:alpha=1",
+    )
+
+
 def test_project_without_assignment_keeps_original_overlay_command(tmp_path: Path) -> None:
     plan = build_render_plan(_project(), tmp_path / "out.mp4")
     command = " ".join(build_ffmpeg_command(plan))
 
     assert "overlay=x=(W-w)/2:y=(H-h)/2:shortest=1" in command
     assert "overlay=x='" not in command
+    assert "format=rgba,fade=t=" not in command
+
+
+def test_native_fade_is_applied_to_asset_before_overlay(tmp_path: Path) -> None:
+    project = _project()
+    scene = project.scenes[0]
+    assignment = AnimationAssignment(
+        scene_number=scene.scene_number,
+        asset_id=scene.asset_ids[0],
+        enter_effect="Fade",
+        exit_effect="Drift",
+        intensity=1.0,
+    )
+    project = replace(project, animations=(assignment,))
+    plan = build_render_plan(project, tmp_path / "out.mp4")
+    command = " ".join(build_ffmpeg_command(plan))
+
+    assert "format=rgba,fade=t=in:st=0:d=0.250000:alpha=1" in command
+    assert "overlay=x='" in command
+    assert "W*0.060000" in command
+    fallback_messages = [
+        issue.message
+        for issue in validate_render_plan(plan).issues
+        if issue.code == "VISUAL_EFFECT_FALLBACK"
+    ]
+    assert not any("Fade" in message for message in fallback_messages)
+
+
+def test_zero_intensity_fade_keeps_baseline_filter_graph(tmp_path: Path) -> None:
+    project = _project()
+    scene = project.scenes[0]
+    baseline = " ".join(
+        build_ffmpeg_command(build_render_plan(project, tmp_path / "baseline.mp4"))
+    )
+    assignment = AnimationAssignment(
+        scene_number=scene.scene_number,
+        asset_id=scene.asset_ids[0],
+        enter_effect="Fade",
+        exit_effect="Fade",
+        intensity=0.0,
+    )
+    updated = replace(project, animations=(assignment,))
+    command = " ".join(
+        build_ffmpeg_command(build_render_plan(updated, tmp_path / "baseline.mp4"))
+    )
+
+    assert command == baseline
 
 
 def test_double_scene_partial_motion_changes_only_assigned_overlay(tmp_path: Path) -> None:
