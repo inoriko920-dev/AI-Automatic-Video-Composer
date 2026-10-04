@@ -1,37 +1,23 @@
 # GitHub Release Publishing — AAVC 0.1.0
 
-This document describes the guarded publication path for the already-sealed `0.1.0` release.
+## Publication status
 
-## Canonical release source
+**PUBLISHED / VERIFIED**
 
+Official GitHub Release `v0.1.0` was published on 2026-10-04.
+
+Canonical evidence:
 - Version: `0.1.0`
-- Git tag to create: `v0.1.0`
+- Git tag: `v0.1.0`
 - Frozen source ref: `release/0.1.0`
-- Expected sealed source commit: `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`
-- Workflow: `Final Release Windows`
+- Sealed source commit: `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`
+- Final Release Windows run: `#6` / `37180132492`
+- Windows ZIP SHA-256: `c3e4f92656aefd3d57329627c52b8e057d2f8cac5a0a757471b90cb1d68915e8`
+- Source ZIP SHA-256: `1264b1dc483932b496acf87dee21c93f92d4e1b222aa37ca2284fbf99b9df328`
 
-The official `v0.1.0` release must be built from the frozen `release/0.1.0` ref. Do not publish `v0.1.0` from `main`, because `main` contains post-release documentation and CI maintenance commits.
+`BUILD_INFO.txt` records the same release commit and version `0.1.0`. `SHA256SUMS.txt` matches independently computed hashes for both release ZIP files.
 
-## Publish from GitHub Actions
-
-1. Open **Actions** -> **Final Release Windows**.
-2. Choose **Run workflow** from the default branch containing the current workflow definition.
-3. Set `publish_github_release` to `true`.
-4. Keep `release_tag` as `v0.1.0`.
-5. Keep `release_source_ref` as `release/0.1.0`.
-6. Run the workflow.
-
-The workflow then:
-
-1. checks out the frozen release source;
-2. records the exact source commit;
-3. runs compileall, Ruff, strict mypy, cheap pytest, STEP 09 screenshot capture/verification, PyInstaller packaging and portable verification;
-4. creates the final portable ZIP and exact source ZIP;
-5. writes `BUILD_INFO.txt` and `SHA256SUMS.txt`;
-6. uploads the verified bundle as an Actions artifact;
-7. only after all gates pass, creates the GitHub Release and `v0.1.0` tag targeting the resolved frozen source commit.
-
-## Expected published files
+## Published files
 
 - `AI-Automatic-Video-Composer-0.1.0-win64.zip`
 - `AI-Automatic-Video-Composer-0.1.0-source.zip`
@@ -41,23 +27,33 @@ The workflow then:
 - `BUILD_INFO.txt`
 - `SHA256SUMS.txt`
 
-## Safety rules
+## Guarded publication design
 
-- The workflow refuses to overwrite an existing GitHub Release.
-- The workflow refuses to overwrite an existing tag.
-- The official 0.1.0 publish path rejects a tag other than `v0.1.0`.
-- The official 0.1.0 publish path rejects a source ref other than `release/0.1.0`.
-- Do not move the frozen release branch after publication.
-- Do not commit API keys or user runtime data into release assets.
+The canonical release workflow remains guarded:
 
-## Verification after publication
+1. official `v0.1.0` publication is sealed to `release/0.1.0`;
+2. release/tag overwrite is refused;
+3. publication requires the final-release gate to pass first;
+4. only the publish job receives `contents: write`;
+5. normal CI and build jobs remain read-only.
 
-Confirm that:
+A temporary one-shot push trigger was used only to bridge the chat connector's lack of `workflow_dispatch`. After successful publication it was retired and the canonical workflow returned to manual `workflow_dispatch` behavior.
 
-1. GitHub Releases contains `v0.1.0`;
-2. the tag resolves to commit `92da28bbb8177b11b3d09f000a4e7e01d389ccc5`;
-3. all expected files are attached;
-4. the portable and source ZIP hashes match `SHA256SUMS.txt`;
-5. `BUILD_INFO.txt` records the same release commit and version `0.1.0`.
+## Historical operator procedure
 
-If any of these checks fail, treat the publication as invalid and do not replace the existing tag in place. Investigate and use an explicitly planned corrective release instead.
+Before `v0.1.0` existed, the intended manual procedure was:
+
+1. Open **Actions** -> **Final Release Windows**.
+2. Choose **Run workflow** from the default branch containing the current workflow definition.
+3. Set `publish_github_release` to `true`.
+4. Keep `release_tag` as `v0.1.0`.
+5. Keep `release_source_ref` as `release/0.1.0`.
+6. Run the workflow.
+
+Do **not** repeat that publication now. The workflow is intentionally expected to refuse overwrite because `v0.1.0` already exists.
+
+## Future releases
+
+Do not move or replace the published `v0.1.0` tag in place. Corrections must use an explicitly planned new version under `MAINTENANCE.md`.
+
+For a later patch/minor/major release, define the new version, release source, release notes, migration/compatibility implications, and release workflow inputs before publication.
