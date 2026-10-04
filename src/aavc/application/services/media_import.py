@@ -1,7 +1,7 @@
 from aavc.application.media_import import (
-    MediaKind,
     SUPPORTED_AUDIO_EXTENSIONS,
     SUPPORTED_SUBTITLE_EXTENSIONS,
+    MediaKind,
     classify_media_path,
 )
 
