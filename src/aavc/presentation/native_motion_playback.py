@@ -174,7 +174,7 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     next_button.setToolTip("Pilih Scene berikutnya pada preview.")
     play_button.setToolTip(
         "Putar preview motion native Rise/Pan/Drift untuk Scene terpilih. "
-        "Narasi dan subtitle timing ikut preview bila tersedia; animasi subtitle belum dipreview."
+        "Narasi dan subtitle beserta animasi ASS-nya ikut preview bila tersedia."
     )
     if progress_slider is not None:
         progress_slider.setRange(0, 1000)
@@ -282,18 +282,21 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         if plan is None:
             return
         local_seconds = 0.0 if time_seconds is None else time_seconds
+        global_seconds = project_seconds(local_seconds)
         pixmap = render_native_motion_pixmap(
             plan,
             project.animations,
             time_seconds=time_seconds,
         )
-        cue = active_subtitle_cue(subtitle_cues, project_seconds(local_seconds))
+        cue = active_subtitle_cue(subtitle_cues, global_seconds)
         pixmap = overlay_subtitle_pixmap(
             pixmap,
             cue,
             project.subtitle_style,
             project_width=project.width,
             project_height=project.height,
+            animation=project.subtitle_animation,
+            time_seconds=global_seconds,
         )
         canvas.setPixmap(pixmap)
         update_timecode(local_seconds)
