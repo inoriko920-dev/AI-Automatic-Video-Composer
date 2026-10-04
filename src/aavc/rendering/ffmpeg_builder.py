@@ -5,6 +5,7 @@ from pathlib import Path
 from aavc.animation.compiler import (
     assignment_has_native_motion,
     compile_motion_overlay_position,
+    compile_native_alpha_filters,
 )
 from aavc.domain.project.models import AnimationAssignment
 
@@ -27,6 +28,30 @@ def _animation_at(
     if asset_index >= len(scene.animations):
         return None
     return scene.animations[asset_index]
+
+
+def _scaled_asset_clause(
+    *,
+    input_index: int,
+    output_name: str,
+    max_width: int,
+    max_height: int,
+    scale_flags: str,
+    assignment: AnimationAssignment | None,
+    duration_seconds: float,
+) -> str:
+    base = (
+        f"[{input_index}:v]scale=w={max_width}:h={max_height}:"
+        f"force_original_aspect_ratio=decrease:flags={scale_flags},"
+        "setpts=PTS-STARTPTS"
+    )
+    alpha_filters = compile_native_alpha_filters(
+        assignment,
+        duration_seconds=duration_seconds,
+    )
+    if alpha_filters:
+        base += "," + ",".join(alpha_filters)
+    return f"{base}[{output_name}]"
 
 
 def _overlay_clause(
@@ -80,15 +105,24 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
             scaled = f"sc{sidx}_0"
             max_h = int(plan.height * 0.84)
             max_w = int(plan.width * 0.72)
+            assignment = _animation_at(scene, 0)
             filters.append(
-                f"[{inp}:v]scale=w={max_w}:h={max_h}:force_original_aspect_ratio=decrease:flags={scale_flags},setpts=PTS-STARTPTS[{scaled}]"
+                _scaled_asset_clause(
+                    input_index=inp,
+                    output_name=scaled,
+                    max_width=max_w,
+                    max_height=max_h,
+                    scale_flags=scale_flags,
+                    assignment=assignment,
+                    duration_seconds=duration,
+                )
             )
             out = f"scene{sidx}"
             fade_out_start = max(0.0, duration - 0.25)
             overlay = _overlay_clause(
                 base_x="(W-w)/2",
                 base_y="(H-h)/2",
-                assignment=_animation_at(scene, 0),
+                assignment=assignment,
                 duration_seconds=duration,
             )
             filters.append(
@@ -103,7 +137,15 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
                 scaled = f"sc{sidx}_{aidx}"
                 scaled_names.append(scaled)
                 filters.append(
-                    f"[{inp}:v]scale=w={max_w}:h={max_h}:force_original_aspect_ratio=decrease:flags={scale_flags},setpts=PTS-STARTPTS[{scaled}]"
+                    _scaled_asset_clause(
+                        input_index=inp,
+                        output_name=scaled,
+                        max_width=max_w,
+                        max_height=max_h,
+                        scale_flags=scale_flags,
+                        assignment=_animation_at(scene, aidx),
+                        duration_seconds=duration,
+                    )
                 )
             tmp = f"tmp{sidx}"
             out = f"scene{sidx}"
