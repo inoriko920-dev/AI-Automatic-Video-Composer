@@ -22,6 +22,7 @@ from aavc.subtitles import (
     sort_subtitle_cues_by_start_time,
     split_subtitle_cue,
 )
+from aavc.subtitles.dirty import subtitle_working_copy_is_dirty
 from aavc.subtitles.selection import commit_pending_subtitle_edit
 
 
@@ -29,6 +30,7 @@ def create_subtitle_cue_edit_page(
     source: str | Path,
     *,
     on_save_copy: Callable[[tuple[SubtitleCue, ...]], None] | None = None,
+    on_dirty_changed: Callable[[bool], None] | None = None,
 ) -> Any:
     from PySide6.QtWidgets import (
         QFormLayout,
@@ -45,7 +47,8 @@ def create_subtitle_cue_edit_page(
     )
 
     source_path = Path(source).resolve()
-    working_cues = parse_srt(source_path)
+    source_cues = parse_srt(source_path)
+    working_cues = source_cues
     history = SubtitleWorkingCopyHistory()
     loaded_row = -1
 
@@ -117,6 +120,20 @@ def create_subtitle_cue_edit_page(
         row = loaded_row if selected_row is None else selected_row
         return SubtitleWorkingCopySnapshot(working_cues, row)
 
+    def notify_dirty() -> None:
+        if on_dirty_changed is None:
+            return
+        on_dirty_changed(
+            subtitle_working_copy_is_dirty(
+                source_cues,
+                working_cues,
+                loaded_row=loaded_row,
+                pending_text=text.toPlainText(),
+                pending_start=start.text(),
+                pending_end=end.text(),
+            )
+        )
+
     def refresh_history_actions() -> None:
         undo_edit.setEnabled(history.can_undo)
         redo_edit.setEnabled(history.can_redo)
@@ -137,6 +154,7 @@ def create_subtitle_cue_edit_page(
     ) -> None:
         history.record(previous, snapshot(selected_row))
         refresh_history_actions()
+        notify_dirty()
 
     def indexes_are_canonical() -> bool:
         return all(cue.index == expected for expected, cue in enumerate(working_cues, start=1))
@@ -207,6 +225,7 @@ def create_subtitle_cue_edit_page(
             save_copy.setEnabled(False)
             warning.setVisible(False)
             refresh_sort_action()
+            notify_dirty()
             return
         cue = working_cues[row]
         view = current_views[row]
@@ -217,6 +236,7 @@ def create_subtitle_cue_edit_page(
         warning.setVisible(view.overlaps_previous)
         save_copy.setEnabled(on_save_copy is not None)
         refresh_sort_action()
+        notify_dirty()
 
     def refresh_list(selected_row: int | None = None) -> None:
         current_views = views()
@@ -425,10 +445,12 @@ def create_subtitle_cue_edit_page(
         restored = history.undo(current)
         if restored == current:
             refresh_history_actions()
+            notify_dirty()
             return
         working_cues = restored.cues
         refresh_list(restored.selected_row if working_cues else None)
         refresh_history_actions()
+        notify_dirty()
 
     def redo_working_copy() -> None:
         nonlocal working_cues
@@ -438,10 +460,12 @@ def create_subtitle_cue_edit_page(
         restored = history.redo(current)
         if restored == current:
             refresh_history_actions()
+            notify_dirty()
             return
         working_cues = restored.cues
         refresh_list(restored.selected_row if working_cues else None)
         refresh_history_actions()
+        notify_dirty()
 
     def save_selected_copy() -> None:
         if not commit_loaded_form_as_history_step():
@@ -452,7 +476,10 @@ def create_subtitle_cue_edit_page(
             on_save_copy(working_cues)
 
     cue_list.currentRowChanged.connect(handle_selection_change)
+    text.textChanged.connect(notify_dirty)
     start.textChanged.connect(refresh_sort_action)
+    start.textChanged.connect(notify_dirty)
+    end.textChanged.connect(notify_dirty)
     undo_edit.clicked.connect(undo_working_copy)
     redo_edit.clicked.connect(redo_working_copy)
     add_cue.clicked.connect(add_new_cue)
@@ -467,6 +494,7 @@ def create_subtitle_cue_edit_page(
         save_copy.clicked.connect(save_selected_copy)
     refresh_history_actions()
     refresh_list(0 if working_cues else None)
+    notify_dirty()
     if not working_cues:
         layout.addWidget(
             muted_label(
