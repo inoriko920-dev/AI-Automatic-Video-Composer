@@ -22,9 +22,32 @@ def create_live_subtitle_screen(
     on_save_copy: Callable[[tuple[SubtitleCue, ...]], None] | None = None,
 ) -> Any:
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+    from PySide6.QtWidgets import QLabel, QMessageBox, QVBoxLayout, QWidget
 
     source_path = Path(source).resolve()
+    cue_working_copy_dirty = False
+
+    def set_cue_working_copy_dirty(is_dirty: bool) -> None:
+        nonlocal cue_working_copy_dirty
+        cue_working_copy_dirty = is_dirty
+
+    def reload_with_working_copy_guard() -> None:
+        if on_reload is None:
+            return
+        if not cue_working_copy_dirty:
+            on_reload()
+            return
+        answer = QMessageBox.question(
+            None,
+            "Buang edit working copy?",
+            "Working copy subtitle atau form cue aktif memiliki perubahan yang belum disimpan "
+            "sebagai salinan. Muat ulang SRT akan membuang perubahan tersebut. Lanjutkan?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            on_reload()
+
     parts = create_editor_shell("subtitle")
     inspector = create_live_subtitle_inspector(
         source_path,
@@ -32,10 +55,14 @@ def create_live_subtitle_screen(
         animation=animation,
         on_apply_style=on_apply_style,
         on_apply_animation=on_apply_animation,
-        on_reload=on_reload,
+        on_reload=reload_with_working_copy_guard if on_reload is not None else None,
     )
     inspector.addTab(
-        create_subtitle_cue_edit_page(source_path, on_save_copy=on_save_copy),
+        create_subtitle_cue_edit_page(
+            source_path,
+            on_save_copy=on_save_copy,
+            on_dirty_changed=set_cue_working_copy_dirty,
+        ),
         "Edit Cue",
     )
 
