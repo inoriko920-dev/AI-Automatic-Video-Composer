@@ -2,6 +2,7 @@ from .compiler import compile_srt_to_ass
 from .presets import ANIMATION_PRESETS, STYLE_PRESETS, get_animation_preset, get_style_preset
 from .srt import (
     SubtitleCue,
+    delete_subtitle_cue,
     format_srt_timestamp,
     insert_subtitle_cue,
     merge_subtitle_cues,
@@ -20,6 +21,7 @@ __all__ = [
     "SubtitleCue",
     "WordTiming",
     "compile_srt_to_ass",
+    "delete_subtitle_cue",
     "distribute_words",
     "format_srt_timestamp",
     "get_animation_preset",
