@@ -5,6 +5,7 @@ from typing import Any
 from aavc.application.commands import RemoveAnimationAssignment, SetAnimationAssignment
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.presentation.dialogs.asset_motion import show_asset_motion_dialog
+from aavc.presentation.navigation import UiRoute
 from aavc.presentation.windows.project_menu_window import ProjectMenuMainWindow
 
 
@@ -61,6 +62,10 @@ class AnimationMenuMainWindow(ProjectMenuMainWindow):
 
     def _remember_selected_scene(self, scene_number: int) -> None:
         super()._remember_selected_scene(scene_number)
+        self._refresh_animation_menu_state()
+
+    def show_route(self, route: UiRoute) -> None:
+        super().show_route(route)
         self._refresh_animation_menu_state()
 
     def edit_selected_scene_asset_motion(self) -> None:
