@@ -19,6 +19,7 @@ from .srt import (
     split_subtitle_cue,
     write_srt_atomic,
 )
+from .stretch import stretch_subtitle_cues_from_row
 from .word_timing import WordTiming, distribute_words
 
 __all__ = [
@@ -47,5 +48,6 @@ __all__ = [
     "shift_subtitle_cues_from_row",
     "sort_subtitle_cues_by_start_time",
     "split_subtitle_cue",
+    "stretch_subtitle_cues_from_row",
     "write_srt_atomic",
 ]
