@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from aavc.presentation.timeline_magnet_control import timeline_magnet_runtime_active
 from aavc.presentation.timeline_markers import timeline_marker_snap_seconds
 from aavc.presentation.timeline_zoom_scroll import timeline_global_seconds_pixel_x
 
@@ -34,7 +35,7 @@ def timeline_magnetic_snap_target(
 ) -> tuple[float, TimelineMagneticSnapKind] | None:
     """Return the nearest visual magnetic target within the pixel tolerance."""
 
-    if not durations_seconds:
+    if not durations_seconds or not timeline_magnet_runtime_active():
         return None
 
     total_duration = sum(max(0.0, float(item)) for item in durations_seconds)
