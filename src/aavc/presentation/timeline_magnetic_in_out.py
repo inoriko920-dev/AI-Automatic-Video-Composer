@@ -10,7 +10,10 @@ from aavc.presentation.timeline_in_out import (
     timeline_in_out_drag_seconds,
     timeline_in_out_hit_point,
 )
-from aavc.presentation.timeline_magnet_control import timeline_magnet_active_for_owner
+from aavc.presentation.timeline_magnet_control import (
+    install_timeline_magnet_control,
+    timeline_magnet_active_for_owner,
+)
 from aavc.presentation.timeline_magnetic_snap import timeline_magnetic_snap_target
 from aavc.presentation.timeline_markers import timeline_marker_global_seconds
 from aavc.presentation.timeline_snap_guide_feedback import (
@@ -247,5 +250,6 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
         f"{ruler.toolTip()} Magnet ON: drag I/O snap ke marker, batas Scene, atau playhead; "
         "tahan Alt untuk bypass sementara."
     )
+    install_timeline_magnet_control(root)
     install_timeline_snap_guide_feedback(root, project)
     return True
