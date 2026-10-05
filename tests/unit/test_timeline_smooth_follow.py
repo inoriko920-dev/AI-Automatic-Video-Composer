@@ -7,7 +7,9 @@ from aavc.presentation.timeline_smooth_follow import (
 
 def test_playhead_inside_dead_zone_does_not_scroll() -> None:
     assert timeline_smooth_follow_scroll_target(500, 1000, 0, 3000) is None
-    assert timeline_smooth_follow_scroll_target(400, 1000, 100, 3000) is None
+    assert timeline_smooth_follow_scroll_target(500, 1000, 100, 3000) is None
+    assert timeline_smooth_follow_scroll_target(350, 1000, 0, 3000) is None
+    assert timeline_smooth_follow_scroll_target(650, 1000, 0, 3000) is None
 
 
 def test_playhead_right_of_dead_zone_recenters_viewport() -> None:
