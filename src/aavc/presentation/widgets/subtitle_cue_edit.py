@@ -17,6 +17,7 @@ from aavc.subtitles import (
     parse_srt,
     parse_srt_timestamp,
     replace_subtitle_cue,
+    resolve_subtitle_cue_overlap,
     sort_subtitle_cues_by_start_time,
     split_subtitle_cue,
 )
@@ -50,9 +51,9 @@ def create_subtitle_cue_edit_page(
     layout.addWidget(title)
     layout.addWidget(
         muted_label(
-            "Edit teks/timing, tambah, duplikasi, pisah, gabungkan, hapus, urutkan waktu, atau "
-            "normalisasi nomor cue pada working copy. Source asli tidak ditimpa; Simpan Salinan "
-            "SRT menulis file baru lalu project diarahkan ke salinan."
+            "Edit teks/timing, tambah, duplikasi, pisah, gabungkan, hapus, perbaiki overlap, "
+            "urutkan waktu, atau normalisasi nomor cue pada working copy. Source asli tidak "
+            "ditimpa; Simpan Salinan SRT menulis file baru lalu project diarahkan ke salinan."
         )
     )
 
@@ -82,6 +83,7 @@ def create_subtitle_cue_edit_page(
     split_cue = QPushButton("✂ Pisah Cue di Kursor")
     merge_cue = QPushButton("⇄ Gabung dengan Cue Berikutnya")
     delete_cue = QPushButton("🗑 Hapus Cue")
+    resolve_overlap = QPushButton("↦ Perbaiki Overlap")
     sort_by_start = QPushButton("↕ Urutkan Waktu Mulai")
     normalize_indexes = QPushButton("123 Normalisasi Nomor Cue")
     save_copy = make_primary_button("Simpan Salinan SRT…")
@@ -93,6 +95,7 @@ def create_subtitle_cue_edit_page(
     action_row.addWidget(split_cue)
     action_row.addWidget(merge_cue)
     action_row.addWidget(delete_cue)
+    action_row.addWidget(resolve_overlap)
     action_row.addWidget(sort_by_start)
     action_row.addWidget(normalize_indexes)
     action_row.addStretch(1)
@@ -164,6 +167,13 @@ def create_subtitle_cue_edit_page(
             "Hapus cue terpilih dari working copy."
             if can_delete
             else "Cue terakhir tidak dapat dihapus dari working copy."
+        )
+        has_overlap = available and current_views[row].overlaps_previous
+        resolve_overlap.setEnabled(has_overlap)
+        resolve_overlap.setToolTip(
+            "Geser cue terpilih agar mulai tepat setelah cue sebelumnya tanpa mengubah durasi."
+            if has_overlap
+            else "Cue terpilih tidak overlap dengan cue sebelumnya."
         )
         needs_normalization = bool(working_cues) and not indexes_are_canonical()
         normalize_indexes.setEnabled(needs_normalization)
@@ -289,6 +299,18 @@ def create_subtitle_cue_edit_page(
             return
         refresh_list(min(row, len(working_cues) - 1))
 
+    def resolve_current_overlap() -> None:
+        nonlocal working_cues
+        row = cue_list.currentRow()
+        if not apply_current_form():
+            return
+        try:
+            working_cues = resolve_subtitle_cue_overlap(working_cues, row)
+        except ValueError as error:
+            QMessageBox.warning(page, "Overlap tidak dapat diperbaiki", str(error))
+            return
+        refresh_list(row)
+
     def sort_cues_by_start_now() -> None:
         nonlocal working_cues
         row = cue_list.currentRow()
@@ -328,6 +350,7 @@ def create_subtitle_cue_edit_page(
     split_cue.clicked.connect(split_current_cue)
     merge_cue.clicked.connect(merge_with_next_cue)
     delete_cue.clicked.connect(delete_current_cue)
+    resolve_overlap.clicked.connect(resolve_current_overlap)
     sort_by_start.clicked.connect(sort_cues_by_start_now)
     normalize_indexes.clicked.connect(normalize_indexes_now)
     if on_save_copy is not None:
