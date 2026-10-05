@@ -61,6 +61,13 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
             )
             edit_menu.addAction(play_selection_action)
 
+            loop_selection_action = action_type("Loop Selection In–Out", self.window)
+            loop_selection_action.setShortcut("Ctrl+Shift+Space")
+            loop_selection_action.triggered.connect(
+                lambda _checked=False: self.loop_in_out_selection()
+            )
+            edit_menu.addAction(loop_selection_action)
+
         if export_menu is not None:
             export_menu.addSeparator()
             export_selection_action = action_type(
@@ -202,6 +209,24 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
             )
             return
         started, message = start_timeline_play_selection(root, project)
+        self.window.statusBar().showMessage(message, 7000 if started else 6000)
+
+    def loop_in_out_selection(self) -> None:
+        project = self.services.project_session.current
+        if project is None:
+            self.window.statusBar().showMessage(
+                "Buat atau buka project terlebih dahulu sebelum Loop Selection.",
+                6000,
+            )
+            return
+        root = self._route_widgets.get(UiRoute.EDITOR)
+        if root is None:
+            self.window.statusBar().showMessage(
+                "Buka Editor terlebih dahulu untuk Loop Selection In–Out.",
+                6000,
+            )
+            return
+        started, message = start_timeline_play_selection(root, project, loop=True)
         self.window.statusBar().showMessage(message, 7000 if started else 6000)
 
     def move_scene_to_index(self, scene_number: int, target_index: int) -> None:
