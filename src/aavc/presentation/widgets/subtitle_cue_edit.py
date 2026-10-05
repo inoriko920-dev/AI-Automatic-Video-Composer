@@ -23,6 +23,7 @@ from aavc.subtitles import (
     shift_subtitle_cues_from_row,
     sort_subtitle_cues_by_start_time,
     split_subtitle_cue,
+    stretch_subtitle_cues_from_row,
 )
 from aavc.subtitles.dirty import subtitle_working_copy_is_dirty
 from aavc.subtitles.selection import commit_pending_subtitle_edit
@@ -35,6 +36,7 @@ def create_subtitle_cue_edit_page(
     on_dirty_changed: Callable[[bool], None] | None = None,
 ) -> Any:
     from PySide6.QtWidgets import (
+        QDoubleSpinBox,
         QFormLayout,
         QHBoxLayout,
         QLabel,
@@ -62,7 +64,7 @@ def create_subtitle_cue_edit_page(
     layout.addWidget(
         muted_label(
             "Edit teks/timing, tambah, duplikasi, pisah, gabungkan, hapus, perbaiki overlap, "
-            "geser timing massal, urutkan waktu, normalisasi nomor cue, serta Undo/Redo pada "
+            "geser/stretch timing, urutkan waktu, normalisasi nomor cue, serta Undo/Redo pada "
             "working copy. Source asli tidak ditimpa; Simpan Salinan SRT menulis file baru lalu "
             "project diarahkan ke salinan."
         )
@@ -105,6 +107,25 @@ def create_subtitle_cue_edit_page(
     shift_row.addWidget(shift_from_selected)
     shift_row.addStretch(1)
     layout.addLayout(shift_row)
+
+    stretch_row = QHBoxLayout()
+    stretch_row.addWidget(QLabel("Stretch dari Cue Ini"))
+    stretch_percent = QDoubleSpinBox()
+    stretch_percent.setRange(10.0, 400.0)
+    stretch_percent.setDecimals(3)
+    stretch_percent.setSingleStep(0.1)
+    stretch_percent.setValue(100.0)
+    stretch_percent.setSuffix(" %")
+    stretch_percent.setToolTip(
+        "100% mempertahankan timing. Nilai di atas 100% memperlebar dan di bawah 100% memampatkan "
+        "timing relatif terhadap waktu mulai cue terpilih."
+    )
+    stretch_from_selected = QPushButton("↔ Stretch dari Cue Ini")
+    stretch_from_selected.setEnabled(False)
+    stretch_row.addWidget(stretch_percent)
+    stretch_row.addWidget(stretch_from_selected)
+    stretch_row.addStretch(1)
+    layout.addLayout(stretch_row)
 
     warning = QLabel("")
     warning.setStyleSheet("color:#B45309; background:#FEF3C7; padding:4px 8px;")
@@ -228,6 +249,18 @@ def create_subtitle_cue_edit_page(
             else "Pilih cue dan masukkan offset selain 0 ms."
         )
 
+    def refresh_stretch_action() -> None:
+        can_stretch = (
+            0 <= loaded_row < len(working_cues)
+            and abs(stretch_percent.value() - 100.0) > 0.000_001
+        )
+        stretch_from_selected.setEnabled(can_stretch)
+        stretch_from_selected.setToolTip(
+            "Skalakan durasi dan jarak timing mulai dari cue terpilih sebagai satu langkah Undo."
+            if can_stretch
+            else "Pilih cue dan gunakan nilai selain 100%."
+        )
+
     def show_selected(row: int) -> None:
         nonlocal loaded_row
         current_views = views()
@@ -263,6 +296,7 @@ def create_subtitle_cue_edit_page(
             else "Nomor cue sudah canonical 1..N."
         )
         refresh_shift_action()
+        refresh_stretch_action()
         if not available:
             text.clear()
             start.clear()
@@ -528,6 +562,30 @@ def create_subtitle_cue_edit_page(
         record_change(previous, row)
         refresh_list(row)
 
+    def stretch_from_selected_now() -> None:
+        nonlocal working_cues
+        row = loaded_row
+        if row < 0 or row >= len(working_cues):
+            return
+        previous = snapshot(row)
+        if not apply_loaded_form():
+            return
+        try:
+            stretched = stretch_subtitle_cues_from_row(
+                working_cues,
+                row,
+                stretch_percent.value() / 100.0,
+            )
+        except ValueError as error:
+            QMessageBox.warning(page, "Timing subtitle tidak dapat di-stretch", str(error))
+            return
+        if stretched == working_cues:
+            refresh_stretch_action()
+            return
+        working_cues = stretched
+        record_change(previous, row)
+        refresh_list(row)
+
     def undo_working_copy() -> None:
         nonlocal working_cues
         if not commit_loaded_form_as_history_step():
@@ -574,6 +632,8 @@ def create_subtitle_cue_edit_page(
     shift_offset_ms.valueChanged.connect(lambda _value: refresh_shift_action())
     shift_all.clicked.connect(shift_all_cues_now)
     shift_from_selected.clicked.connect(shift_from_selected_now)
+    stretch_percent.valueChanged.connect(lambda _value: refresh_stretch_action())
+    stretch_from_selected.clicked.connect(stretch_from_selected_now)
     undo_edit.clicked.connect(undo_working_copy)
     redo_edit.clicked.connect(redo_working_copy)
     add_cue.clicked.connect(add_new_cue)
