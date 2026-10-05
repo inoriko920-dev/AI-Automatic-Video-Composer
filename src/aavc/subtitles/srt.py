@@ -185,6 +185,19 @@ def merge_subtitle_cues(
     return tuple(items)
 
 
+def delete_subtitle_cue(
+    cues: tuple[SubtitleCue, ...],
+    row: int,
+) -> tuple[SubtitleCue, ...]:
+    if row < 0 or row >= len(cues):
+        raise ValueError("Cue subtitle yang dipilih tidak valid")
+    if len(cues) <= 1:
+        raise ValueError("Cue terakhir tidak dapat dihapus; sisakan minimal satu cue subtitle")
+    items = list(cues)
+    del items[row]
+    return tuple(items)
+
+
 def serialize_srt(cues: tuple[SubtitleCue, ...]) -> str:
     blocks: list[str] = []
     for cue in cues:
