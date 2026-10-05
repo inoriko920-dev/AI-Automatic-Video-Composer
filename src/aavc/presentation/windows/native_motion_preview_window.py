@@ -11,6 +11,7 @@ from aavc.domain.errors import AAVCError
 from aavc.presentation.motion_preview import preview_scrub_seconds
 from aavc.presentation.native_motion_playback import install_native_motion_preview
 from aavc.presentation.navigation import UiRoute
+from aavc.presentation.timeline_cursor_zoom import install_timeline_cursor_zoom
 from aavc.presentation.timeline_in_out import install_timeline_in_out
 from aavc.presentation.timeline_keyboard_seek import install_timeline_keyboard_seek
 from aavc.presentation.timeline_magnetic_in_out import install_timeline_magnetic_in_out
@@ -378,6 +379,7 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
             )
             self._mark_split_available(root)
             install_timeline_zoom_scroll(root, project)
+            install_timeline_cursor_zoom(root, project)
             install_timeline_ruler_seek(root, project)
             install_timeline_keyboard_seek(root, project)
             install_timeline_markers(root, project)
