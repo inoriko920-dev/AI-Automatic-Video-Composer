@@ -102,10 +102,27 @@ def create_subtitle_cue_edit_page(
     def indexes_are_canonical() -> bool:
         return all(cue.index == expected for expected, cue in enumerate(working_cues, start=1))
 
-    def cues_are_sorted_by_start() -> bool:
-        return all(
-            previous.start_seconds <= current.start_seconds
-            for previous, current in zip(working_cues, working_cues[1:])
+    def pending_start_values() -> list[float] | None:
+        values = [cue.start_seconds for cue in working_cues]
+        row = cue_list.currentRow()
+        if 0 <= row < len(values):
+            try:
+                values[row] = parse_srt_timestamp(start.text())
+            except ValueError:
+                return None
+        return values
+
+    def refresh_sort_action() -> None:
+        values = pending_start_values()
+        needs_sort = len(working_cues) > 1 and (
+            values is None
+            or any(previous > current for previous, current in zip(values, values[1:]))
+        )
+        sort_by_start.setEnabled(needs_sort)
+        sort_by_start.setToolTip(
+            "Urutkan working copy secara stabil berdasarkan waktu mulai tanpa mengubah isi cue."
+            if needs_sort
+            else "Cue sudah berurutan berdasarkan waktu mulai."
         )
 
     def refresh_list(selected_row: int | None = None) -> None:
@@ -136,13 +153,6 @@ def create_subtitle_cue_edit_page(
             if can_delete
             else "Cue terakhir tidak dapat dihapus dari working copy."
         )
-        needs_sort = len(working_cues) > 1 and not cues_are_sorted_by_start()
-        sort_by_start.setEnabled(needs_sort)
-        sort_by_start.setToolTip(
-            "Urutkan working copy secara stabil berdasarkan waktu mulai tanpa mengubah isi cue."
-            if needs_sort
-            else "Cue sudah berurutan berdasarkan waktu mulai."
-        )
         needs_normalization = bool(working_cues) and not indexes_are_canonical()
         normalize_indexes.setEnabled(needs_normalization)
         normalize_indexes.setToolTip(
@@ -156,6 +166,7 @@ def create_subtitle_cue_edit_page(
             end.clear()
             save_copy.setEnabled(False)
             warning.setVisible(False)
+            refresh_sort_action()
             return
         cue = working_cues[row]
         view = current_views[row]
@@ -165,6 +176,7 @@ def create_subtitle_cue_edit_page(
         warning.setText("⚠ Cue ini tumpang tindih dengan cue sebelumnya pada working copy.")
         warning.setVisible(view.overlaps_previous)
         save_copy.setEnabled(on_save_copy is not None)
+        refresh_sort_action()
 
     def apply_current_form() -> bool:
         nonlocal working_cues
@@ -286,6 +298,7 @@ def create_subtitle_cue_edit_page(
             on_save_copy(working_cues)
 
     cue_list.currentRowChanged.connect(show_selected)
+    start.textChanged.connect(refresh_sort_action)
     add_cue.clicked.connect(add_new_cue)
     split_cue.clicked.connect(split_current_cue)
     merge_cue.clicked.connect(merge_with_next_cue)
