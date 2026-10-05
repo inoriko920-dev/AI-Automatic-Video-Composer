@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from aavc.domain.project.models import ProjectState
 from aavc.presentation.timeline_zoom_scroll import (
+    MAX_TIMELINE_ZOOM_PERCENT,
+    MIN_TIMELINE_ZOOM_PERCENT,
     TIMELINE_PLAYHEAD_WIDTH_PX,
     TIMELINE_TRACK_SPACING_PX,
     normalize_timeline_zoom_percent,
     timeline_scene_pixel_width,
+    timeline_track_pixel_width,
 )
 
 TIMELINE_NAVIGATOR_HEIGHT_PX = 30
 TIMELINE_NAVIGATOR_MIN_HANDLE_PX = 24
+TIMELINE_NAVIGATOR_EDGE_HIT_PX = 7
+TimelineNavigatorHitRegion = Literal["outside", "pan", "left", "right"]
 
 
 def timeline_navigator_viewport_geometry(
@@ -80,6 +85,80 @@ def timeline_navigator_scaled_x(
     return max(0, min(nav, int(round(nav * ratio))))
 
 
+def timeline_navigator_hit_region(
+    mouse_x: int | float,
+    handle_x: int | float,
+    handle_width: int | float,
+    *,
+    edge_hit_px: int = TIMELINE_NAVIGATOR_EDGE_HIT_PX,
+) -> TimelineNavigatorHitRegion:
+    """Return whether the pointer targets the handle center or one resize edge."""
+
+    left = float(handle_x)
+    width = max(0.0, float(handle_width))
+    right = left + width
+    pointer = float(mouse_x)
+    if pointer < left or pointer > right:
+        return "outside"
+
+    radius = max(1.0, float(edge_hit_px))
+    left_distance = abs(pointer - left)
+    right_distance = abs(pointer - right)
+    nearest_distance = min(left_distance, right_distance)
+    if nearest_distance <= radius:
+        return "left" if left_distance <= right_distance else "right"
+    return "pan"
+
+
+def timeline_navigator_zoom_percent_for_handle_width(
+    durations_seconds: tuple[float, ...],
+    viewport_width_px: int | float,
+    navigator_width_px: int | float,
+    desired_handle_width_px: int | float,
+) -> int:
+    """Return the zoom whose logical overview viewport width best matches a drag."""
+
+    if not durations_seconds:
+        return MIN_TIMELINE_ZOOM_PERCENT
+
+    viewport = max(1.0, float(viewport_width_px))
+    navigator = max(1.0, float(navigator_width_px))
+    desired = max(1.0, min(navigator, float(desired_handle_width_px)))
+
+    best_zoom = MIN_TIMELINE_ZOOM_PERCENT
+    best_distance = float("inf")
+    for zoom in range(MIN_TIMELINE_ZOOM_PERCENT, MAX_TIMELINE_ZOOM_PERCENT + 1):
+        track_width = max(1.0, float(timeline_track_pixel_width(durations_seconds, zoom)))
+        logical_handle_width = navigator * min(1.0, viewport / track_width)
+        distance = abs(logical_handle_width - desired)
+        if distance < best_distance or (
+            abs(distance - best_distance) < 1e-9 and zoom > best_zoom
+        ):
+            best_zoom = zoom
+            best_distance = distance
+    return normalize_timeline_zoom_percent(best_zoom)
+
+
+def timeline_navigator_anchor_scroll_value(
+    anchor_edge: Literal["left", "right"],
+    anchor_navigator_x: int | float,
+    navigator_width: int | float,
+    handle_width: int | float,
+    maximum_scroll: int | float,
+) -> int:
+    """Return scroll preserving the opposite navigator edge after a zoom change."""
+
+    handle = max(0.0, float(handle_width))
+    anchor = float(anchor_navigator_x)
+    handle_x = anchor if anchor_edge == "left" else anchor - handle
+    return timeline_navigator_scroll_value(
+        handle_x,
+        navigator_width,
+        handle,
+        maximum_scroll,
+    )
+
+
 def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
     """Install a compressed project overview with draggable viewport window."""
 
@@ -125,13 +204,17 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
     class _TimelineNavigator(QWidget):
         def __init__(self, parent: Any) -> None:
             super().__init__(parent)
+            self._drag_mode: TimelineNavigatorHitRegion | None = None
             self._drag_offset: float | None = None
+            self._resize_anchor_nav_x: float | None = None
+            self._resize_generation = 0
             self.setObjectName("TimelineMiniNavigator")
             self.setFixedHeight(TIMELINE_NAVIGATOR_HEIGHT_PX)
             self.setMinimumWidth(120)
-            self.setCursor(Qt.CursorShape.SizeHorCursor)
+            self.setMouseTracking(True)
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
             self.setToolTip(
-                "Overview seluruh timeline. Klik untuk lompat; drag window biru untuk menggeser viewport utama."
+                "Overview seluruh timeline. Drag tengah window = pan; drag tepi kiri/kanan = zoom; klik area lain = lompat."
             )
 
         def _handle_geometry(self) -> tuple[int, int]:
@@ -164,6 +247,64 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
                 )
             )
             self.update()
+
+        def _set_zoom_from_mouse(self, mouse_x: float) -> None:
+            mode = self._drag_mode
+            anchor = self._resize_anchor_nav_x
+            if mode not in {"left", "right"} or anchor is None:
+                return
+
+            pointer = max(0.0, min(float(self.width()), float(mouse_x)))
+            desired_width = (
+                max(1.0, anchor - pointer)
+                if mode == "left"
+                else max(1.0, pointer - anchor)
+            )
+            target_zoom = timeline_navigator_zoom_percent_for_handle_width(
+                durations,
+                viewport.width(),
+                self.width(),
+                desired_width,
+            )
+            self._resize_generation += 1
+            generation = self._resize_generation
+            zoom_box.setValue(target_zoom)
+
+            def restore_anchor() -> None:
+                if generation != self._resize_generation:
+                    return
+                _actual_x, actual_width = timeline_navigator_viewport_geometry(
+                    self.width(),
+                    track_widget.width(),
+                    viewport.width(),
+                    0,
+                    bar.maximum(),
+                )
+                anchored_edge: Literal["left", "right"] = (
+                    "right" if mode == "left" else "left"
+                )
+                bar.setValue(
+                    timeline_navigator_anchor_scroll_value(
+                        anchored_edge,
+                        anchor,
+                        self.width(),
+                        actual_width,
+                        bar.maximum(),
+                    )
+                )
+                self.update()
+
+            QTimer.singleShot(0, restore_anchor)
+
+        def _refresh_hover_cursor(self, mouse_x: float) -> None:
+            handle_x, handle_width = self._handle_geometry()
+            region = timeline_navigator_hit_region(mouse_x, handle_x, handle_width)
+            if region in {"left", "right"}:
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
+            elif region == "pan":
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
+            else:
+                self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         def paintEvent(self, event: Any) -> None:  # noqa: N802
             del event
@@ -219,6 +360,16 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
                 4.0,
                 4.0,
             )
+            painter.setPen(QPen(QColor("#1D4ED8"), 2))
+            edge_top = 8
+            edge_bottom = max(edge_top + 1, self.height() - 8)
+            painter.drawLine(handle_x + 4, edge_top, handle_x + 4, edge_bottom)
+            painter.drawLine(
+                handle_x + max(4, handle_width - 4),
+                edge_top,
+                handle_x + max(4, handle_width - 4),
+                edge_bottom,
+            )
 
             if playhead is not None and playhead.isVisible():
                 playhead_center = (
@@ -239,28 +390,53 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
                 return
             handle_x, handle_width = self._handle_geometry()
             mouse_x = float(event.position().x())
-            if handle_x <= mouse_x <= handle_x + handle_width:
-                self._drag_offset = mouse_x - handle_x
-            else:
-                self._drag_offset = handle_width / 2.0
+            region = timeline_navigator_hit_region(mouse_x, handle_x, handle_width)
             self._activate_manual_override()
-            self._set_scroll_from_mouse(mouse_x)
+
+            if region == "left":
+                self._drag_mode = "left"
+                self._resize_anchor_nav_x = float(handle_x + handle_width)
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
+            elif region == "right":
+                self._drag_mode = "right"
+                self._resize_anchor_nav_x = float(handle_x)
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
+            else:
+                self._drag_mode = "pan"
+                if region == "pan":
+                    self._drag_offset = mouse_x - handle_x
+                else:
+                    self._drag_offset = handle_width / 2.0
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+                self._set_scroll_from_mouse(mouse_x)
             event.accept()
 
         def mouseMoveEvent(self, event: Any) -> None:  # noqa: N802
-            if self._drag_offset is None:
+            mouse_x = float(event.position().x())
+            if self._drag_mode is None:
+                self._refresh_hover_cursor(mouse_x)
                 super().mouseMoveEvent(event)
                 return
             if not bool(event.buttons() & Qt.MouseButton.LeftButton):
+                self._drag_mode = None
                 self._drag_offset = None
+                self._resize_anchor_nav_x = None
+                self._refresh_hover_cursor(mouse_x)
                 super().mouseMoveEvent(event)
                 return
-            self._set_scroll_from_mouse(float(event.position().x()))
+
+            if self._drag_mode in {"left", "right"}:
+                self._set_zoom_from_mouse(mouse_x)
+            else:
+                self._set_scroll_from_mouse(mouse_x)
             event.accept()
 
         def mouseReleaseEvent(self, event: Any) -> None:  # noqa: N802
             if event.button() == Qt.MouseButton.LeftButton:
+                self._drag_mode = None
                 self._drag_offset = None
+                self._resize_anchor_nav_x = None
+                self._refresh_hover_cursor(float(event.position().x()))
                 event.accept()
                 return
             super().mouseReleaseEvent(event)
