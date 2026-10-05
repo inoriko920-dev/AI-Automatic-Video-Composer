@@ -117,6 +117,23 @@ def insert_subtitle_cue(
     return tuple(items)
 
 
+def duplicate_subtitle_cue(
+    cues: tuple[SubtitleCue, ...],
+    row: int,
+) -> tuple[SubtitleCue, ...]:
+    if row < 0 or row >= len(cues):
+        raise ValueError("Cue subtitle yang dipilih tidak valid")
+    source = cues[row]
+    duplicate = replace(
+        source,
+        index=max((cue.index for cue in cues), default=0) + 1,
+    )
+    _validate_cue(duplicate)
+    items = list(cues)
+    items.insert(row + 1, duplicate)
+    return tuple(items)
+
+
 def split_subtitle_cue(
     cues: tuple[SubtitleCue, ...],
     row: int,

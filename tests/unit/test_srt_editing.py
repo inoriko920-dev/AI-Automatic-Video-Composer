@@ -8,6 +8,7 @@ from aavc.application.services.vertical_slice import create_project_state
 from aavc.subtitles import (
     SubtitleCue,
     delete_subtitle_cue,
+    duplicate_subtitle_cue,
     format_srt_timestamp,
     insert_subtitle_cue,
     merge_subtitle_cues,
@@ -94,6 +95,25 @@ def test_insert_cue_rejects_invalid_position_and_content() -> None:
         insert_subtitle_cue(cues, 2, text="Valid", start_seconds=4.0, end_seconds=5.0)
     with pytest.raises(ValueError, match="Teks cue tidak boleh kosong"):
         insert_subtitle_cue(cues, 1, text=" ", start_seconds=4.0, end_seconds=5.0)
+
+
+def test_duplicate_cue_after_selected_uses_unique_index_and_preserves_source() -> None:
+    cues = _sample_cues()
+    duplicated = duplicate_subtitle_cue(cues, 0)
+
+    assert [cue.index for cue in duplicated] == [1, 3, 2]
+    assert duplicated[1] == SubtitleCue(3, 0.125, 1.5, "Baris satu\\NBaris dua")
+    assert duplicated[0] is cues[0]
+    assert duplicated[2] is cues[1]
+    assert duplicated[1] is not cues[0]
+
+
+def test_duplicate_cue_rejects_invalid_row() -> None:
+    cues = _sample_cues()
+    with pytest.raises(ValueError, match="dipilih tidak valid"):
+        duplicate_subtitle_cue(cues, -1)
+    with pytest.raises(ValueError, match="dipilih tidak valid"):
+        duplicate_subtitle_cue(cues, len(cues))
 
 
 def test_split_cue_at_cursor_uses_midpoint_and_unique_index() -> None:
@@ -210,6 +230,13 @@ def test_added_cue_round_trips_through_copy(tmp_path: Path) -> None:
     destination = tmp_path / "with-added-cue.srt"
     write_srt_atomic(destination, added)
     assert parse_srt(destination) == added
+
+
+def test_duplicated_cue_round_trips_through_copy(tmp_path: Path) -> None:
+    duplicated = duplicate_subtitle_cue(_sample_cues(), 0)
+    destination = tmp_path / "with-duplicated-cue.srt"
+    write_srt_atomic(destination, duplicated)
+    assert parse_srt(destination) == duplicated
 
 
 def test_split_cue_round_trips_through_copy(tmp_path: Path) -> None:

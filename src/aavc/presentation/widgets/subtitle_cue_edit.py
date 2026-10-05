@@ -9,6 +9,7 @@ from aavc.presentation.widgets.common import make_primary_button, muted_label, s
 from aavc.subtitles import (
     SubtitleCue,
     delete_subtitle_cue,
+    duplicate_subtitle_cue,
     format_srt_timestamp,
     insert_subtitle_cue,
     merge_subtitle_cues,
@@ -49,9 +50,9 @@ def create_subtitle_cue_edit_page(
     layout.addWidget(title)
     layout.addWidget(
         muted_label(
-            "Edit teks/timing, tambah, pisah, gabungkan, hapus, urutkan waktu, atau normalisasi "
-            "nomor cue pada working copy. Source asli tidak ditimpa; Simpan Salinan SRT menulis "
-            "file baru lalu project diarahkan ke salinan."
+            "Edit teks/timing, tambah, duplikasi, pisah, gabungkan, hapus, urutkan waktu, atau "
+            "normalisasi nomor cue pada working copy. Source asli tidak ditimpa; Simpan Salinan "
+            "SRT menulis file baru lalu project diarahkan ke salinan."
         )
     )
 
@@ -77,6 +78,7 @@ def create_subtitle_cue_edit_page(
 
     action_row = QHBoxLayout()
     add_cue = QPushButton("＋ Tambah Cue Setelah Ini")
+    duplicate_cue = QPushButton("⧉ Duplikasi Cue")
     split_cue = QPushButton("✂ Pisah Cue di Kursor")
     merge_cue = QPushButton("⇄ Gabung dengan Cue Berikutnya")
     delete_cue = QPushButton("🗑 Hapus Cue")
@@ -87,6 +89,7 @@ def create_subtitle_cue_edit_page(
         save_copy.setEnabled(False)
         save_copy.setToolTip("Penyimpanan salinan SRT belum terhubung ke sesi project.")
     action_row.addWidget(add_cue)
+    action_row.addWidget(duplicate_cue)
     action_row.addWidget(split_cue)
     action_row.addWidget(merge_cue)
     action_row.addWidget(delete_cue)
@@ -147,6 +150,12 @@ def create_subtitle_cue_edit_page(
     def show_selected(row: int) -> None:
         current_views = views()
         available = 0 <= row < len(working_cues)
+        duplicate_cue.setEnabled(available)
+        duplicate_cue.setToolTip(
+            "Duplikasi cue terpilih dengan teks dan timing yang sama serta nomor baru unik."
+            if available
+            else "Pilih cue yang akan diduplikasi."
+        )
         split_cue.setEnabled(available)
         merge_cue.setEnabled(0 <= row < len(working_cues) - 1)
         can_delete = available and len(working_cues) > 1
@@ -216,6 +225,18 @@ def create_subtitle_cue_edit_page(
         refresh_list(after_row + 1)
         text.setFocus()
         text.selectAll()
+
+    def duplicate_current_cue() -> None:
+        nonlocal working_cues
+        row = cue_list.currentRow()
+        if not apply_current_form():
+            return
+        try:
+            working_cues = duplicate_subtitle_cue(working_cues, row)
+        except ValueError as error:
+            QMessageBox.warning(page, "Cue tidak dapat diduplikasi", str(error))
+            return
+        refresh_list(row + 1)
 
     def split_current_cue() -> None:
         nonlocal working_cues
@@ -303,6 +324,7 @@ def create_subtitle_cue_edit_page(
     cue_list.currentRowChanged.connect(show_selected)
     start.textChanged.connect(refresh_sort_action)
     add_cue.clicked.connect(add_new_cue)
+    duplicate_cue.clicked.connect(duplicate_current_cue)
     split_cue.clicked.connect(split_current_cue)
     merge_cue.clicked.connect(merge_with_next_cue)
     delete_cue.clicked.connect(delete_current_cue)
