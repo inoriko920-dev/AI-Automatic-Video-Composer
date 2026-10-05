@@ -5,7 +5,11 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from aavc.domain.project.models import AnimationAssignment, ProjectState
+from aavc.platform.credentials import CredentialStore
+from aavc.providers.adapters.gemini import GeminiProvider
 from aavc.providers.base import ProviderRequest
+from aavc.providers.key_pool import ApiKeyPool
+from aavc.providers.manager import ProviderManager
 
 DEFAULT_GEMINI_ANIMATION_MODEL = "gemini-3.5-flash-lite"
 
@@ -40,16 +44,23 @@ def build_ai_animation_request(
     normalized_model = model.strip()
     if not normalized_model:
         raise ValueError("Model Gemini tidak boleh kosong")
-    effects = tuple(dict.fromkeys(effect.strip() for effect in allowed_effects if effect.strip()))
+    effects = tuple(
+        dict.fromkeys(effect.strip() for effect in allowed_effects if effect.strip())
+    )
     if not effects:
         raise ValueError("Daftar efek Auto (AI) tidak boleh kosong")
 
     targets = _unlocked_animation_targets(project)
     if not targets:
-        raise ValueError("Semua assignment animasi project terkunci; tidak ada target Auto (AI)")
+        raise ValueError(
+            "Semua assignment animasi project terkunci; tidak ada target Auto (AI)"
+        )
 
     target_lines = "\n".join(
-        f'- scene_number={scene_number}; asset_id="{asset_id}"; context={json.dumps(quote, ensure_ascii=False)}'
+        (
+            f'- scene_number={scene_number}; asset_id="{asset_id}"; '
+            f"context={json.dumps(quote, ensure_ascii=False)}"
+        )
         for scene_number, asset_id, quote in targets
     )
     schema_example = {
@@ -122,7 +133,9 @@ def parse_ai_animation_response(
         raise ValueError("Field assignments Auto (AI) harus berupa array")
 
     target_rows = _unlocked_animation_targets(project)
-    required_targets = {(scene_number, asset_id) for scene_number, asset_id, _ in target_rows}
+    required_targets = {
+        (scene_number, asset_id) for scene_number, asset_id, _ in target_rows
+    }
     if not required_targets:
         raise ValueError("Tidak ada target Auto (AI) yang dapat diubah")
     locked_targets = {
@@ -142,7 +155,9 @@ def parse_ai_animation_response(
     }
     for raw in raw_assignments:
         if not isinstance(raw, Mapping) or set(raw) != required_fields:
-            raise ValueError("Setiap assignment Auto (AI) harus memakai schema yang tepat")
+            raise ValueError(
+                "Setiap assignment Auto (AI) harus memakai schema yang tepat"
+            )
 
         scene_value = raw.get("scene_number")
         if isinstance(scene_value, bool) or not isinstance(scene_value, int):
@@ -157,7 +172,9 @@ def parse_ai_animation_response(
             raise ValueError(f"Efek masuk Auto (AI) tidak didukung: {enter_value}")
         if not isinstance(exit_value, str) or exit_value not in effects:
             raise ValueError(f"Efek keluar Auto (AI) tidak didukung: {exit_value}")
-        if isinstance(intensity_value, bool) or not isinstance(intensity_value, (int, float)):
+        if isinstance(intensity_value, bool) or not isinstance(
+            intensity_value, (int, float)
+        ):
             raise ValueError("intensity Auto (AI) harus angka")
         intensity = float(intensity_value)
         if not 0.0 <= intensity <= 2.0:
@@ -166,7 +183,8 @@ def parse_ai_animation_response(
         key = (scene_value, asset_value)
         if key in locked_targets:
             raise ValueError(
-                f"Respons Auto (AI) mencoba mengubah assignment terkunci: Scene {scene_value} / {asset_value}"
+                "Respons Auto (AI) mencoba mengubah assignment terkunci: "
+                f"Scene {scene_value} / {asset_value}"
             )
         if key not in required_targets:
             raise ValueError(
@@ -194,7 +212,49 @@ def parse_ai_animation_response(
             f"Scene {scene_number}/{asset_id}"
             for scene_number, asset_id in sorted(missing)
         )
-        raise ValueError(f"Respons Auto (AI) tidak lengkap; target hilang: {missing_text}")
+        raise ValueError(
+            f"Respons Auto (AI) tidak lengkap; target hilang: {missing_text}"
+        )
 
     parsed.sort(key=lambda item: (item.scene_number, item.asset_id))
     return tuple(parsed)
+
+
+def plan_gemini_native_motion(
+    project: ProjectState,
+    *,
+    credentials: CredentialStore,
+    credential_slots: Sequence[int],
+    model: str,
+    allowed_effects: Sequence[str],
+) -> tuple[AnimationAssignment, ...]:
+    """Run one bounded Gemini plan through the secure rotating credential pool."""
+
+    slots = tuple(dict.fromkeys(int(slot) for slot in credential_slots))
+    if not slots:
+        raise ValueError("Belum ada slot credential Gemini yang terkonfigurasi")
+
+    pool = ApiKeyPool(max_keys=100)
+    for slot in slots:
+        if slot < 1 or slot > 100:
+            raise ValueError("Slot credential Gemini harus 1–100")
+        reference = f"gemini-slot-{slot:03d}"
+        pool.register(key_id=f"slot-{slot:03d}", credential_ref=reference)
+
+    request = build_ai_animation_request(
+        project,
+        model=model,
+        allowed_effects=allowed_effects,
+    )
+    manager = ProviderManager(
+        provider=GeminiProvider(),
+        key_pool=pool,
+        credentials=credentials,
+        max_attempts=min(4, len(slots)),
+    )
+    response = manager.generate(request)
+    return parse_ai_animation_response(
+        response.text,
+        project,
+        allowed_effects=allowed_effects,
+    )
