@@ -25,6 +25,12 @@ def _stored_animation_seed(metadata: dict[str, str]) -> int:
     return max(-2147483647, min(2147483647, value))
 
 
+def legacy_asset_motion_edit_action_enabled(*, has_canonical_editor: bool) -> bool:
+    """Keep the legacy Edit-menu action only for windows without the canonical editor."""
+
+    return not has_canonical_editor
+
+
 class NativeMotionMainWindow(GuardedMainWindow):
     """Guarded editor shell with render-backed asset animation controls."""
 
@@ -69,6 +75,12 @@ class NativeMotionMainWindow(GuardedMainWindow):
             animation_menu.addAction(auto_all_action)
 
         if edit_menu is None:
+            return
+        if not legacy_asset_motion_edit_action_enabled(
+            has_canonical_editor=callable(
+                getattr(self, "edit_selected_scene_asset_motion", None)
+            )
+        ):
             return
 
         edit_menu.addSeparator()

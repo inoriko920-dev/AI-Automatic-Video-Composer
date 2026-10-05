@@ -7,6 +7,9 @@ from aavc.presentation.windows.animation_menu_window import (
     auto_motion_all_enabled,
     stored_animation_seed,
 )
+from aavc.presentation.windows.native_motion_window import (
+    legacy_asset_motion_edit_action_enabled,
+)
 from aavc.presentation.windows.project_menu_window import ProjectMenuMainWindow
 
 
@@ -39,3 +42,9 @@ def test_stored_animation_seed_is_resilient_and_qt_safe() -> None:
     assert stored_animation_seed({"animation_seed": "not-a-number"}) == 1
     assert stored_animation_seed({"animation_seed": "999999999999"}) == 2147483647
     assert stored_animation_seed({"animation_seed": "-999999999999"}) == -2147483647
+
+
+def test_legacy_asset_motion_action_is_only_kept_without_canonical_editor() -> None:
+    assert legacy_asset_motion_edit_action_enabled(has_canonical_editor=False) is True
+    assert legacy_asset_motion_edit_action_enabled(has_canonical_editor=True) is False
+    assert callable(getattr(AnimationMenuMainWindow, "edit_selected_scene_asset_motion", None))
