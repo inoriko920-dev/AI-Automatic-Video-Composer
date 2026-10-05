@@ -8,6 +8,7 @@ from aavc.presentation.motion_preview import preview_scrub_seconds
 from aavc.presentation.native_motion_playback import install_native_motion_preview
 from aavc.presentation.navigation import UiRoute
 from aavc.presentation.timeline_preview_seek import install_timeline_preview_seek
+from aavc.presentation.timeline_zoom_scroll import install_timeline_zoom_scroll
 from aavc.presentation.windows.native_motion_window import NativeMotionMainWindow
 
 
@@ -190,6 +191,7 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
                 on_scene_resized=self.set_scene_duration,
             )
             self._mark_split_available(root)
+            install_timeline_zoom_scroll(root, project)
 
 
 def create_native_motion_preview_main_window(
