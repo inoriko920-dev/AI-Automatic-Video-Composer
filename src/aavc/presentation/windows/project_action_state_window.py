@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from aavc.bootstrap.composition_root import FoundationServices
+from aavc.presentation.navigation import UiRoute
 from aavc.presentation.windows.edit_menu_state_window import EditMenuStateMainWindow
 
 
@@ -125,7 +126,7 @@ class ProjectActionStateMainWindow(EditMenuStateMainWindow):
         super().refresh_editor_overview()
         self._refresh_project_action_state()
 
-    def show_route(self, route: Any) -> None:
+    def show_route(self, route: UiRoute) -> None:
         super().show_route(route)
         self._refresh_project_action_state()
 
