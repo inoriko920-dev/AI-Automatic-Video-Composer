@@ -10,6 +10,10 @@ from aavc.presentation.timeline_in_out import (
     timeline_in_out_drag_seconds,
     timeline_in_out_hit_point,
 )
+from aavc.presentation.timeline_magnet_control import (
+    install_timeline_magnet_control,
+    timeline_magnet_active_for_owner,
+)
 from aavc.presentation.timeline_magnetic_snap import timeline_magnetic_snap_target
 from aavc.presentation.timeline_markers import timeline_marker_global_seconds
 from aavc.presentation.timeline_snap_guide_feedback import (
@@ -22,7 +26,7 @@ from aavc.presentation.timeline_zoom_scroll import (
 
 
 def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
-    """Add magnetic marker/Scene/playhead snapping to existing In/Out handle drag."""
+    """Add optional magnetic marker/Scene/playhead snapping to In/Out handle drag."""
 
     from PySide6.QtCore import QEvent, QObject, Qt
     from PySide6.QtWidgets import QListWidget, QSlider, QSpinBox, QWidget
@@ -104,6 +108,7 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
         pixel_x: float,
         *,
         release: bool,
+        alt_bypass: bool,
     ) -> None:
         raw_seconds = timeline_in_out_drag_seconds(
             durations,
@@ -113,14 +118,16 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
         if raw_seconds is None:
             return
 
-        snap = timeline_magnetic_snap_target(
-            durations,
-            pixel_x,
-            stored_zoom_percent(),
-            project.fps,
-            markers_seconds=marker_seconds(),
-            playhead_seconds=current_global_seconds(),
-        )
+        snap = None
+        if timeline_magnet_active_for_owner(owner, alt_bypass=alt_bypass):
+            snap = timeline_magnetic_snap_target(
+                durations,
+                pixel_x,
+                stored_zoom_percent(),
+                project.fps,
+                markers_seconds=marker_seconds(),
+                playhead_seconds=current_global_seconds(),
+            )
         target_seconds = raw_seconds if snap is None else snap[0]
         in_point, out_point = range_points()
         updated_in, updated_out = timeline_drag_in_out_point(
@@ -141,7 +148,8 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
                 return
             label = "In" if point == "in" else "Out"
             if snap is None:
-                show_status(f"{label} point dipindah ke {chosen:.3f} detik.")
+                suffix = " · Alt bypass." if alt_bypass else ""
+                show_status(f"{label} point dipindah ke {chosen:.3f} detik{suffix}")
                 return
             kind_label = {
                 "marker": "marker",
@@ -175,6 +183,14 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
                 event.type() == QEvent.Type.MouseButtonPress
                 and event.button() == Qt.MouseButton.LeftButton
             ):
+                alt_bypass = bool(
+                    event.modifiers() & Qt.KeyboardModifier.AltModifier
+                )
+                if not timeline_magnet_active_for_owner(
+                    owner,
+                    alt_bypass=alt_bypass,
+                ):
+                    return False
                 point = self.point_at_x(float(event.position().x()))
                 if point is None:
                     return False
@@ -188,10 +204,14 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
                 and self._dragging_point is not None
                 and bool(event.buttons() & Qt.MouseButton.LeftButton)
             ):
+                alt_bypass = bool(
+                    event.modifiers() & Qt.KeyboardModifier.AltModifier
+                )
                 magnetic_drag(
                     self._dragging_point,
                     float(event.position().x()),
                     release=False,
+                    alt_bypass=alt_bypass,
                 )
                 ruler.setCursor(Qt.CursorShape.SizeHorCursor)
                 event.accept()
@@ -204,7 +224,15 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
             ):
                 point = self._dragging_point
                 self._dragging_point = None
-                magnetic_drag(point, float(event.position().x()), release=True)
+                alt_bypass = bool(
+                    event.modifiers() & Qt.KeyboardModifier.AltModifier
+                )
+                magnetic_drag(
+                    point,
+                    float(event.position().x()),
+                    release=True,
+                    alt_bypass=alt_bypass,
+                )
                 ruler.setCursor(Qt.CursorShape.SplitHCursor)
                 event.accept()
                 return True
@@ -219,7 +247,9 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
     ruler.installEventFilter(event_filter)
     root._aavc_timeline_magnetic_in_out_filter = event_filter
     ruler.setToolTip(
-        f"{ruler.toolTip()} Drag I/O akan magnetic snap ke marker, batas Scene, atau playhead jika dekat."
+        f"{ruler.toolTip()} Magnet ON: drag I/O snap ke marker, batas Scene, atau playhead; "
+        "tahan Alt untuk bypass sementara."
     )
+    install_timeline_magnet_control(root)
     install_timeline_snap_guide_feedback(root, project)
     return True
