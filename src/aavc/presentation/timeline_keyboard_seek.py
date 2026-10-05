@@ -83,7 +83,7 @@ def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
 
     sliders = root.findChildren(QSlider)
     progress_slider: Any | None = sliders[0] if sliders else None
-    app = QApplication.instance()
+    app: Any = QApplication.instance()
     if scene_list is None or progress_slider is None or app is None:
         return False
 
