@@ -18,11 +18,11 @@ from aavc.subtitles import (
     normalize_subtitle_cue_indexes,
     parse_srt,
     parse_srt_timestamp,
-    replace_subtitle_cue,
     resolve_subtitle_cue_overlap,
     sort_subtitle_cues_by_start_time,
     split_subtitle_cue,
 )
+from aavc.subtitles.selection import commit_pending_subtitle_edit
 
 
 def create_subtitle_cue_edit_page(
@@ -47,6 +47,7 @@ def create_subtitle_cue_edit_page(
     source_path = Path(source).resolve()
     working_cues = parse_srt(source_path)
     history = SubtitleWorkingCopyHistory()
+    loaded_row = -1
 
     page = QWidget()
     layout = QVBoxLayout(page)
@@ -113,7 +114,7 @@ def create_subtitle_cue_edit_page(
         return build_subtitle_views(working_cues)
 
     def snapshot(selected_row: int | None = None) -> SubtitleWorkingCopySnapshot:
-        row = cue_list.currentRow() if selected_row is None else selected_row
+        row = loaded_row if selected_row is None else selected_row
         return SubtitleWorkingCopySnapshot(working_cues, row)
 
     def refresh_history_actions() -> None:
@@ -142,10 +143,9 @@ def create_subtitle_cue_edit_page(
 
     def pending_start_values() -> list[float] | None:
         values = [cue.start_seconds for cue in working_cues]
-        row = cue_list.currentRow()
-        if 0 <= row < len(values):
+        if 0 <= loaded_row < len(values):
             try:
-                values[row] = parse_srt_timestamp(start.text())
+                values[loaded_row] = parse_srt_timestamp(start.text())
             except ValueError:
                 return None
         return values
@@ -166,25 +166,11 @@ def create_subtitle_cue_edit_page(
             else "Cue sudah berurutan berdasarkan waktu mulai."
         )
 
-    def refresh_list(selected_row: int | None = None) -> None:
-        current_views = views()
-        cue_list.blockSignals(True)
-        cue_list.clear()
-        for view in current_views:
-            cue_list.addItem(QListWidgetItem(view.list_label))
-        cue_list.blockSignals(False)
-        title.setText(
-            f"Edit Cue Subtitle ({len(working_cues)} cue) — Simpan sebagai Salinan"
-        )
-        if working_cues:
-            target = selected_row if selected_row is not None else 0
-            cue_list.setCurrentRow(max(0, min(target, len(working_cues) - 1)))
-        else:
-            cue_list.setCurrentRow(-1)
-
     def show_selected(row: int) -> None:
+        nonlocal loaded_row
         current_views = views()
         available = 0 <= row < len(working_cues)
+        loaded_row = row if available else -1
         duplicate_cue.setEnabled(available)
         duplicate_cue.setToolTip(
             "Duplikasi cue terpilih dengan teks dan timing yang sama serta nomor baru unik."
@@ -232,39 +218,73 @@ def create_subtitle_cue_edit_page(
         save_copy.setEnabled(on_save_copy is not None)
         refresh_sort_action()
 
-    def apply_current_form() -> bool:
-        nonlocal working_cues
-        row = cue_list.currentRow()
-        if row < 0 or row >= len(working_cues):
-            return False
+    def refresh_list(selected_row: int | None = None) -> None:
+        current_views = views()
+        target = -1
+        cue_list.blockSignals(True)
         try:
-            working_cues = replace_subtitle_cue(
+            cue_list.clear()
+            for view in current_views:
+                cue_list.addItem(QListWidgetItem(view.list_label))
+            if working_cues:
+                requested = selected_row if selected_row is not None else 0
+                target = max(0, min(requested, len(working_cues) - 1))
+                cue_list.setCurrentRow(target)
+            else:
+                cue_list.setCurrentRow(-1)
+        finally:
+            cue_list.blockSignals(False)
+        title.setText(
+            f"Edit Cue Subtitle ({len(working_cues)} cue) — Simpan sebagai Salinan"
+        )
+        show_selected(target)
+
+    def apply_loaded_form() -> bool:
+        nonlocal working_cues
+        if loaded_row < 0 or loaded_row >= len(working_cues):
+            return True
+        try:
+            working_cues = commit_pending_subtitle_edit(
                 working_cues,
-                row,
+                loaded_row,
                 text=text.toPlainText(),
-                start_seconds=parse_srt_timestamp(start.text()),
-                end_seconds=parse_srt_timestamp(end.text()),
+                start_timestamp=start.text(),
+                end_timestamp=end.text(),
             )
         except ValueError as error:
             QMessageBox.warning(page, "Cue subtitle tidak valid", str(error))
             return False
         return True
 
-    def commit_current_form_as_history_step() -> bool:
-        row = cue_list.currentRow()
-        if row < 0 or row >= len(working_cues):
+    def commit_loaded_form_as_history_step(selected_row: int | None = None) -> bool:
+        if loaded_row < 0 or loaded_row >= len(working_cues):
             return True
-        previous = snapshot(row)
-        if not apply_current_form():
+        previous = snapshot(loaded_row)
+        if not apply_loaded_form():
             return False
-        record_change(previous, row)
+        target = loaded_row if selected_row is None else selected_row
+        record_change(previous, target)
         return True
+
+    def handle_selection_change(row: int) -> None:
+        if row == loaded_row:
+            return
+        previous_row = loaded_row
+        if 0 <= previous_row < len(working_cues):
+            if not commit_loaded_form_as_history_step(row):
+                cue_list.blockSignals(True)
+                try:
+                    cue_list.setCurrentRow(previous_row)
+                finally:
+                    cue_list.blockSignals(False)
+                return
+        show_selected(row)
 
     def add_new_cue() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         previous = snapshot(row)
-        if 0 <= row < len(working_cues) and not apply_current_form():
+        if 0 <= row < len(working_cues) and not apply_loaded_form():
             return
         after_row = row if 0 <= row < len(working_cues) else len(working_cues) - 1
         start_seconds = working_cues[after_row].end_seconds if after_row >= 0 else 0.0
@@ -283,9 +303,9 @@ def create_subtitle_cue_edit_page(
 
     def duplicate_current_cue() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         previous = snapshot(row)
-        if not apply_current_form():
+        if not apply_loaded_form():
             return
         try:
             working_cues = duplicate_subtitle_cue(working_cues, row)
@@ -298,10 +318,10 @@ def create_subtitle_cue_edit_page(
 
     def split_current_cue() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         previous = snapshot(row)
         cursor_position = text.textCursor().position()
-        if not apply_current_form():
+        if not apply_loaded_form():
             return
         try:
             working_cues = split_subtitle_cue(
@@ -318,9 +338,9 @@ def create_subtitle_cue_edit_page(
 
     def merge_with_next_cue() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         previous = snapshot(row)
-        if not apply_current_form():
+        if not apply_loaded_form():
             return
         try:
             working_cues = merge_subtitle_cues(working_cues, row)
@@ -332,7 +352,7 @@ def create_subtitle_cue_edit_page(
 
     def delete_current_cue() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         if row < 0 or row >= len(working_cues):
             return
         previous = snapshot(row)
@@ -357,9 +377,9 @@ def create_subtitle_cue_edit_page(
 
     def resolve_current_overlap() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         previous = snapshot(row)
-        if not apply_current_form():
+        if not apply_loaded_form():
             return
         try:
             working_cues = resolve_subtitle_cue_overlap(working_cues, row)
@@ -371,11 +391,11 @@ def create_subtitle_cue_edit_page(
 
     def sort_cues_by_start_now() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         previous = snapshot(row)
         selected_cue: SubtitleCue | None = None
         if 0 <= row < len(working_cues):
-            if not apply_current_form():
+            if not apply_loaded_form():
                 return
             selected_cue = working_cues[row]
         working_cues = sort_subtitle_cues_by_start_time(working_cues)
@@ -389,9 +409,9 @@ def create_subtitle_cue_edit_page(
 
     def normalize_indexes_now() -> None:
         nonlocal working_cues
-        row = cue_list.currentRow()
+        row = loaded_row
         previous = snapshot(row)
-        if 0 <= row < len(working_cues) and not apply_current_form():
+        if 0 <= row < len(working_cues) and not apply_loaded_form():
             return
         working_cues = normalize_subtitle_cue_indexes(working_cues)
         selected_row = row if row >= 0 else -1
@@ -400,7 +420,7 @@ def create_subtitle_cue_edit_page(
 
     def undo_working_copy() -> None:
         nonlocal working_cues
-        if not commit_current_form_as_history_step():
+        if not commit_loaded_form_as_history_step():
             return
         current = snapshot()
         restored = history.undo(current)
@@ -413,7 +433,7 @@ def create_subtitle_cue_edit_page(
 
     def redo_working_copy() -> None:
         nonlocal working_cues
-        if not commit_current_form_as_history_step():
+        if not commit_loaded_form_as_history_step():
             return
         current = snapshot()
         restored = history.redo(current)
@@ -425,14 +445,14 @@ def create_subtitle_cue_edit_page(
         refresh_history_actions()
 
     def save_selected_copy() -> None:
-        if not commit_current_form_as_history_step():
+        if not commit_loaded_form_as_history_step():
             return
-        row = cue_list.currentRow()
-        refresh_list(row)
+        row = loaded_row
+        refresh_list(row if row >= 0 else None)
         if on_save_copy is not None:
             on_save_copy(working_cues)
 
-    cue_list.currentRowChanged.connect(show_selected)
+    cue_list.currentRowChanged.connect(handle_selection_change)
     start.textChanged.connect(refresh_sort_action)
     undo_edit.clicked.connect(undo_working_copy)
     redo_edit.clicked.connect(redo_working_copy)
@@ -454,5 +474,4 @@ def create_subtitle_cue_edit_page(
                 "Source SRT kosong. Gunakan Tambah Cue untuk membuat cue pertama pada working copy."
             )
         )
-        show_selected(-1)
     return page
