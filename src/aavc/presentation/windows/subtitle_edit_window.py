@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from aavc.application.commands import SetSubtitleSource
+from aavc.application.commands import (
+    SetSubtitleAnimation,
+    SetSubtitleSource,
+    SetSubtitleStyle,
+)
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
+from aavc.domain.project.models import SubtitleAnimationSettings, SubtitleStyle
 from aavc.presentation.navigation import UiRoute
 from aavc.presentation.windows.native_motion_preview_window import NativeMotionPreviewMainWindow
 from aavc.subtitles import SubtitleCue, write_srt_atomic
@@ -12,6 +17,38 @@ from aavc.subtitles import SubtitleCue, write_srt_atomic
 
 class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
     """Main window with safe selected-cue editing through copied SRT sources."""
+
+    def set_subtitle_style(self, style: SubtitleStyle) -> None:
+        """Apply render-backed style without rebuilding and discarding local cue edits."""
+
+        try:
+            self.services.project_session.execute(SetSubtitleStyle(style))
+        except (AAVCError, ValueError) as error:
+            self._show_project_error("Gagal mengubah gaya subtitle", error)
+            return
+        self._refresh_window_title()
+        self.refresh_editor_overview()
+        self.window.statusBar().showMessage(
+            f"Gaya subtitle diterapkan: {style.preset_name}. "
+            "Working copy Edit Cue tetap dipertahankan; klik Simpan untuk menyimpan project.",
+            7000,
+        )
+
+    def set_subtitle_animation(self, animation: SubtitleAnimationSettings) -> None:
+        """Apply render-backed animation without rebuilding the subtitle editor route."""
+
+        try:
+            self.services.project_session.execute(SetSubtitleAnimation(animation))
+        except (AAVCError, ValueError) as error:
+            self._show_project_error("Gagal mengubah animasi subtitle", error)
+            return
+        self._refresh_window_title()
+        self.refresh_editor_overview()
+        self.window.statusBar().showMessage(
+            f"Animasi subtitle diterapkan: {animation.preset}. "
+            "Working copy Edit Cue tetap dipertahankan; klik Simpan untuk menyimpan project.",
+            7000,
+        )
 
     def save_subtitle_copy(self, cues: tuple[SubtitleCue, ...]) -> None:
         from PySide6.QtWidgets import QFileDialog
