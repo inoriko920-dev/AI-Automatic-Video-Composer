@@ -57,6 +57,7 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
                 root,
                 project,
                 on_scene_reordered=self.move_scene_to_index,
+                on_scene_resized=self.set_scene_duration,
             )
 
 
