@@ -4,6 +4,7 @@ from contextlib import suppress
 from typing import Any
 
 from aavc.domain.project.models import ProjectState
+from aavc.presentation.timeline_zoom_actions import install_timeline_zoom_actions
 from aavc.presentation.timeline_zoom_scroll import (
     TIMELINE_TRACK_SPACING_PX,
     normalize_timeline_zoom_percent,
@@ -164,4 +165,5 @@ def install_timeline_cursor_zoom(root: Any, project: ProjectState) -> bool:
     scroll.setToolTip(
         f"{scroll.toolTip()} Ctrl+mouse wheel = zoom timeline pada posisi kursor."
     )
+    install_timeline_zoom_actions(root, project)
     return True
