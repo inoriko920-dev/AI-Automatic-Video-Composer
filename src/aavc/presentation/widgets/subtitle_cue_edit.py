@@ -116,7 +116,10 @@ def create_subtitle_cue_edit_page(
         values = pending_start_values()
         needs_sort = len(working_cues) > 1 and (
             values is None
-            or any(previous > current for previous, current in zip(values, values[1:]))
+            or any(
+                previous > current
+                for previous, current in zip(values, values[1:], strict=False)
+            )
         )
         sort_by_start.setEnabled(needs_sort)
         sort_by_start.setToolTip(
