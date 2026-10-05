@@ -26,6 +26,16 @@ def resolve_subtitle_working_copy_leave(
     return not is_dirty or discard_confirmed
 
 
+def subtitle_editor_should_leave_for_missing_source(
+    *,
+    editor_active: bool,
+    subtitle_source: str | None,
+) -> bool:
+    """Return whether an active Subtitle Editor no longer has a backing project source."""
+
+    return editor_active and not subtitle_source
+
+
 class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
     """Main window with safe selected-cue editing through copied SRT sources."""
 
@@ -119,6 +129,22 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
         finally:
             self._subtitle_leave_bypass = False
 
+    def _reconcile_subtitle_editor_after_project_history(self) -> None:
+        project = self.services.project_session.current
+        subtitle_source = project.subtitle_source if project is not None else None
+        if not subtitle_editor_should_leave_for_missing_source(
+            editor_active=self._subtitle_editor_is_active(),
+            subtitle_source=subtitle_source,
+        ):
+            return
+
+        self._set_subtitle_working_copy_dirty(False)
+        self.show_route(UiRoute.EDITOR)
+        self.window.statusBar().showMessage(
+            "Subtitle Editor ditutup karena snapshot project tidak memiliki source subtitle.",
+            6000,
+        )
+
     def undo_project(self) -> None:
         session = self.services.project_session
         if (
@@ -131,6 +157,7 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
             self._subtitle_leave_bypass = True
         try:
             super().undo_project()
+            self._reconcile_subtitle_editor_after_project_history()
         finally:
             self._subtitle_leave_bypass = False
 
@@ -146,6 +173,7 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
             self._subtitle_leave_bypass = True
         try:
             super().redo_project()
+            self._reconcile_subtitle_editor_after_project_history()
         finally:
             self._subtitle_leave_bypass = False
 
