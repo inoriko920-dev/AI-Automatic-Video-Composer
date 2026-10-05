@@ -115,6 +115,8 @@ def install_timeline_manual_follow_override(root: Any) -> bool:
                 else:
                     status_bar.showMessage("Follow Playhead aktif kembali.", 3500)
 
+    root._aavc_timeline_set_manual_follow_override = set_override
+
     def mark_manual_override(*_args: Any) -> None:
         if follow_enabled():
             set_override(True, announce=True)
