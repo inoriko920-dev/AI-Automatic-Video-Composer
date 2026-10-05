@@ -270,14 +270,13 @@ def create_subtitle_cue_edit_page(
         if row == loaded_row:
             return
         previous_row = loaded_row
-        if 0 <= previous_row < len(working_cues):
-            if not commit_loaded_form_as_history_step(row):
-                cue_list.blockSignals(True)
-                try:
-                    cue_list.setCurrentRow(previous_row)
-                finally:
-                    cue_list.blockSignals(False)
-                return
+        if 0 <= previous_row < len(working_cues) and not commit_loaded_form_as_history_step(row):
+            cue_list.blockSignals(True)
+            try:
+                cue_list.setCurrentRow(previous_row)
+            finally:
+                cue_list.blockSignals(False)
+            return
         show_selected(row)
 
     def add_new_cue() -> None:
