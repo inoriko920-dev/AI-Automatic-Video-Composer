@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from aavc.presentation.timeline_play_selection import (
+    timeline_play_selection_outcome,
     timeline_play_selection_range,
     timeline_play_selection_should_stop,
     timeline_timecode_seconds,
@@ -40,3 +41,63 @@ def test_play_selection_stops_at_project_end() -> None:
 
     assert not timeline_play_selection_should_stop(durations, 1, 1.99, 3.0)
     assert timeline_play_selection_should_stop(durations, 1, 2.0, 3.0)
+
+
+def test_play_selection_outcome_continues_before_out() -> None:
+    assert (
+        timeline_play_selection_outcome(
+            playback_active=True,
+            reached_out=False,
+            loop_enabled=False,
+        )
+        == "continue"
+    )
+    assert (
+        timeline_play_selection_outcome(
+            playback_active=True,
+            reached_out=False,
+            loop_enabled=True,
+        )
+        == "continue"
+    )
+
+
+def test_play_selection_outcome_stops_normal_mode_at_out() -> None:
+    assert (
+        timeline_play_selection_outcome(
+            playback_active=True,
+            reached_out=True,
+            loop_enabled=False,
+        )
+        == "stop"
+    )
+
+
+def test_play_selection_outcome_restarts_loop_mode_at_out() -> None:
+    assert (
+        timeline_play_selection_outcome(
+            playback_active=True,
+            reached_out=True,
+            loop_enabled=True,
+        )
+        == "restart"
+    )
+
+
+def test_play_selection_outcome_stops_when_user_pauses() -> None:
+    assert (
+        timeline_play_selection_outcome(
+            playback_active=False,
+            reached_out=False,
+            loop_enabled=True,
+        )
+        == "stop"
+    )
+    assert (
+        timeline_play_selection_outcome(
+            playback_active=False,
+            reached_out=True,
+            loop_enabled=True,
+        )
+        == "stop"
+    )
