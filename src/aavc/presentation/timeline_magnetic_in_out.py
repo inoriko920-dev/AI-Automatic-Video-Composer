@@ -12,6 +12,9 @@ from aavc.presentation.timeline_in_out import (
 )
 from aavc.presentation.timeline_magnetic_snap import timeline_magnetic_snap_target
 from aavc.presentation.timeline_markers import timeline_marker_global_seconds
+from aavc.presentation.timeline_snap_guide_feedback import (
+    install_timeline_snap_guide_feedback,
+)
 from aavc.presentation.timeline_zoom_scroll import (
     DEFAULT_TIMELINE_ZOOM_PERCENT,
     normalize_timeline_zoom_percent,
@@ -218,4 +221,5 @@ def install_timeline_magnetic_in_out(root: Any, project: ProjectState) -> bool:
     ruler.setToolTip(
         f"{ruler.toolTip()} Drag I/O akan magnetic snap ke marker, batas Scene, atau playhead jika dekat."
     )
+    install_timeline_snap_guide_feedback(root, project)
     return True
