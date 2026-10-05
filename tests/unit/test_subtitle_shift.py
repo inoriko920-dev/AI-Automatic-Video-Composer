@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from aavc.subtitles import (
     SubtitleCue,
+    SubtitleWorkingCopyHistory,
+    SubtitleWorkingCopySnapshot,
     parse_srt,
     shift_subtitle_cues,
     write_srt_atomic,
@@ -55,6 +57,19 @@ def test_zero_offset_and_empty_input_are_identity_noops() -> None:
     assert shift_subtitle_cues(source, 0.0) is source
     empty: tuple[SubtitleCue, ...] = ()
     assert shift_subtitle_cues(empty, 0.75) is empty
+
+
+def test_shift_can_be_recorded_as_one_working_copy_history_step() -> None:
+    source = SubtitleWorkingCopySnapshot(_cues(), 1)
+    shifted = SubtitleWorkingCopySnapshot(shift_subtitle_cues(source.cues, 0.25), 1)
+    history = SubtitleWorkingCopyHistory()
+
+    history.record(source, shifted)
+
+    assert history.can_undo
+    assert history.undo(shifted) == source
+    assert history.can_redo
+    assert history.redo(source) == shifted
 
 
 def test_shifted_cues_survive_srt_write_parse_round_trip(tmp_path) -> None:
