@@ -51,11 +51,11 @@ def normalize_timeline_magnet_enabled(value: object | None) -> bool:
 def normalize_timeline_magnet_tolerance_px(value: object | None) -> int:
     """Normalize Snap Strength to the nearest supported pixel radius."""
 
-    if value is None:
+    if value is None or not isinstance(value, (int, float, str)):
         return DEFAULT_TIMELINE_MAGNET_TOLERANCE_PX
     try:
         raw = int(round(float(value)))
-    except (TypeError, ValueError):
+    except ValueError:
         return DEFAULT_TIMELINE_MAGNET_TOLERANCE_PX
     return min(
         TIMELINE_MAGNET_TOLERANCE_OPTIONS_PX,
