@@ -7,6 +7,7 @@ from aavc.application.services.project_session import ProjectSession
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.subtitles import (
     SubtitleCue,
+    delete_subtitle_cue,
     format_srt_timestamp,
     insert_subtitle_cue,
     merge_subtitle_cues,
@@ -163,6 +164,27 @@ def test_merge_cue_rejects_invalid_or_last_row() -> None:
         merge_subtitle_cues(cues, len(cues) - 1)
 
 
+def test_delete_cue_preserves_remaining_indexes_and_objects() -> None:
+    cues = (
+        SubtitleCue(4, 0.0, 1.0, "Pertama"),
+        SubtitleCue(9, 1.5, 2.5, "Hapus"),
+        SubtitleCue(12, 3.0, 4.0, "Ketiga"),
+    )
+    deleted = delete_subtitle_cue(cues, 1)
+
+    assert deleted == (cues[0], cues[2])
+    assert [cue.index for cue in deleted] == [4, 12]
+    assert deleted[0] is cues[0]
+    assert deleted[1] is cues[2]
+
+
+def test_delete_cue_rejects_invalid_or_last_remaining_cue() -> None:
+    with pytest.raises(ValueError, match="dipilih tidak valid"):
+        delete_subtitle_cue(_sample_cues(), 99)
+    with pytest.raises(ValueError, match="Cue terakhir tidak dapat dihapus"):
+        delete_subtitle_cue((SubtitleCue(1, 0.0, 1.0, "Satu"),), 0)
+
+
 def test_serialize_and_atomic_write_round_trip(tmp_path: Path) -> None:
     cues = _sample_cues()
     serialized = serialize_srt(cues)
@@ -206,6 +228,13 @@ def test_merged_cue_round_trips_through_copy(tmp_path: Path) -> None:
     destination = tmp_path / "with-merged-cue.srt"
     write_srt_atomic(destination, merged)
     assert parse_srt(destination) == merged
+
+
+def test_deleted_cue_round_trips_through_copy(tmp_path: Path) -> None:
+    deleted = delete_subtitle_cue(_sample_cues(), 0)
+    destination = tmp_path / "with-deleted-cue.srt"
+    write_srt_atomic(destination, deleted)
+    assert parse_srt(destination) == deleted
 
 
 def test_writing_copy_does_not_touch_original(tmp_path: Path) -> None:
