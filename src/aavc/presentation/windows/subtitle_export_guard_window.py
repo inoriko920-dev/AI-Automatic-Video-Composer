@@ -19,20 +19,28 @@ def subtitle_export_requires_working_copy_guard(
 class SubtitleExportGuardMainWindow(SubtitleImportGuardMainWindow):
     """Prevent render from silently using an older on-disk subtitle source."""
 
-    def open_export(self) -> None:
-        if subtitle_export_requires_working_copy_guard(
+    def _subtitle_export_guard_allows(self, action_label: str) -> bool:
+        if not subtitle_export_requires_working_copy_guard(
             editor_active=self._subtitle_editor_is_active(),
             working_copy_dirty=self._subtitle_working_copy_dirty,
         ):
-            if not self._confirm_subtitle_working_copy_discard("mengekspor video"):
-                return
-            self._rebuild_subtitle_editor_after_discard_authorized()
-            if self._subtitle_working_copy_dirty:
-                # Rebuild failed (for example the backing SRT disappeared). Do not
-                # continue to export while the visible cue working copy is unresolved.
-                return
+            return True
+        if not self._confirm_subtitle_working_copy_discard(action_label):
+            return False
+        self._rebuild_subtitle_editor_after_discard_authorized()
+        # Rebuild may fail (for example the backing SRT disappeared). Never export
+        # while the visible cue working copy remains unresolved.
+        return not self._subtitle_working_copy_dirty
 
+    def open_export(self) -> None:
+        if not self._subtitle_export_guard_allows("mengekspor video"):
+            return
         super().open_export()
+
+    def open_export_selection(self) -> None:
+        if not self._subtitle_export_guard_allows("mengekspor Selection In–Out"):
+            return
+        super().open_export_selection()
 
 
 def create_subtitle_export_guard_main_window(
