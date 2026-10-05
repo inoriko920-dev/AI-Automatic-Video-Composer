@@ -101,7 +101,7 @@ def timeline_snap_duration(
     step = float(snap_seconds)
     if step <= 0:
         return max(minimum, round(value, 3))
-    snapped = floor(max(0.0, value) / step + 0.5) * step
+    snapped = floor(max(0.0, value) / step + 0.5 + 1e-12) * step
     return max(minimum, round(snapped, 3))
 
 
