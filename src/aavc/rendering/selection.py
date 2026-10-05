@@ -80,10 +80,9 @@ def build_ffmpeg_selection_command(
     if len(map_positions) > 1:
         audio_map_index = map_positions[1] + 1
         audio_source = command[audio_map_index]
-        if audio_source.startswith("["):
-            audio_filter_source = audio_source
-        else:
-            audio_filter_source = f"[{audio_source}]"
+        audio_filter_source = (
+            audio_source if audio_source.startswith("[") else f"[{audio_source}]"
+        )
         command[filter_index] += (
             f";{audio_filter_source}atrim=start={start:.6f}:end={end:.6f},"
             "asetpts=PTS-STARTPTS[aselection]"
