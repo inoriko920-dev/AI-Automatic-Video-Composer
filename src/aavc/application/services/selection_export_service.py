@@ -8,7 +8,7 @@ from aavc.domain.errors import RenderError
 from aavc.domain.project.models import ProjectState
 from aavc.platform.process_runner import ProcessRunner
 from aavc.platform.tool_registry import resolve_ffmpeg
-from aavc.rendering import build_render_plan, execute_ffmpeg, validate_render_plan
+from aavc.rendering import RenderResult, build_render_plan, execute_ffmpeg, validate_render_plan
 from aavc.rendering.selection import (
     RenderSelection,
     build_ffmpeg_selection_command,
@@ -25,7 +25,7 @@ def render_project_selection(
     end_seconds: float,
     ffmpeg: str | None = None,
     runner: ProcessRunner | None = None,
-) -> object:
+) -> RenderResult:
     """Render only a global In/Out range through the canonical render pipeline."""
 
     output = Path(options.output_path).resolve()
