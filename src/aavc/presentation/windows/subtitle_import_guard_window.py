@@ -6,8 +6,8 @@ from aavc.application.commands import SetNarrationAudio, SetSubtitleSource
 from aavc.application.services.media_import import classify_media_path
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
-from aavc.subtitles import parse_srt
 from aavc.presentation.windows.subtitle_edit_window import SubtitleEditMainWindow
+from aavc.subtitles import parse_srt
 
 
 def subtitle_import_requires_working_copy_guard(
