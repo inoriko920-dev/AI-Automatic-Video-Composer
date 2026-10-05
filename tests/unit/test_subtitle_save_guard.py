@@ -53,7 +53,23 @@ def test_dirty_subtitle_working_copy_blocks_project_save(monkeypatch: Any) -> No
     assert "Simpan Salinan" in calls[0][2]
 
 
-def test_clean_or_non_subtitle_project_save_passes_through(monkeypatch: Any) -> None:
+def test_dirty_subtitle_working_copy_blocks_project_save_as(monkeypatch: Any) -> None:
+    target, calls = _controller(editor_active=True, working_copy_dirty=True)
+    monkeypatch.setattr(
+        "aavc.presentation.windows.guarded_main_window.GuardedMainWindow.save_project_as",
+        lambda _self: calls.append(("save-as",)),
+    )
+
+    SubtitleSaveGuardMainWindow.save_project_as(target)
+
+    assert len(calls) == 1
+    assert calls[0][0] == "notice"
+    assert "Simpan Salinan" in calls[0][2]
+
+
+def test_clean_or_non_subtitle_project_persistence_passes_through(
+    monkeypatch: Any,
+) -> None:
     for editor_active, working_copy_dirty in ((True, False), (False, True)):
         target, calls = _controller(
             editor_active=editor_active,
@@ -63,7 +79,12 @@ def test_clean_or_non_subtitle_project_save_passes_through(monkeypatch: Any) -> 
             "aavc.presentation.windows.subtitle_export_guard_window.SubtitleExportGuardMainWindow.save_project",
             lambda _self, calls=calls: calls.append(("save",)),
         )
+        monkeypatch.setattr(
+            "aavc.presentation.windows.guarded_main_window.GuardedMainWindow.save_project_as",
+            lambda _self, calls=calls: calls.append(("save-as",)),
+        )
 
         SubtitleSaveGuardMainWindow.save_project(target)
+        SubtitleSaveGuardMainWindow.save_project_as(target)
 
-        assert calls == [("save",)]
+        assert calls == [("save",), ("save-as",)]
