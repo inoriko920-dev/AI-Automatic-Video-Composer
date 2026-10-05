@@ -94,10 +94,7 @@ def timeline_ruler_time_label(seconds: float) -> str:
     fraction = value - whole
     hours, remainder = divmod(whole, 3600)
     minutes, second = divmod(remainder, 60)
-    if fraction >= 0.05:
-        second_text = f"{second + fraction:04.1f}"
-    else:
-        second_text = f"{second:02d}"
+    second_text = f"{second + fraction:04.1f}" if fraction >= 0.05 else f"{second:02d}"
     if hours:
         return f"{hours}:{minutes:02d}:{second_text}"
     return f"{minutes}:{second_text}"
@@ -164,7 +161,7 @@ def _stored_int_property(owner: Any, name: str, default: int) -> int:
 def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
     """Install timeline zoom, horizontal scroll, global ruler, and synced playhead."""
 
-    from PySide6.QtCore import QPointF, QTimer, Qt
+    from PySide6.QtCore import QPointF, Qt, QTimer
     from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
     from PySide6.QtWidgets import (
         QFrame,
