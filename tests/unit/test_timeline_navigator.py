@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from aavc.presentation.timeline_navigator import (
     timeline_navigator_anchor_scroll_value,
+    timeline_navigator_global_seconds_x,
     timeline_navigator_hit_region,
+    timeline_navigator_range_geometry,
     timeline_navigator_scaled_x,
+    timeline_navigator_scene_boundary_xs,
     timeline_navigator_scroll_value,
     timeline_navigator_viewport_geometry,
     timeline_navigator_zoom_percent_for_handle_width,
@@ -52,6 +55,58 @@ def test_track_pixel_scaling_clamps_to_navigator() -> None:
     assert timeline_navigator_scaled_x(-50, 1000, 200) == 0
     assert timeline_navigator_scaled_x(1500, 1000, 200) == 200
     assert timeline_navigator_scaled_x(20, 0, 200) == 0
+
+
+def test_global_seconds_maps_to_navigator_coordinates() -> None:
+    assert timeline_navigator_global_seconds_x(
+        (10.0,),
+        5.0,
+        100,
+        480,
+        240,
+    ) == 120
+    assert timeline_navigator_global_seconds_x(
+        (10.0,),
+        -10.0,
+        100,
+        480,
+        240,
+    ) == 0
+    assert timeline_navigator_global_seconds_x(
+        (10.0,),
+        999.0,
+        100,
+        480,
+        240,
+    ) == 240
+
+
+def test_scene_boundary_ticks_follow_minimum_width_and_gap() -> None:
+    assert timeline_navigator_scene_boundary_xs(
+        (1.0, 1.0),
+        100,
+        115,
+        115,
+    ) == (0, 56, 115)
+
+
+def test_in_out_range_geometry_uses_global_time_mapping() -> None:
+    assert timeline_navigator_range_geometry(
+        (10.0,),
+        2.0,
+        8.0,
+        100,
+        480,
+        240,
+    ) == (48, 144)
+    assert timeline_navigator_range_geometry(
+        (10.0,),
+        None,
+        8.0,
+        100,
+        480,
+        240,
+    ) is None
 
 
 def test_navigator_hit_region_distinguishes_edges_and_pan_center() -> None:
