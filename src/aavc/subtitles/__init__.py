@@ -2,6 +2,7 @@ from .compiler import compile_srt_to_ass
 from .history import SubtitleWorkingCopyHistory, SubtitleWorkingCopySnapshot
 from .overlap import resolve_subtitle_cue_overlap
 from .presets import ANIMATION_PRESETS, STYLE_PRESETS, get_animation_preset, get_style_preset
+from .shift import shift_subtitle_cues
 from .srt import (
     SubtitleCue,
     delete_subtitle_cue,
@@ -42,6 +43,7 @@ __all__ = [
     "replace_subtitle_cue",
     "resolve_subtitle_cue_overlap",
     "serialize_srt",
+    "shift_subtitle_cues",
     "sort_subtitle_cues_by_start_time",
     "split_subtitle_cue",
     "write_srt_atomic",
