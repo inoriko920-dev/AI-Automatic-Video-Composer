@@ -19,7 +19,7 @@ from .srt import (
     split_subtitle_cue,
     write_srt_atomic,
 )
-from .stretch import stretch_subtitle_cues_from_row
+from .stretch import fit_subtitle_cues_from_row_to_end, stretch_subtitle_cues_from_row
 from .word_timing import WordTiming, distribute_words
 
 __all__ = [
@@ -33,6 +33,7 @@ __all__ = [
     "delete_subtitle_cue",
     "distribute_words",
     "duplicate_subtitle_cue",
+    "fit_subtitle_cues_from_row_to_end",
     "format_srt_timestamp",
     "get_animation_preset",
     "get_style_preset",
