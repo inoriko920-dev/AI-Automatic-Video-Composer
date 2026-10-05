@@ -5,6 +5,17 @@ from math import floor
 from typing import Any
 
 from aavc.domain.project.models import ProjectState
+from aavc.presentation.motion_preview import preview_scrub_seconds
+from aavc.presentation.timeline_magnetic_edit import (
+    timeline_magnetic_resize_duration,
+    timeline_magnetic_split_local_seconds,
+)
+from aavc.presentation.timeline_markers import timeline_marker_global_seconds
+from aavc.presentation.timeline_ruler_seek import timeline_slider_value_for_local_seconds
+from aavc.presentation.timeline_zoom_scroll import (
+    DEFAULT_TIMELINE_ZOOM_PERCENT,
+    normalize_timeline_zoom_percent,
+)
 
 TIMELINE_RESIZE_EDGE_PX = 10.0
 MIN_TIMELINE_SCENE_DURATION_SECONDS = 0.001
@@ -173,16 +184,59 @@ def install_timeline_preview_seek(
     """Seek on click, reorder by body drag, and resize duration from either edge."""
 
     from PySide6.QtCore import QEvent, QObject, Qt
-    from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QSlider
+    from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QSlider, QWidget
 
     scene_list = _find_scene_list(root, project)
     sliders = root.findChildren(QSlider)
     progress_slider = sliders[0] if sliders else None
+    app: Any = QApplication.instance()
     if scene_list is None or progress_slider is None or not project.scenes:
         return False
 
     active_scene_list: Any = scene_list
     active_slider: Any = progress_slider
+    durations = tuple(scene.duration_seconds for scene in project.scenes)
+    ruler = root.findChild(QWidget, "TimelineTimeRuler")
+    owner: Any = root.window()
+
+    def stored_zoom_percent() -> int:
+        value = owner.property("aavcTimelineZoomPercent")
+        try:
+            raw = DEFAULT_TIMELINE_ZOOM_PERCENT if value is None else int(value)
+        except (TypeError, ValueError):
+            raw = DEFAULT_TIMELINE_ZOOM_PERCENT
+        return normalize_timeline_zoom_percent(raw)
+
+    def marker_seconds() -> tuple[float, ...]:
+        raw = getattr(owner, "_aavc_timeline_markers_seconds", ())
+        try:
+            return tuple(float(item) for item in raw)
+        except (TypeError, ValueError):
+            return ()
+
+    def split_target_seconds() -> tuple[float, ...]:
+        values = list(marker_seconds())
+        for attribute in ("_aavc_timeline_in_seconds", "_aavc_timeline_out_seconds"):
+            raw = getattr(owner, attribute, None)
+            if raw is None:
+                continue
+            try:
+                values.append(float(raw))
+            except (TypeError, ValueError):
+                continue
+        return tuple(values)
+
+    def current_playhead_global_seconds() -> float:
+        row = int(active_scene_list.currentRow())
+        if row < 0 or row >= len(durations):
+            return 0.0
+        local = preview_scrub_seconds(
+            active_slider.value(),
+            active_slider.maximum(),
+            durations[row],
+        )
+        return timeline_marker_global_seconds(durations, row, local)
+
     button_indexes: dict[int, int] = {}
     timeline_buttons: list[Any] = []
     buttons = root.findChildren(QPushButton)
@@ -201,7 +255,7 @@ def install_timeline_preview_seek(
             button.setToolTip(
                 f"Scene {scene.scene_number:02d}. Klik posisi untuk seek preview; "
                 "drag badan blok untuk reorder; drag tepi kiri/kanan untuk mengubah durasi "
-                "dengan snap 0,1 detik."
+                "dengan snap 0,1 detik atau magnetic snap saat dekat marker/batas/playhead."
             )
         elif on_scene_reordered is not None:
             button.setToolTip(
@@ -227,7 +281,8 @@ def install_timeline_preview_seek(
             if on_scene_reordered is not None and on_scene_resized is not None:
                 label.setText(
                     "Lebar blok mengikuti durasi scene. Klik untuk seek; drag badan blok untuk "
-                    "reorder; drag tepi kiri/kanan untuk durasi (snap 0,1 detik). Split belum aktif."
+                    "reorder; drag tepi kiri/kanan untuk durasi (snap 0,1 detik + magnetic). "
+                    "Split Ctrl+B magnetic ke marker/In/Out terdekat."
                 )
             elif on_scene_reordered is not None:
                 label.setText(
@@ -320,18 +375,33 @@ def install_timeline_preview_seek(
             if self._resizing and on_scene_resized is not None:
                 delta_x = float(event.globalPosition().x()) - self._press_global_x
                 if self._resize_edge == "left":
-                    duration_seconds = timeline_left_resized_duration(
+                    raw_duration = timeline_left_resized_duration(
                         source_scene.duration_seconds,
                         self._press_width,
                         delta_x,
                     )
                 else:
-                    duration_seconds = timeline_resized_duration(
+                    raw_duration = timeline_resized_duration(
                         source_scene.duration_seconds,
                         self._press_width,
                         delta_x,
                     )
-                duration_seconds = timeline_snap_duration(duration_seconds)
+                duration_seconds = timeline_snap_duration(raw_duration)
+                if ruler is not None:
+                    pointer_x = float(
+                        ruler.mapFromGlobal(event.globalPosition().toPoint()).x()
+                    )
+                    duration_seconds, _snap_kind = timeline_magnetic_resize_duration(
+                        durations,
+                        scene_index,
+                        duration_seconds,
+                        pointer_x,
+                        stored_zoom_percent(),
+                        project.fps,
+                        markers_seconds=marker_seconds(),
+                        playhead_seconds=current_playhead_global_seconds(),
+                        minimum_seconds=MIN_TIMELINE_SCENE_DURATION_SECONDS,
+                    )
                 self._reset_drag(watched)
                 if abs(duration_seconds - source_scene.duration_seconds) >= 0.0005:
                     on_scene_resized(source_scene.scene_number, duration_seconds)
@@ -361,8 +431,66 @@ def install_timeline_preview_seek(
             active_slider.sliderMoved.emit(value)
             return False
 
+    class _TimelineSplitSnapFilter(QObject):
+        def eventFilter(self, watched: Any, event: Any) -> bool:  # noqa: N802
+            del watched
+            if event.type() != QEvent.Type.KeyPress or not root.isVisible():
+                return False
+            if event.key() != Qt.Key.Key_B:
+                return False
+            if event.modifiers() != Qt.KeyboardModifier.ControlModifier:
+                return False
+            if event.isAutoRepeat():
+                return False
+
+            focus = app.focusWidget() if app is not None else None
+            if focus is not None and focus is not root and not root.isAncestorOf(focus):
+                return False
+
+            row = int(active_scene_list.currentRow())
+            if row < 0 or row >= len(durations):
+                return False
+            local_seconds = preview_scrub_seconds(
+                active_slider.value(),
+                active_slider.maximum(),
+                durations[row],
+            )
+            snapped_local, snapped = timeline_magnetic_split_local_seconds(
+                durations,
+                row,
+                local_seconds,
+                stored_zoom_percent(),
+                project.fps,
+                markers_seconds=split_target_seconds(),
+            )
+            if not snapped or abs(snapped_local - local_seconds) < 0.0005:
+                return False
+
+            slider_value = timeline_slider_value_for_local_seconds(
+                snapped_local,
+                durations[row],
+                active_slider.maximum(),
+            )
+            active_slider.setValue(slider_value)
+            active_slider.sliderMoved.emit(slider_value)
+            active_slider.sliderReleased.emit()
+            owner.statusBar().showMessage(
+                f"Split magnetic snap ke titik timeline {snapped_local:.3f} detik dalam Scene.",
+                4000,
+            )
+            return False
+
     event_filter = _TimelineSeekFilter(root)
     for button in timeline_buttons:
         button.installEventFilter(event_filter)
     root._aavc_timeline_seek_filter = event_filter
+
+    if app is not None:
+        previous_split_filter = getattr(root, "_aavc_timeline_split_snap_filter", None)
+        if previous_split_filter is not None:
+            app.removeEventFilter(previous_split_filter)
+        split_filter = _TimelineSplitSnapFilter(root)
+        app.installEventFilter(split_filter)
+        root._aavc_timeline_split_snap_filter = split_filter
+
     return True
