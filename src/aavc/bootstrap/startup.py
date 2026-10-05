@@ -53,19 +53,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             if font_path.exists():
                 QFontDatabase.addApplicationFont(str(font_path))
                 break
-        app.setFont(QFont("Segoe UI", 9))
+    app.setFont(QFont("Segoe UI", 10))
 
     window = create_main_window(services, initial_state=state)
+    if capture_path:
+        window.resize(1920, 1080)
     window.show()
 
     if capture_path:
         target = Path(capture_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
 
-        def _capture() -> None:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            window.grab().save(str(target))
+        def capture() -> None:
+            pixmap = window.grab()
+            if not pixmap.save(str(target), "PNG"):
+                print(f"Gagal menyimpan screenshot: {target}", file=sys.stderr)
+                app.exit(3)
+                return
+            print(target)
             app.quit()
 
-        QTimer.singleShot(350, _capture)
-
-    return app.exec()
+        QTimer.singleShot(500, capture)
+    return int(app.exec())
