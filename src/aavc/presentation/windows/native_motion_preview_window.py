@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from aavc.application.commands import MoveSceneToIndex, SplitScene
+from aavc.application.services.export_service import ExportOptions
+from aavc.application.services.selection_export_service import render_project_selection
 from aavc.bootstrap.composition_root import FoundationServices
+from aavc.domain.errors import AAVCError
 from aavc.presentation.motion_preview import preview_scrub_seconds
 from aavc.presentation.native_motion_playback import install_native_motion_preview
 from aavc.presentation.navigation import UiRoute
@@ -34,27 +38,153 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
         super()._build_menu(action_type)
 
         edit_menu: Any | None = None
+        export_menu: Any | None = None
         for menu_action in self.window.menuBar().actions():
             if menu_action.text() == "Edit":
                 edit_menu = menu_action.menu()
-                break
-        if edit_menu is None:
+            elif menu_action.text() == "Ekspor":
+                export_menu = menu_action.menu()
+
+        if edit_menu is not None:
+            edit_menu.addSeparator()
+            split_action = action_type("Split Scene di Playhead", self.window)
+            split_action.setShortcut("Ctrl+B")
+            split_action.triggered.connect(
+                lambda _checked=False: self.split_selected_scene_at_playhead()
+            )
+            edit_menu.addAction(split_action)
+
+            play_selection_action = action_type("Play Selection In–Out", self.window)
+            play_selection_action.setShortcut("Ctrl+Space")
+            play_selection_action.triggered.connect(
+                lambda _checked=False: self.play_in_out_selection()
+            )
+            edit_menu.addAction(play_selection_action)
+
+        if export_menu is not None:
+            export_menu.addSeparator()
+            export_selection_action = action_type(
+                "Ekspor Selection In–Out",
+                self.window,
+            )
+            export_selection_action.triggered.connect(
+                lambda _checked=False: self.open_export_selection()
+            )
+            export_menu.addAction(export_selection_action)
+
+    def _session_render_selection(self) -> tuple[float, float] | None:
+        project = self.services.project_session.current
+        if project is None:
+            return None
+        raw_in = getattr(self.window, "_aavc_timeline_in_seconds", None)
+        raw_out = getattr(self.window, "_aavc_timeline_out_seconds", None)
+        if raw_in is None or raw_out is None:
+            return None
+        try:
+            start_seconds = float(raw_in)
+            end_seconds = float(raw_out)
+        except (TypeError, ValueError):
+            return None
+        total_duration = sum(max(0.0, scene.duration_seconds) for scene in project.scenes)
+        epsilon = 1e-6
+        if start_seconds < -epsilon or end_seconds > total_duration + epsilon:
+            return None
+        start_seconds = max(0.0, start_seconds)
+        end_seconds = min(total_duration, end_seconds)
+        if end_seconds - start_seconds <= epsilon:
+            return None
+        return start_seconds, end_seconds
+
+    def open_export_selection(self) -> None:
+        from aavc.presentation.dialogs.export_settings import create_export_dialog
+
+        project = self.services.project_session.current
+        if project is None:
+            self._show_project_notice(
+                "Ekspor Selection tidak tersedia",
+                "Buat atau buka project terlebih dahulu.",
+            )
             return
+        selection = self._session_render_selection()
+        if selection is None:
+            self._show_project_notice(
+                "Range In/Out belum siap",
+                "Setel In point (I) dan Out point (O) terlebih dahulu sebelum mengekspor selection.",
+            )
+            return
+        start_seconds, end_seconds = selection
 
-        edit_menu.addSeparator()
-        split_action = action_type("Split Scene di Playhead", self.window)
-        split_action.setShortcut("Ctrl+B")
-        split_action.triggered.connect(
-            lambda _checked=False: self.split_selected_scene_at_playhead()
+        project_path = self.services.project_session.path
+        if project_path is not None:
+            default_directory = str(project_path.parent)
+        else:
+            default_directory = str(Path(project.source_docx).resolve().parent)
+        default_name = (
+            f"{project.title} - Selection {start_seconds:.3f}-{end_seconds:.3f}"
         )
-        edit_menu.addAction(split_action)
 
-        play_selection_action = action_type("Play Selection In–Out", self.window)
-        play_selection_action.setShortcut("Ctrl+Space")
-        play_selection_action.triggered.connect(
-            lambda _checked=False: self.play_in_out_selection()
+        dialog = create_export_dialog(
+            self.window,
+            default_directory=default_directory,
+            default_name=default_name,
+            on_render=lambda options: self.render_active_selection(
+                options,
+                start_seconds=start_seconds,
+                end_seconds=end_seconds,
+            ),
         )
-        edit_menu.addAction(play_selection_action)
+        dialog.setWindowTitle("Ekspor Selection In–Out")
+        dialog.setModal(True)
+        dialog.show()
+        self._active_dialog = dialog
+
+    def render_active_selection(
+        self,
+        options: ExportOptions,
+        *,
+        start_seconds: float,
+        end_seconds: float,
+    ) -> bool:
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QApplication
+
+        project = self.services.project_session.current
+        if project is None:
+            self._show_project_notice(
+                "Render Selection tidak tersedia",
+                "Buat atau buka project terlebih dahulu.",
+            )
+            return False
+
+        self.window.statusBar().showMessage(
+            f"Render Selection {start_seconds:.3f}–{end_seconds:.3f} detik sedang berjalan…"
+        )
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        QApplication.processEvents()
+        try:
+            result = render_project_selection(
+                project,
+                options,
+                start_seconds=start_seconds,
+                end_seconds=end_seconds,
+            )
+        except (AAVCError, OSError, RuntimeError, ValueError) as error:
+            self._show_project_error("Render Selection gagal", error)
+            self.window.statusBar().showMessage("Render Selection gagal", 5000)
+            return False
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        self.window.statusBar().showMessage(
+            f"Render Selection selesai: {result.output_path}",
+            8000,
+        )
+        self._show_project_notice(
+            "Render Selection selesai",
+            f"Video range In–Out berhasil dibuat:\n{result.output_path}",
+        )
+        return True
 
     def play_in_out_selection(self) -> None:
         project = self.services.project_session.current
