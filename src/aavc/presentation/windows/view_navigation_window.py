@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Any
 
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.presentation.navigation import UiRoute
 from aavc.presentation.windows.help_window import HelpMainWindow
-
 
 VIEW_NAVIGATION_ROUTES: tuple[UiRoute, ...] = (
     UiRoute.HOME,
@@ -84,10 +84,8 @@ class ViewNavigationMainWindow(HelpMainWindow):
         button = self._validation_button
         if button is None:
             return
-        try:
+        with suppress(TypeError, RuntimeError):
             button.clicked.disconnect()
-        except (TypeError, RuntimeError):
-            pass
         button.clicked.connect(
             lambda _checked=False: self.open_validation_center()
         )
