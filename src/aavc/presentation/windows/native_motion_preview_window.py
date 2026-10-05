@@ -10,6 +10,7 @@ from aavc.presentation.navigation import UiRoute
 from aavc.presentation.timeline_in_out import install_timeline_in_out
 from aavc.presentation.timeline_keyboard_seek import install_timeline_keyboard_seek
 from aavc.presentation.timeline_markers import install_timeline_markers
+from aavc.presentation.timeline_play_selection import start_timeline_play_selection
 from aavc.presentation.timeline_preview_seek import install_timeline_preview_seek
 from aavc.presentation.timeline_ruler_seek import install_timeline_ruler_seek
 from aavc.presentation.timeline_zoom_scroll import install_timeline_zoom_scroll
@@ -47,6 +48,31 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
             lambda _checked=False: self.split_selected_scene_at_playhead()
         )
         edit_menu.addAction(split_action)
+
+        play_selection_action = action_type("Play Selection In–Out", self.window)
+        play_selection_action.setShortcut("Ctrl+Space")
+        play_selection_action.triggered.connect(
+            lambda _checked=False: self.play_in_out_selection()
+        )
+        edit_menu.addAction(play_selection_action)
+
+    def play_in_out_selection(self) -> None:
+        project = self.services.project_session.current
+        if project is None:
+            self.window.statusBar().showMessage(
+                "Buat atau buka project terlebih dahulu sebelum Play Selection.",
+                6000,
+            )
+            return
+        root = self._route_widgets.get(UiRoute.EDITOR)
+        if root is None:
+            self.window.statusBar().showMessage(
+                "Buka Editor terlebih dahulu untuk Play Selection In–Out.",
+                6000,
+            )
+            return
+        started, message = start_timeline_play_selection(root, project)
+        self.window.statusBar().showMessage(message, 7000 if started else 6000)
 
     def move_scene_to_index(self, scene_number: int, target_index: int) -> None:
         project = self.services.project_session.current
