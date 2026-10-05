@@ -26,6 +26,19 @@ Maintenance release `0.1.1` fixes issue #9 without adding a new product feature 
 
 FFmpeg and ffprobe remain external dependencies and are not redistributed by AAVC.
 
+### Post-release maintenance on `main`
+
+Branch `main` contains maintenance and editor/runtime improvements created after the frozen `v0.1.1` release. These changes are source-state capabilities and must not be described as already present in the published `v0.1.1` binary until a later build/release is produced.
+
+Current post-release source includes secure Gemini credential management from PR #251:
+- menu **AI → Status Gemini…** reports only configured slot numbers/count;
+- **Simpan / Ganti API Key Gemini…** writes a selected slot through Windows Credential Manager;
+- **Hapus API Key Gemini…** removes a selected credential after confirmation;
+- deterministic credential slots `1–100` are supported;
+- raw API-key values are not stored in `ProjectState`, project files, logs, or status diagnostics and are not displayed back to the user;
+- no plaintext credential fallback is provided on unsupported platforms;
+- this credential-management layer does **not** yet make a live Gemini request or apply AI mutations to a project.
+
 ## VERIFIED
 Official GitHub Release `v0.1.1` is published and targets frozen source commit `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`.
 

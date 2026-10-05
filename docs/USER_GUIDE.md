@@ -78,6 +78,27 @@ Tombol Validation pada toolbar memakai guard sesi yang sama sehingga fixture STE
 
 Menu **Bantuan → Shortcut & Bantuan Cepat** juga sudah aktif dan menyusun daftar shortcut dari QAction yang benar-benar aktif pada build source tersebut.
 
+### Menu AI dan credential Gemini
+
+Pada source `main` setelah maintenance pasca-rilis, menu **AI** sudah menyediakan pengelolaan credential Gemini yang aman. Fitur ini belum berarti AAVC sudah menjalankan perintah AI terhadap project.
+
+Aksi yang tersedia:
+
+- **AI → Status Gemini…** — menampilkan jumlah serta nomor slot yang mempunyai credential, tanpa menampilkan isi API key;
+- **AI → Simpan / Ganti API Key Gemini…** — memilih slot `1–100`, lalu memasukkan API key melalui field yang disamarkan seperti password;
+- **AI → Hapus API Key Gemini…** — memilih slot lalu menghapus credential setelah konfirmasi.
+
+Pada Windows, credential produksi disimpan melalui **Windows Credential Manager** dengan reference deterministik `gemini-slot-001` sampai `gemini-slot-100`. Nilai raw API key tidak dimasukkan ke `ProjectState`, file `.aavcproj`, log, atau status diagnostic dan tidak ditampilkan kembali setelah disimpan.
+
+Jika secure credential store tidak tersedia pada platform yang dipakai, aplikasi menolak menyimpan key daripada membuat fallback plaintext.
+
+Batas penting source saat ini:
+
+- menu ini baru mengelola credential;
+- belum ada live request Gemini dari workflow menu tersebut;
+- belum ada aksi AI yang otomatis mengubah Scene, subtitle, timeline, aset, atau konfigurasi project;
+- perubahan ini berada di source `main` pasca-rilis dan **bukan bagian dari binary frozen `v0.1.1`**.
+
 ## 6. Kontrol project utama
 
 Kontrol berikut sudah mempunyai perilaku live pada source `main`:
@@ -290,6 +311,7 @@ Source `main` sudah jauh lebih aktif daripada dokumentasi lama, tetapi beberapa 
 - background media arbitrary belum menjadi track editor penuh;
 - preview burn-in subtitle bukan WYSIWYG final FFmpeg;
 - opsi GPU/advanced export yang dinonaktifkan tidak boleh dianggap berfungsi;
+- menu AI saat ini baru mengelola credential Gemini; live provider request dan AI mutation ke project belum menjadi workflow runtime;
 - tidak semua konsep engine/provider otomatis mempunyai kontrol UI end-to-end.
 
 Jika sebuah kontrol dinonaktifkan atau memberi pesan bahwa fitur belum terhubung, jangan menganggap engine di belakangnya sudah siap hanya karena model/domain terkait ada di source.
