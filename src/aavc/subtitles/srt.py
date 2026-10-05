@@ -209,6 +209,14 @@ def normalize_subtitle_cue_indexes(
     )
 
 
+def sort_subtitle_cues_by_start_time(
+    cues: tuple[SubtitleCue, ...],
+) -> tuple[SubtitleCue, ...]:
+    """Stably sort cues by start time without mutating cue contents."""
+
+    return tuple(sorted(cues, key=lambda cue: cue.start_seconds))
+
+
 def serialize_srt(cues: tuple[SubtitleCue, ...]) -> str:
     blocks: list[str] = []
     for cue in cues:
