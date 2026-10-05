@@ -1,16 +1,33 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
+
+TimelineMagnetTargetKind = Literal["marker", "scene", "playhead"]
 
 TIMELINE_MAGNET_ENABLED_PROPERTY = "aavcTimelineMagnetEnabled"
+TIMELINE_MAGNET_MARKER_PROPERTY = "aavcTimelineSnapMarkerEnabled"
+TIMELINE_MAGNET_SCENE_PROPERTY = "aavcTimelineSnapSceneEnabled"
+TIMELINE_MAGNET_PLAYHEAD_PROPERTY = "aavcTimelineSnapPlayheadEnabled"
 TIMELINE_MAGNET_BUTTON_OBJECT_NAME = "TimelineMagnetToggle"
+TIMELINE_SNAP_SETTINGS_BUTTON_OBJECT_NAME = "TimelineSnapSettings"
+
+_TARGET_PROPERTIES: dict[TimelineMagnetTargetKind, str] = {
+    "marker": TIMELINE_MAGNET_MARKER_PROPERTY,
+    "scene": TIMELINE_MAGNET_SCENE_PROPERTY,
+    "playhead": TIMELINE_MAGNET_PLAYHEAD_PROPERTY,
+}
 
 _runtime_magnet_enabled = True
 _runtime_magnet_bypass = False
+_runtime_target_enabled: dict[TimelineMagnetTargetKind, bool] = {
+    "marker": True,
+    "scene": True,
+    "playhead": True,
+}
 
 
 def normalize_timeline_magnet_enabled(value: object | None) -> bool:
-    """Normalize a session property value; unset means Magnet is enabled by default."""
+    """Normalize a session property value; unset means enabled by default."""
 
     if value is None:
         return True
@@ -43,6 +60,17 @@ def set_timeline_magnet_runtime_bypass(bypass: bool) -> None:
     _runtime_magnet_bypass = bool(bypass)
 
 
+def set_timeline_magnet_runtime_target_enabled(
+    kind: TimelineMagnetTargetKind,
+    enabled: bool,
+) -> None:
+    _runtime_target_enabled[kind] = bool(enabled)
+
+
+def timeline_magnet_runtime_target_enabled(kind: TimelineMagnetTargetKind) -> bool:
+    return bool(_runtime_target_enabled[kind])
+
+
 def timeline_magnet_runtime_active(*, alt_bypass: bool | None = None) -> bool:
     """Return process runtime Magnet state, including Alt/transient bypass."""
 
@@ -64,11 +92,20 @@ def timeline_magnet_runtime_active(*, alt_bypass: bool | None = None) -> bool:
 
 
 def timeline_magnet_enabled(owner: Any) -> bool:
-    """Read the session-only Magnet state from the owning window."""
+    """Read the session-only Magnet master state from the owning window."""
 
     return normalize_timeline_magnet_enabled(
         owner.property(TIMELINE_MAGNET_ENABLED_PROPERTY)
     )
+
+
+def timeline_magnet_target_enabled(
+    owner: Any,
+    kind: TimelineMagnetTargetKind,
+) -> bool:
+    """Read one session-only target state; every target defaults to enabled."""
+
+    return normalize_timeline_magnet_enabled(owner.property(_TARGET_PROPERTIES[kind]))
 
 
 def timeline_magnet_active_for_owner(
@@ -83,10 +120,10 @@ def timeline_magnet_active_for_owner(
 
 
 def install_timeline_magnet_control(root: Any) -> bool:
-    """Install a compact session-only Magnet toggle beside the timeline zoom control."""
+    """Install the session-only Magnet master switch and per-target Snap menu."""
 
     from PySide6.QtGui import QAction, QKeySequence, QShortcut
-    from PySide6.QtWidgets import QSpinBox, QToolButton
+    from PySide6.QtWidgets import QMenu, QSpinBox, QToolButton
 
     zoom_box = root.findChild(QSpinBox, "TimelineZoomPercent")
     if zoom_box is None:
@@ -100,49 +137,118 @@ def install_timeline_magnet_control(root: Any) -> bool:
     owner.setProperty(TIMELINE_MAGNET_ENABLED_PROPERTY, enabled)
     set_timeline_magnet_runtime_enabled(enabled)
 
+    target_states: dict[TimelineMagnetTargetKind, bool] = {}
+    for kind, property_name in _TARGET_PROPERTIES.items():
+        target_enabled = timeline_magnet_target_enabled(owner, kind)
+        owner.setProperty(property_name, target_enabled)
+        set_timeline_magnet_runtime_target_enabled(kind, target_enabled)
+        target_states[kind] = target_enabled
+
     header_layout = timeline.layout().itemAt(0).layout() if timeline.layout().count() else None
     if header_layout is None:
         return False
 
-    existing = root.findChild(QToolButton, TIMELINE_MAGNET_BUTTON_OBJECT_NAME)
-    if existing is not None:
-        existing.setChecked(enabled)
+    def hide_snap_guide() -> None:
+        from aavc.presentation.timeline_snap_guide import hide_timeline_snap_guide
+
+        hide_timeline_snap_guide(root)
+
+    def status(message: str) -> None:
+        status_bar = owner.statusBar() if hasattr(owner, "statusBar") else None
+        if status_bar is not None:
+            status_bar.showMessage(message, 4500)
+
+    existing_magnet = root.findChild(QToolButton, TIMELINE_MAGNET_BUTTON_OBJECT_NAME)
+    existing_settings = root.findChild(
+        QToolButton,
+        TIMELINE_SNAP_SETTINGS_BUTTON_OBJECT_NAME,
+    )
+    if existing_magnet is not None and existing_settings is not None:
+        existing_magnet.setChecked(enabled)
         return True
 
-    button = QToolButton(timeline)
-    button.setObjectName(TIMELINE_MAGNET_BUTTON_OBJECT_NAME)
-    button.setCheckable(True)
-    button.setChecked(enabled)
-    button.setToolTip(
-        "Magnetic snapping timeline. Matikan untuk edit bebas; tahan Alt untuk bypass sementara."
+    magnet_button = QToolButton(timeline)
+    magnet_button.setObjectName(TIMELINE_MAGNET_BUTTON_OBJECT_NAME)
+    magnet_button.setCheckable(True)
+    magnet_button.setChecked(enabled)
+    magnet_button.setToolTip(
+        "Master magnetic snapping timeline. Matikan untuk edit bebas; tahan Alt untuk bypass sementara."
     )
 
-    def apply_state(checked: bool, *, announce: bool) -> None:
+    def apply_master_state(checked: bool, *, announce: bool) -> None:
         owner.setProperty(TIMELINE_MAGNET_ENABLED_PROPERTY, bool(checked))
         set_timeline_magnet_runtime_enabled(bool(checked))
-        button.setText("Magnet ON" if checked else "Magnet OFF")
-        button.setStyleSheet(
+        magnet_button.setText("Magnet ON" if checked else "Magnet OFF")
+        magnet_button.setStyleSheet(
             "QToolButton { padding: 2px 7px; font-size: 9px; }"
             "QToolButton:checked { color: #1D4ED8; font-weight: 600; }"
         )
         if not checked:
-            from aavc.presentation.timeline_snap_guide import hide_timeline_snap_guide
-
-            hide_timeline_snap_guide(root)
-        if not announce:
-            return
-        status_bar = owner.statusBar() if hasattr(owner, "statusBar") else None
-        if status_bar is not None:
+            hide_snap_guide()
+        if announce:
             state = "aktif" if checked else "nonaktif"
-            status_bar.showMessage(
-                f"Magnet timeline {state}. Tahan Alt untuk bypass sementara saat Magnet aktif.",
-                4500,
+            status(
+                f"Magnet timeline {state}. Tahan Alt untuk bypass sementara saat Magnet aktif."
             )
 
-    button.toggled.connect(lambda checked: apply_state(bool(checked), announce=True))
-    apply_state(enabled, announce=False)
-    header_layout.insertWidget(max(0, header_layout.count() - 2), button)
-    root._aavc_timeline_magnet_button = button
+    magnet_button.toggled.connect(
+        lambda checked: apply_master_state(bool(checked), announce=True)
+    )
+    apply_master_state(enabled, announce=False)
+
+    settings_button = QToolButton(timeline)
+    settings_button.setObjectName(TIMELINE_SNAP_SETTINGS_BUTTON_OBJECT_NAME)
+    settings_button.setText("Snap ▾")
+    settings_button.setToolTip(
+        "Pilih target magnetic snapping: Marker/In-Out, Scene Edge, dan Playhead."
+    )
+    settings_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+    settings_button.setStyleSheet("QToolButton { padding: 2px 7px; font-size: 9px; }")
+    settings_menu = QMenu(settings_button)
+    settings_button.setMenu(settings_menu)
+
+    target_labels: dict[TimelineMagnetTargetKind, str] = {
+        "marker": "Marker / In-Out",
+        "scene": "Scene Edge",
+        "playhead": "Playhead",
+    }
+
+    def apply_target_state(
+        kind: TimelineMagnetTargetKind,
+        checked: bool,
+        *,
+        announce: bool,
+    ) -> None:
+        owner.setProperty(_TARGET_PROPERTIES[kind], bool(checked))
+        set_timeline_magnet_runtime_target_enabled(kind, bool(checked))
+        if not checked:
+            hide_snap_guide()
+        if announce:
+            state = "ON" if checked else "OFF"
+            status(f"Snap target {target_labels[kind]}: {state}.")
+
+    target_actions: dict[TimelineMagnetTargetKind, QAction] = {}
+    for kind in ("marker", "scene", "playhead"):
+        action = QAction(target_labels[kind], settings_menu)
+        action.setCheckable(True)
+        action.setChecked(target_states[kind])
+        action.toggled.connect(
+            lambda checked, active_kind=kind: apply_target_state(
+                active_kind,
+                bool(checked),
+                announce=True,
+            )
+        )
+        settings_menu.addAction(action)
+        target_actions[kind] = action
+        apply_target_state(kind, target_states[kind], announce=False)
+
+    insert_at = max(0, header_layout.count() - 2)
+    header_layout.insertWidget(insert_at, magnet_button)
+    header_layout.insertWidget(insert_at + 1, settings_button)
+    root._aavc_timeline_magnet_button = magnet_button
+    root._aavc_timeline_snap_settings_button = settings_button
+    root._aavc_timeline_snap_target_actions = target_actions
 
     def split_without_magnet() -> None:
         split_action = next(
