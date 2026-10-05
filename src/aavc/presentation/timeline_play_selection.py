@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from aavc.domain.project.models import ProjectState
 from aavc.presentation.motion_preview import preview_scrub_seconds
@@ -11,6 +11,7 @@ from aavc.presentation.timeline_markers import (
 from aavc.presentation.timeline_ruler_seek import timeline_slider_value_for_local_seconds
 
 PLAY_SELECTION_EPSILON_SECONDS = 1e-6
+PlaySelectionOutcome = Literal["continue", "restart", "stop"]
 
 
 def timeline_play_selection_range(
@@ -50,6 +51,21 @@ def timeline_play_selection_should_stop(
     return current >= float(out_seconds) - PLAY_SELECTION_EPSILON_SECONDS
 
 
+def timeline_play_selection_outcome(
+    *,
+    playback_active: bool,
+    reached_out: bool,
+    loop_enabled: bool,
+) -> PlaySelectionOutcome:
+    """Resolve whether selection playback should continue, restart at In, or stop."""
+
+    if not playback_active:
+        return "stop"
+    if not reached_out:
+        return "continue"
+    return "restart" if loop_enabled else "stop"
+
+
 def timeline_timecode_seconds(text: str, fps: int | float) -> float | None:
     """Parse HH:MM:SS:FF timecode to seconds for selection playback monitoring."""
 
@@ -71,8 +87,10 @@ def timeline_timecode_seconds(text: str, fps: int | float) -> float | None:
 def start_timeline_play_selection(
     root: Any,
     project: ProjectState,
+    *,
+    loop: bool = False,
 ) -> tuple[bool, str]:
-    """Start native preview at session In and guard it so playback stops at Out."""
+    """Start native preview at session In and stop or loop when playback reaches Out."""
 
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QLabel, QListWidget, QPushButton, QSlider
@@ -89,7 +107,8 @@ def start_timeline_play_selection(
         total_duration,
     )
     if selection is None:
-        return False, "Setel In dan Out point yang berbeda terlebih dahulu sebelum Play Selection."
+        mode_label = "Loop Selection" if loop else "Play Selection"
+        return False, f"Setel In dan Out point yang berbeda terlebih dahulu sebelum {mode_label}."
     in_seconds, out_seconds = selection
 
     scene_list: Any | None = None
@@ -134,27 +153,36 @@ def start_timeline_play_selection(
     if play_button.text() == "⏸":
         play_button.click()
 
-    start_target = timeline_marker_seek_target(durations, in_seconds)
-    if start_target is None:
+    def seek_to_global_seconds(global_seconds: float) -> bool:
+        target = timeline_marker_seek_target(durations, global_seconds)
+        if target is None:
+            return False
+        scene_index, local_seconds = target
+        if play_button.text() == "⏸":
+            play_button.click()
+        if scene_list.currentRow() != scene_index:
+            scene_list.setCurrentRow(scene_index)
+        slider_value = timeline_slider_value_for_local_seconds(
+            local_seconds,
+            durations[scene_index],
+            progress_slider.maximum(),
+        )
+        progress_slider.setValue(slider_value)
+        progress_slider.sliderMoved.emit(slider_value)
+        progress_slider.sliderReleased.emit()
+        return True
+
+    if not seek_to_global_seconds(in_seconds):
         return False, "In point tidak dapat dipetakan ke Scene project."
-    scene_index, local_seconds = start_target
-    if scene_list.currentRow() != scene_index:
-        scene_list.setCurrentRow(scene_index)
-    slider_value = timeline_slider_value_for_local_seconds(
-        local_seconds,
-        durations[scene_index],
-        progress_slider.maximum(),
-    )
-    progress_slider.setValue(slider_value)
-    progress_slider.sliderMoved.emit(slider_value)
-    progress_slider.sliderReleased.emit()
 
     root._aavc_play_selection_active = True
+    root._aavc_play_selection_loop = loop
     root._aavc_play_selection_range_seconds = selection
     root._aavc_play_selection_out_seconds = out_seconds
     play_button.click()
     if play_button.text() != "⏸":
         root._aavc_play_selection_active = False
+        root._aavc_play_selection_loop = False
         return False, "Preview native gagal memulai Play Selection."
 
     fps = max(1, int(project.fps))
@@ -194,9 +222,13 @@ def start_timeline_play_selection(
                 return parsed
         return fallback_global_seconds()
 
-    def finish_selection() -> None:
+    def deactivate_selection() -> None:
         guard.stop()
         root._aavc_play_selection_active = False
+        root._aavc_play_selection_loop = False
+
+    def finish_selection() -> None:
+        deactivate_selection()
         native = getattr(root, "_aavc_play_selection_native_timer", None)
         if native is not None:
             native.stop()
@@ -215,18 +247,50 @@ def start_timeline_play_selection(
                 5000,
             )
 
-    def guard_tick() -> None:
+    def restart_loop() -> bool:
+        if not seek_to_global_seconds(in_seconds):
+            deactivate_selection()
+            return False
+        play_button.click()
         if play_button.text() != "⏸":
-            guard.stop()
-            root._aavc_play_selection_active = False
+            deactivate_selection()
+            return False
+        return True
+
+    def guard_tick() -> None:
+        playback_active = play_button.text() == "⏸"
+        current = current_global_seconds() if playback_active else 0.0
+        outcome = timeline_play_selection_outcome(
+            playback_active=playback_active,
+            reached_out=(
+                current >= out_seconds - PLAY_SELECTION_EPSILON_SECONDS
+                if playback_active
+                else False
+            ),
+            loop_enabled=loop,
+        )
+        if outcome == "continue":
             return
-        current = current_global_seconds()
-        if current >= out_seconds - PLAY_SELECTION_EPSILON_SECONDS:
+        if outcome == "restart":
+            if restart_loop():
+                return
+            status_bar = owner.statusBar() if hasattr(owner, "statusBar") else None
+            if status_bar is not None:
+                status_bar.showMessage(
+                    "Loop Selection dihentikan karena In point tidak dapat diputar ulang.",
+                    6000,
+                )
+            return
+        if playback_active:
             finish_selection()
+        else:
+            deactivate_selection()
 
     guard.timeout.connect(guard_tick)
     guard.start()
+    mode_label = "Loop Selection" if loop else "Play Selection"
+    shortcut = "Ctrl+Shift+Space" if loop else "Ctrl+Space"
     return (
         True,
-        f"Play Selection {in_seconds:.3f}–{out_seconds:.3f} detik dimulai (Ctrl+Space).",
+        f"{mode_label} {in_seconds:.3f}–{out_seconds:.3f} detik dimulai ({shortcut}).",
     )
