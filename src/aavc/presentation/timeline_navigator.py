@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import Any
 
 from aavc.domain.project.models import ProjectState
@@ -110,7 +109,6 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
     if timeline is None or timeline.layout() is None:
         return False
     root_layout = timeline.layout()
-    owner: Any = timeline.window()
     bar = scroll.horizontalScrollBar()
     viewport = scroll.viewport()
     durations = tuple(max(0.0, float(scene.duration_seconds)) for scene in project.scenes)
