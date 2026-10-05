@@ -53,7 +53,7 @@ class HelpMainWindow(SubtitleTimingToolsMainWindow):
     def _active_shortcuts(self) -> tuple[tuple[str, str], ...]:
         rows: list[tuple[str, str]] = []
         for menu_action in self.window.menuBar().actions():
-            menu = menu_action.menu()
+            menu: Any | None = menu_action.menu()
             if menu is None:
                 continue
             for action in menu.actions():
