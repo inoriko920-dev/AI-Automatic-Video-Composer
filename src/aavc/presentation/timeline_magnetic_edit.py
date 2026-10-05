@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from aavc.presentation.timeline_magnet_control import timeline_magnet_runtime_active
+from aavc.presentation.timeline_magnet_control import (
+    timeline_magnet_runtime_active,
+    timeline_magnet_runtime_target_enabled,
+)
 from aavc.presentation.timeline_magnetic_snap import timeline_magnetic_snap_target
 from aavc.presentation.timeline_markers import timeline_marker_snap_seconds
 from aavc.presentation.timeline_zoom_scroll import timeline_global_seconds_pixel_x
@@ -28,7 +31,7 @@ def timeline_magnetic_resize_duration(
     playhead_seconds: float | None = None,
     minimum_seconds: float = 0.001,
 ) -> tuple[float, str | None]:
-    """Snap the persisted Scene end boundary to the nearest magnetic target."""
+    """Snap the persisted Scene end boundary to the nearest enabled magnetic target."""
 
     if not durations_seconds:
         return max(float(minimum_seconds), round(float(proposed_duration_seconds), 3)), None
@@ -62,14 +65,17 @@ def timeline_magnetic_split_local_seconds(
     markers_seconds: tuple[float, ...] = (),
     tolerance_px: int = 8,
 ) -> tuple[float, bool]:
-    """Snap a Split point to nearby marker-like targets inside the selected Scene."""
+    """Snap a Split point to nearby marker/In-Out anchors inside the selected Scene."""
 
     if not durations_seconds:
         return round(max(0.0, float(local_seconds)), 3), False
 
     index = max(0, min(len(durations_seconds) - 1, int(scene_index)))
     duration = max(0.0, float(durations_seconds[index]))
-    if not timeline_magnet_runtime_active():
+    if (
+        not timeline_magnet_runtime_active()
+        or not timeline_magnet_runtime_target_enabled("marker")
+    ):
         return round(max(0.0, min(duration, float(local_seconds))), 3), False
 
     start_seconds = timeline_scene_start_seconds(durations_seconds, index)
