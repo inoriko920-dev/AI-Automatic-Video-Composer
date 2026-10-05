@@ -19,7 +19,6 @@ from aavc.presentation.timeline_preview_seek import install_timeline_preview_see
 from aavc.presentation.timeline_ruler_seek import install_timeline_ruler_seek
 from aavc.presentation.timeline_zoom_scroll import install_timeline_zoom_scroll
 from aavc.presentation.windows.native_motion_window import NativeMotionMainWindow
-from aavc.rendering.selection import validate_render_selection
 
 
 def scene_split_seconds_from_slider(
@@ -81,16 +80,20 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
         raw_out = getattr(self.window, "_aavc_timeline_out_seconds", None)
         if raw_in is None or raw_out is None:
             return None
-        total_duration = sum(max(0.0, scene.duration_seconds) for scene in project.scenes)
         try:
-            selection = validate_render_selection(
-                float(raw_in),
-                float(raw_out),
-                total_duration,
-            )
+            start_seconds = float(raw_in)
+            end_seconds = float(raw_out)
         except (TypeError, ValueError):
             return None
-        return selection.start_seconds, selection.end_seconds
+        total_duration = sum(max(0.0, scene.duration_seconds) for scene in project.scenes)
+        epsilon = 1e-6
+        if start_seconds < -epsilon or end_seconds > total_duration + epsilon:
+            return None
+        start_seconds = max(0.0, start_seconds)
+        end_seconds = min(total_duration, end_seconds)
+        if end_seconds - start_seconds <= epsilon:
+            return None
+        return start_seconds, end_seconds
 
     def open_export_selection(self) -> None:
         from aavc.presentation.dialogs.export_settings import create_export_dialog
