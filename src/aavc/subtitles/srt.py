@@ -198,6 +198,17 @@ def delete_subtitle_cue(
     return tuple(items)
 
 
+def normalize_subtitle_cue_indexes(
+    cues: tuple[SubtitleCue, ...],
+) -> tuple[SubtitleCue, ...]:
+    """Normalize cue indexes to 1..N without changing cue order, timing, or text."""
+
+    return tuple(
+        cue if cue.index == index else replace(cue, index=index)
+        for index, cue in enumerate(cues, start=1)
+    )
+
+
 def serialize_srt(cues: tuple[SubtitleCue, ...]) -> str:
     blocks: list[str] = []
     for cue in cues:
