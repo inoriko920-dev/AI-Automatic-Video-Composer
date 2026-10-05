@@ -12,6 +12,7 @@ from aavc.subtitles import (
     format_srt_timestamp,
     insert_subtitle_cue,
     merge_subtitle_cues,
+    normalize_subtitle_cue_indexes,
     parse_srt,
     parse_srt_timestamp,
     replace_subtitle_cue,
@@ -47,8 +48,9 @@ def create_subtitle_cue_edit_page(
     layout.addWidget(title)
     layout.addWidget(
         muted_label(
-            "Edit teks/timing, tambah, pisah, gabungkan, atau hapus cue pada working copy. Source asli "
-            "tidak ditimpa; Simpan Salinan SRT menulis file baru lalu project diarahkan ke salinan."
+            "Edit teks/timing, tambah, pisah, gabungkan, hapus, atau normalisasi nomor cue pada "
+            "working copy. Source asli tidak ditimpa; Simpan Salinan SRT menulis file baru lalu "
+            "project diarahkan ke salinan."
         )
     )
 
@@ -77,6 +79,7 @@ def create_subtitle_cue_edit_page(
     split_cue = QPushButton("✂ Pisah Cue di Kursor")
     merge_cue = QPushButton("⇄ Gabung dengan Cue Berikutnya")
     delete_cue = QPushButton("🗑 Hapus Cue")
+    normalize_indexes = QPushButton("123 Normalisasi Nomor Cue")
     save_copy = make_primary_button("Simpan Salinan SRT…")
     if on_save_copy is None:
         save_copy.setEnabled(False)
@@ -85,12 +88,16 @@ def create_subtitle_cue_edit_page(
     action_row.addWidget(split_cue)
     action_row.addWidget(merge_cue)
     action_row.addWidget(delete_cue)
+    action_row.addWidget(normalize_indexes)
     action_row.addStretch(1)
     action_row.addWidget(save_copy)
     layout.addLayout(action_row)
 
     def views() -> tuple[Any, ...]:
         return build_subtitle_views(working_cues)
+
+    def indexes_are_canonical() -> bool:
+        return all(cue.index == expected for expected, cue in enumerate(working_cues, start=1))
 
     def refresh_list(selected_row: int | None = None) -> None:
         current_views = views()
@@ -119,6 +126,13 @@ def create_subtitle_cue_edit_page(
             "Hapus cue terpilih dari working copy."
             if can_delete
             else "Cue terakhir tidak dapat dihapus dari working copy."
+        )
+        needs_normalization = bool(working_cues) and not indexes_are_canonical()
+        normalize_indexes.setEnabled(needs_normalization)
+        normalize_indexes.setToolTip(
+            "Ubah nomor cue menjadi 1..N sesuai urutan saat ini tanpa mengubah teks/timing."
+            if needs_normalization
+            else "Nomor cue sudah canonical 1..N."
         )
         if not available:
             text.clear()
@@ -223,6 +237,14 @@ def create_subtitle_cue_edit_page(
             return
         refresh_list(min(row, len(working_cues) - 1))
 
+    def normalize_indexes_now() -> None:
+        nonlocal working_cues
+        row = cue_list.currentRow()
+        if 0 <= row < len(working_cues) and not apply_current_form():
+            return
+        working_cues = normalize_subtitle_cue_indexes(working_cues)
+        refresh_list(row if row >= 0 else None)
+
     def save_selected_copy() -> None:
         if not apply_current_form():
             return
@@ -236,6 +258,7 @@ def create_subtitle_cue_edit_page(
     split_cue.clicked.connect(split_current_cue)
     merge_cue.clicked.connect(merge_with_next_cue)
     delete_cue.clicked.connect(delete_current_cue)
+    normalize_indexes.clicked.connect(normalize_indexes_now)
     if on_save_copy is not None:
         save_copy.clicked.connect(save_selected_copy)
     refresh_list(0 if working_cues else None)
