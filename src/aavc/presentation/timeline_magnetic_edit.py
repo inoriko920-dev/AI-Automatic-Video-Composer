@@ -3,6 +3,7 @@ from __future__ import annotations
 from aavc.presentation.timeline_magnet_control import (
     timeline_magnet_runtime_active,
     timeline_magnet_runtime_target_enabled,
+    timeline_magnet_runtime_tolerance_px,
 )
 from aavc.presentation.timeline_magnetic_snap import timeline_magnetic_snap_target
 from aavc.presentation.timeline_markers import timeline_marker_snap_seconds
@@ -63,7 +64,7 @@ def timeline_magnetic_split_local_seconds(
     fps: int | float,
     *,
     markers_seconds: tuple[float, ...] = (),
-    tolerance_px: int = 8,
+    tolerance_px: int | None = None,
 ) -> tuple[float, bool]:
     """Snap a Split point to nearby marker/In-Out anchors inside the selected Scene."""
 
@@ -86,6 +87,11 @@ def timeline_magnetic_split_local_seconds(
         global_seconds,
         zoom_percent,
     )
+    tolerance = (
+        timeline_magnet_runtime_tolerance_px()
+        if tolerance_px is None
+        else max(0, int(tolerance_px))
+    )
 
     candidates: list[tuple[float, float]] = []
     for raw_marker in markers_seconds:
@@ -98,7 +104,7 @@ def timeline_magnetic_split_local_seconds(
             zoom_percent,
         )
         distance = abs(float(pixel_x) - float(marker_x))
-        if distance <= max(0, int(tolerance_px)):
+        if distance <= tolerance:
             candidates.append((distance, snapped))
 
     if not candidates:
