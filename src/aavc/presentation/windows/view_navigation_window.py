@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import Any
 
 from aavc.bootstrap.composition_root import FoundationServices
@@ -85,8 +84,10 @@ class ViewNavigationMainWindow(HelpMainWindow):
         button = self._validation_button
         if button is None:
             return
-        with suppress(TypeError, RuntimeError):
+        try:
             button.clicked.disconnect()
+        except (TypeError, RuntimeError):
+            pass
         button.clicked.connect(
             lambda _checked=False: self.open_validation_center()
         )
