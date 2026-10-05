@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from aavc.presentation.timeline_magnet_control import timeline_magnet_runtime_active
 from aavc.presentation.timeline_magnetic_snap import timeline_magnetic_snap_target
 from aavc.presentation.timeline_markers import timeline_marker_snap_seconds
 from aavc.presentation.timeline_zoom_scroll import timeline_global_seconds_pixel_x
@@ -68,6 +69,9 @@ def timeline_magnetic_split_local_seconds(
 
     index = max(0, min(len(durations_seconds) - 1, int(scene_index)))
     duration = max(0.0, float(durations_seconds[index]))
+    if not timeline_magnet_runtime_active():
+        return round(max(0.0, min(duration, float(local_seconds))), 3), False
+
     start_seconds = timeline_scene_start_seconds(durations_seconds, index)
     total_duration = sum(max(0.0, float(item)) for item in durations_seconds)
     global_seconds = max(0.0, min(total_duration, start_seconds + float(local_seconds)))
