@@ -8,6 +8,9 @@ from aavc.presentation.timeline_follow_override import (
     install_timeline_manual_follow_override,
 )
 from aavc.presentation.timeline_navigator import install_timeline_navigator
+from aavc.presentation.timeline_navigator_anchor_click import (
+    install_timeline_navigator_anchor_click,
+)
 from aavc.presentation.timeline_zoom_actions import install_timeline_zoom_actions
 from aavc.presentation.timeline_zoom_scroll import (
     TIMELINE_TRACK_SPACING_PX,
@@ -172,4 +175,5 @@ def install_timeline_cursor_zoom(root: Any, project: ProjectState) -> bool:
     install_timeline_zoom_actions(root, project)
     install_timeline_manual_follow_override(root)
     install_timeline_navigator(root, project)
+    install_timeline_navigator_anchor_click(root, project)
     return True
