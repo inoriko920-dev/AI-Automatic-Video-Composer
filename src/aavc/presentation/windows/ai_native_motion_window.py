@@ -5,22 +5,14 @@ from typing import Any
 from aavc.application.commands import SetAnimationAssignmentsBatch
 from aavc.application.services.ai_animation_service import (
     DEFAULT_GEMINI_ANIMATION_MODEL,
-    build_ai_animation_request,
-    parse_ai_animation_response,
+    plan_gemini_native_motion,
 )
 from aavc.bootstrap.composition_root import FoundationServices
 from aavc.presentation.dialogs.asset_motion import NATIVE_MOTION_CHOICES
-from aavc.presentation.windows.ai_menu_window import (
-    configured_gemini_slots,
-    gemini_credential_reference,
-)
+from aavc.presentation.windows.ai_menu_window import configured_gemini_slots
 from aavc.presentation.windows.narration_recording_window import (
     NarrationRecordingMainWindow,
 )
-from aavc.providers.adapters.gemini import GeminiProvider
-from aavc.providers.base import ProviderExhaustedError
-from aavc.providers.key_pool import ApiKeyPool
-from aavc.providers.manager import ProviderManager
 
 
 class AiNativeMotionMainWindow(NarrationRecordingMainWindow):
@@ -42,7 +34,10 @@ class AiNativeMotionMainWindow(NarrationRecordingMainWindow):
         auto_action.triggered.connect(
             lambda _checked=False: self.apply_ai_native_motion()
         )
-        ai_menu.insertAction(ai_menu.actions()[0] if ai_menu.actions() else None, auto_action)
+        ai_menu.insertAction(
+            ai_menu.actions()[0] if ai_menu.actions() else None,
+            auto_action,
+        )
         separator = ai_menu.insertSeparator(
             ai_menu.actions()[1] if len(ai_menu.actions()) > 1 else None
         )
@@ -112,44 +107,26 @@ class AiNativeMotionMainWindow(NarrationRecordingMainWindow):
             )
             return
 
-        pool = ApiKeyPool(max_keys=100)
-        for slot in slots:
-            reference = gemini_credential_reference(slot)
-            pool.register(key_id=f"slot-{slot:03d}", credential_ref=reference)
-
-        try:
-            request = build_ai_animation_request(
-                project,
-                model=normalized_model,
-                allowed_effects=NATIVE_MOTION_CHOICES,
-            )
-        except ValueError as error:
-            self._show_project_error("Auto (AI) tidak dapat dijalankan", error)
-            return
-
-        manager = ProviderManager(
-            provider=GeminiProvider(),
-            key_pool=pool,
-            credentials=credentials,
-            max_attempts=min(4, len(slots)),
-        )
-
         self.window.statusBar().showMessage(
             f"Gemini sedang memilih animasi dengan {normalized_model}…"
         )
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         QApplication.processEvents()
         try:
-            response = manager.generate(request)
-            assignments = parse_ai_animation_response(
-                response.text,
+            assignments = plan_gemini_native_motion(
                 project,
+                credentials=credentials,
+                credential_slots=slots,
+                model=normalized_model,
                 allowed_effects=NATIVE_MOTION_CHOICES,
             )
             session.execute(SetAnimationAssignmentsBatch(assignments))
-        except (ProviderExhaustedError, OSError, RuntimeError, ValueError) as error:
+        except (OSError, RuntimeError, ValueError) as error:
             self._show_project_error("Auto (AI) gagal", error)
-            self.window.statusBar().showMessage("Auto (AI) gagal; project tidak diubah.", 7000)
+            self.window.statusBar().showMessage(
+                "Auto (AI) gagal; project tidak diubah.",
+                7000,
+            )
             return
         finally:
             QApplication.restoreOverrideCursor()
