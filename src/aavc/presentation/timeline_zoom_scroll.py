@@ -8,6 +8,8 @@ from aavc.domain.project.models import ProjectState
 MIN_TIMELINE_ZOOM_PERCENT = 50
 MAX_TIMELINE_ZOOM_PERCENT = 400
 DEFAULT_TIMELINE_ZOOM_PERCENT = 100
+DEFAULT_TIMELINE_FOLLOW_PLAYHEAD = True
+TIMELINE_FOLLOW_PLAYHEAD_PROPERTY = "aavcTimelineFollowPlayhead"
 TIMELINE_PIXELS_PER_SECOND = 48.0
 MIN_TIMELINE_SCENE_WIDTH_PX = 56
 MAX_TIMELINE_SCENE_WIDTH_PX = 20000
@@ -43,6 +45,30 @@ def normalize_timeline_zoom_percent(value: int | float) -> int:
         MIN_TIMELINE_ZOOM_PERCENT,
         min(MAX_TIMELINE_ZOOM_PERCENT, int(round(float(value)))),
     )
+
+
+def normalize_timeline_follow_playhead(value: object) -> bool:
+    """Normalize a persisted/session Follow Playhead value; default stays enabled."""
+
+    if value is None:
+        return DEFAULT_TIMELINE_FOLLOW_PLAYHEAD
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"0", "false", "off", "no"}:
+            return False
+        if normalized in {"1", "true", "on", "yes"}:
+            return True
+    return DEFAULT_TIMELINE_FOLLOW_PLAYHEAD
+
+
+def timeline_should_follow_playhead(requested_follow: bool, setting: object) -> bool:
+    """Return whether one playhead update may auto-scroll the timeline."""
+
+    return bool(requested_follow) and normalize_timeline_follow_playhead(setting)
 
 
 def timeline_scene_pixel_width(
@@ -237,6 +263,10 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
             DEFAULT_TIMELINE_ZOOM_PERCENT,
         )
     )
+    follow_playhead = normalize_timeline_follow_playhead(
+        owner.property(TIMELINE_FOLLOW_PLAYHEAD_PROPERTY)
+    )
+    owner.setProperty(TIMELINE_FOLLOW_PLAYHEAD_PROPERTY, follow_playhead)
     saved_scroll = max(0, _stored_int_property(owner, "aavcTimelineScrollValue", 0))
     durations = tuple(scene.duration_seconds for scene in project.scenes)
     total_duration = sum(max(0.0, float(item)) for item in durations)
@@ -393,7 +423,10 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
         )
         playhead.show()
         playhead.raise_()
-        if follow:
+        if timeline_should_follow_playhead(
+            follow,
+            owner.property(TIMELINE_FOLLOW_PLAYHEAD_PROPERTY),
+        ):
             scroll.ensureVisible(x, 0, 48, 0)
 
     def apply_zoom(value: int) -> None:
@@ -435,6 +468,30 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
         zoom_box.setToolTip("Zoom visual timeline. Tidak mengubah durasi atau file project.")
         zoom_box.valueChanged.connect(apply_zoom)
         header_layout.addWidget(zoom_box)
+
+        follow_button = QPushButton(timeline)
+        follow_button.setObjectName("TimelineFollowPlayhead")
+        follow_button.setCheckable(True)
+        follow_button.setChecked(follow_playhead)
+        follow_button.setText("Follow ON" if follow_playhead else "Follow OFF")
+        follow_button.setToolTip(
+            "Aktif: timeline otomatis mengikuti playhead. Nonaktif: viewport tetap diam saat playhead bergerak."
+        )
+        follow_button.setStyleSheet("QPushButton { padding: 2px 7px; font-size: 9px; }")
+
+        def set_follow_playhead(checked: bool) -> None:
+            owner.setProperty(TIMELINE_FOLLOW_PLAYHEAD_PROPERTY, bool(checked))
+            follow_button.setText("Follow ON" if checked else "Follow OFF")
+            status_bar = owner.statusBar() if hasattr(owner, "statusBar") else None
+            if status_bar is not None:
+                state = "aktif" if checked else "nonaktif"
+                status_bar.showMessage(f"Follow Playhead {state}.", 3500)
+            if checked:
+                update_playhead(follow=True)
+
+        follow_button.toggled.connect(set_follow_playhead)
+        header_layout.addWidget(follow_button)
+        root._aavc_timeline_follow_playhead_button = follow_button
 
     bar = scroll.horizontalScrollBar()
     bar.valueChanged.connect(
