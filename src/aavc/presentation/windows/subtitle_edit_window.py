@@ -87,11 +87,14 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
             and route is not UiRoute.SUBTITLE_EDITOR
             and self._subtitle_working_copy_dirty
         )
-        if leaving_subtitle and not self._subtitle_leave_bypass:
-            if not self._confirm_subtitle_working_copy_discard(
+        if (
+            leaving_subtitle
+            and not self._subtitle_leave_bypass
+            and not self._confirm_subtitle_working_copy_discard(
                 f"membuka {route.value}"
-            ):
-                return
+            )
+        ):
+            return
         super().show_route(route)
         if leaving_subtitle:
             self._set_subtitle_working_copy_dirty(False)
