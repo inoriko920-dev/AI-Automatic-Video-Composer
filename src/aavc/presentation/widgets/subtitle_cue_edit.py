@@ -16,6 +16,7 @@ from aavc.subtitles import (
     parse_srt,
     parse_srt_timestamp,
     replace_subtitle_cue,
+    sort_subtitle_cues_by_start_time,
     split_subtitle_cue,
 )
 
@@ -48,9 +49,9 @@ def create_subtitle_cue_edit_page(
     layout.addWidget(title)
     layout.addWidget(
         muted_label(
-            "Edit teks/timing, tambah, pisah, gabungkan, hapus, atau normalisasi nomor cue pada "
-            "working copy. Source asli tidak ditimpa; Simpan Salinan SRT menulis file baru lalu "
-            "project diarahkan ke salinan."
+            "Edit teks/timing, tambah, pisah, gabungkan, hapus, urutkan waktu, atau normalisasi "
+            "nomor cue pada working copy. Source asli tidak ditimpa; Simpan Salinan SRT menulis "
+            "file baru lalu project diarahkan ke salinan."
         )
     )
 
@@ -79,6 +80,7 @@ def create_subtitle_cue_edit_page(
     split_cue = QPushButton("✂ Pisah Cue di Kursor")
     merge_cue = QPushButton("⇄ Gabung dengan Cue Berikutnya")
     delete_cue = QPushButton("🗑 Hapus Cue")
+    sort_by_start = QPushButton("↕ Urutkan Waktu Mulai")
     normalize_indexes = QPushButton("123 Normalisasi Nomor Cue")
     save_copy = make_primary_button("Simpan Salinan SRT…")
     if on_save_copy is None:
@@ -88,6 +90,7 @@ def create_subtitle_cue_edit_page(
     action_row.addWidget(split_cue)
     action_row.addWidget(merge_cue)
     action_row.addWidget(delete_cue)
+    action_row.addWidget(sort_by_start)
     action_row.addWidget(normalize_indexes)
     action_row.addStretch(1)
     action_row.addWidget(save_copy)
@@ -98,6 +101,12 @@ def create_subtitle_cue_edit_page(
 
     def indexes_are_canonical() -> bool:
         return all(cue.index == expected for expected, cue in enumerate(working_cues, start=1))
+
+    def cues_are_sorted_by_start() -> bool:
+        return all(
+            previous.start_seconds <= current.start_seconds
+            for previous, current in zip(working_cues, working_cues[1:])
+        )
 
     def refresh_list(selected_row: int | None = None) -> None:
         current_views = views()
@@ -126,6 +135,13 @@ def create_subtitle_cue_edit_page(
             "Hapus cue terpilih dari working copy."
             if can_delete
             else "Cue terakhir tidak dapat dihapus dari working copy."
+        )
+        needs_sort = len(working_cues) > 1 and not cues_are_sorted_by_start()
+        sort_by_start.setEnabled(needs_sort)
+        sort_by_start.setToolTip(
+            "Urutkan working copy secara stabil berdasarkan waktu mulai tanpa mengubah isi cue."
+            if needs_sort
+            else "Cue sudah berurutan berdasarkan waktu mulai."
         )
         needs_normalization = bool(working_cues) and not indexes_are_canonical()
         normalize_indexes.setEnabled(needs_normalization)
@@ -237,6 +253,22 @@ def create_subtitle_cue_edit_page(
             return
         refresh_list(min(row, len(working_cues) - 1))
 
+    def sort_cues_by_start_now() -> None:
+        nonlocal working_cues
+        row = cue_list.currentRow()
+        selected_cue: SubtitleCue | None = None
+        if 0 <= row < len(working_cues):
+            if not apply_current_form():
+                return
+            selected_cue = working_cues[row]
+        working_cues = sort_subtitle_cues_by_start_time(working_cues)
+        selected_row = 0
+        if selected_cue is not None:
+            selected_row = next(
+                index for index, cue in enumerate(working_cues) if cue is selected_cue
+            )
+        refresh_list(selected_row if working_cues else None)
+
     def normalize_indexes_now() -> None:
         nonlocal working_cues
         row = cue_list.currentRow()
@@ -258,6 +290,7 @@ def create_subtitle_cue_edit_page(
     split_cue.clicked.connect(split_current_cue)
     merge_cue.clicked.connect(merge_with_next_cue)
     delete_cue.clicked.connect(delete_current_cue)
+    sort_by_start.clicked.connect(sort_cues_by_start_now)
     normalize_indexes.clicked.connect(normalize_indexes_now)
     if on_save_copy is not None:
         save_copy.clicked.connect(save_selected_copy)
