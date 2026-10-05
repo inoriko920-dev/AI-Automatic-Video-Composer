@@ -20,6 +20,7 @@ from aavc.subtitles import (
     parse_srt_timestamp,
     resolve_subtitle_cue_overlap,
     shift_subtitle_cues,
+    shift_subtitle_cues_from_row,
     sort_subtitle_cues_by_start_time,
     split_subtitle_cue,
 )
@@ -83,19 +84,25 @@ def create_subtitle_cue_edit_page(
     layout.addLayout(form)
 
     shift_row = QHBoxLayout()
-    shift_row.addWidget(QLabel("Offset Semua Cue"))
+    shift_row.addWidget(QLabel("Offset Timing"))
     shift_offset_ms = QSpinBox()
     shift_offset_ms.setRange(-86_400_000, 86_400_000)
     shift_offset_ms.setSingleStep(100)
     shift_offset_ms.setSuffix(" ms")
     shift_offset_ms.setToolTip(
-        "Nilai positif memajukan semua cue; nilai negatif memundurkan semua cue."
+        "Nilai positif memajukan timing; nilai negatif memundurkan timing."
     )
     shift_all = QPushButton("⏱ Geser Semua Cue")
     shift_all.setEnabled(False)
     shift_all.setToolTip("Masukkan offset selain 0 ms untuk menggeser seluruh working copy.")
+    shift_from_selected = QPushButton("⤵ Geser Cue Ini + Setelahnya")
+    shift_from_selected.setEnabled(False)
+    shift_from_selected.setToolTip(
+        "Pilih cue dan masukkan offset selain 0 ms untuk menggeser cue itu serta semua cue sesudahnya."
+    )
     shift_row.addWidget(shift_offset_ms)
     shift_row.addWidget(shift_all)
+    shift_row.addWidget(shift_from_selected)
     shift_row.addStretch(1)
     layout.addLayout(shift_row)
 
@@ -205,12 +212,20 @@ def create_subtitle_cue_edit_page(
         )
 
     def refresh_shift_action() -> None:
-        can_shift = bool(working_cues) and shift_offset_ms.value() != 0
-        shift_all.setEnabled(can_shift)
+        has_offset = shift_offset_ms.value() != 0
+        can_shift_all = bool(working_cues) and has_offset
+        can_shift_from_selected = 0 <= loaded_row < len(working_cues) and has_offset
+        shift_all.setEnabled(can_shift_all)
         shift_all.setToolTip(
             "Geser seluruh cue dengan offset ini sebagai satu langkah Undo."
-            if can_shift
+            if can_shift_all
             else "Masukkan offset selain 0 ms untuk menggeser seluruh working copy."
+        )
+        shift_from_selected.setEnabled(can_shift_from_selected)
+        shift_from_selected.setToolTip(
+            "Geser cue terpilih dan seluruh cue sesudahnya dengan offset ini sebagai satu langkah Undo."
+            if can_shift_from_selected
+            else "Pilih cue dan masukkan offset selain 0 ms."
         )
 
     def show_selected(row: int) -> None:
@@ -489,6 +504,30 @@ def create_subtitle_cue_edit_page(
         record_change(previous, selected_row)
         refresh_list(selected_row if selected_row >= 0 else None)
 
+    def shift_from_selected_now() -> None:
+        nonlocal working_cues
+        row = loaded_row
+        if row < 0 or row >= len(working_cues):
+            return
+        previous = snapshot(row)
+        if not apply_loaded_form():
+            return
+        try:
+            shifted = shift_subtitle_cues_from_row(
+                working_cues,
+                row,
+                shift_offset_ms.value() / 1000.0,
+            )
+        except ValueError as error:
+            QMessageBox.warning(page, "Timing subtitle tidak dapat digeser", str(error))
+            return
+        if shifted == working_cues:
+            refresh_shift_action()
+            return
+        working_cues = shifted
+        record_change(previous, row)
+        refresh_list(row)
+
     def undo_working_copy() -> None:
         nonlocal working_cues
         if not commit_loaded_form_as_history_step():
@@ -534,6 +573,7 @@ def create_subtitle_cue_edit_page(
     end.textChanged.connect(notify_dirty)
     shift_offset_ms.valueChanged.connect(lambda _value: refresh_shift_action())
     shift_all.clicked.connect(shift_all_cues_now)
+    shift_from_selected.clicked.connect(shift_from_selected_now)
     undo_edit.clicked.connect(undo_working_copy)
     redo_edit.clicked.connect(redo_working_copy)
     add_cue.clicked.connect(add_new_cue)
