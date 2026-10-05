@@ -13,6 +13,7 @@ from aavc.presentation.native_motion_playback import install_native_motion_previ
 from aavc.presentation.navigation import UiRoute
 from aavc.presentation.timeline_in_out import install_timeline_in_out
 from aavc.presentation.timeline_keyboard_seek import install_timeline_keyboard_seek
+from aavc.presentation.timeline_magnetic_in_out import install_timeline_magnetic_in_out
 from aavc.presentation.timeline_markers import install_timeline_markers
 from aavc.presentation.timeline_play_selection import start_timeline_play_selection
 from aavc.presentation.timeline_preview_seek import install_timeline_preview_seek
@@ -381,6 +382,7 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
             install_timeline_keyboard_seek(root, project)
             install_timeline_markers(root, project)
             install_timeline_in_out(root, project)
+            install_timeline_magnetic_in_out(root, project)
 
 
 def create_native_motion_preview_main_window(
