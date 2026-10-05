@@ -57,7 +57,7 @@ def _stored_int_property(owner: Any, name: str, default: int) -> int:
 def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
     """Wrap the Scene track in horizontal scroll and add persistent UI-only zoom."""
 
-    from PySide6.QtCore import QTimer, Qt
+    from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import (
         QFrame,
         QHBoxLayout,
