@@ -1,4 +1,7 @@
-from .animation_assignment import RemoveAnimationAssignment
+from .animation_assignment import (
+    RemoveAnimationAssignment,
+    SetAnimationAssignmentsBatch,
+)
 from .animation_randomization import RandomizeAnimationAssignments
 from .project_commands import (
     ProjectCommand,
@@ -29,6 +32,7 @@ __all__ = [
     "RelinkAsset",
     "RemoveAnimationAssignment",
     "SetAnimationAssignment",
+    "SetAnimationAssignmentsBatch",
     "SetNarrationAudio",
     "SetProjectTitle",
     "SetSceneDuration",
