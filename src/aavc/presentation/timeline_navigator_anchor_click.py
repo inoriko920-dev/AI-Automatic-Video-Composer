@@ -72,6 +72,24 @@ def timeline_navigator_anchor_hit(
     return kind, round(seconds, 6)
 
 
+def timeline_navigator_anchor_timecode(seconds: float) -> str:
+    """Format navigator anchor time as HH:MM:SS.mmm."""
+
+    total_ms = max(0, int(round(float(seconds) * 1000.0)))
+    hours, remainder = divmod(total_ms, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    whole_seconds, milliseconds = divmod(remainder, 1000)
+    return f"{hours:02d}:{minutes:02d}:{whole_seconds:02d}.{milliseconds:03d}"
+
+
+def timeline_navigator_anchor_tooltip(anchor: TimelineNavigatorAnchor) -> str:
+    """Return concise hover text for a navigator Marker/In/Out anchor."""
+
+    kind, seconds = anchor
+    label = {"in": "In", "out": "Out", "marker": "Marker"}[kind]
+    return f"{label} • {timeline_navigator_anchor_timecode(seconds)}"
+
+
 def timeline_navigator_anchor_center_scroll_value(
     durations_seconds: tuple[float, ...],
     global_seconds: float,
@@ -99,7 +117,14 @@ def install_timeline_navigator_anchor_click(root: Any, project: ProjectState) ->
     """Make session Marker/In/Out anchors clickable in the mini navigator."""
 
     from PySide6.QtCore import QEvent, QObject, Qt
-    from PySide6.QtWidgets import QListWidget, QScrollArea, QSlider, QSpinBox, QWidget
+    from PySide6.QtWidgets import (
+        QListWidget,
+        QScrollArea,
+        QSlider,
+        QSpinBox,
+        QToolTip,
+        QWidget,
+    )
 
     navigator = root.findChild(QWidget, "TimelineMiniNavigator")
     scroll = root.findChild(QScrollArea, "TimelineSceneScrollArea")
@@ -238,16 +263,30 @@ def install_timeline_navigator_anchor_click(root: Any, project: ProjectState) ->
             if event_type == QEvent.Type.MouseMove:
                 mouse_x = float(event.position().x())
                 if self._consuming_click:
+                    QToolTip.hideText()
                     event.accept()
                     return True
                 if bool(event.buttons() & Qt.MouseButton.LeftButton):
+                    QToolTip.hideText()
                     return False
                 if is_resize_grip(mouse_x):
+                    QToolTip.hideText()
                     return False
-                if anchor_at(mouse_x) is not None:
+                anchor = anchor_at(mouse_x)
+                if anchor is not None:
                     navigator.setCursor(Qt.CursorShape.PointingHandCursor)
+                    QToolTip.showText(
+                        navigator.mapToGlobal(event.position().toPoint()),
+                        timeline_navigator_anchor_tooltip(anchor),
+                        navigator,
+                    )
                     event.accept()
                     return True
+                QToolTip.hideText()
+                return False
+
+            if event_type == QEvent.Type.Leave:
+                QToolTip.hideText()
                 return False
 
             if event_type == QEvent.Type.MouseButtonPress:
@@ -255,10 +294,13 @@ def install_timeline_navigator_anchor_click(root: Any, project: ProjectState) ->
                     return False
                 mouse_x = float(event.position().x())
                 if is_resize_grip(mouse_x):
+                    QToolTip.hideText()
                     return False
                 anchor = anchor_at(mouse_x)
                 if anchor is None:
+                    QToolTip.hideText()
                     return False
+                QToolTip.hideText()
                 activate_manual_override()
                 seek_anchor(anchor)
                 self._consuming_click = True
