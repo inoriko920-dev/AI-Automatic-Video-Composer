@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from aavc.application.commands import (
     RandomizeAnimationAssignments,
@@ -15,6 +15,9 @@ from aavc.presentation.dialogs.asset_motion import (
 from aavc.presentation.navigation import UiRoute
 from aavc.presentation.windows.project_menu_window import ProjectMenuMainWindow
 
+ANIMATION_MODE_ITEMS = ("Auto (AI)", "Random App", "Manual")
+AnimationModeAction = Literal["ai_unavailable", "auto_motion_all", "manual_asset"]
+
 
 def animation_menu_enabled(*, has_project: bool, has_selected_scene: bool) -> bool:
     """Return whether selected-scene animation actions may be used."""
@@ -26,6 +29,18 @@ def auto_motion_all_enabled(*, has_project: bool) -> bool:
     """Return whether project-wide Auto Motion may be used."""
 
     return has_project
+
+
+def animation_mode_action(mode: str) -> AnimationModeAction | None:
+    """Map the existing toolbar mode labels to live runtime workflows."""
+
+    if mode == "Auto (AI)":
+        return "ai_unavailable"
+    if mode == "Random App":
+        return "auto_motion_all"
+    if mode == "Manual":
+        return "manual_asset"
+    return None
 
 
 def stored_animation_seed(metadata: dict[str, str]) -> int:
@@ -40,7 +55,7 @@ def stored_animation_seed(metadata: dict[str, str]) -> int:
 
 
 class AnimationMenuMainWindow(ProjectMenuMainWindow):
-    """Expose render-backed per-asset motion through the runtime Animation menu."""
+    """Expose render-backed asset motion through the current runtime shell."""
 
     def __init__(
         self,
@@ -50,6 +65,7 @@ class AnimationMenuMainWindow(ProjectMenuMainWindow):
         self._asset_motion_action: Any | None = None
         self._auto_motion_scene_action: Any | None = None
         self._auto_motion_all_action: Any | None = None
+        self._animation_mode_combo: Any | None = None
         super().__init__(services, initial_state=initial_state)
 
     def _build_menu(self, action_type: Any) -> None:
@@ -89,6 +105,49 @@ class AnimationMenuMainWindow(ProjectMenuMainWindow):
         animation_menu.addAction(auto_all)
         self._auto_motion_all_action = auto_all
         self._refresh_animation_menu_state()
+
+    def _build_toolbar(self, toolbar_type: Any, action_type: Any) -> None:
+        super()._build_toolbar(toolbar_type, action_type)
+
+        from PySide6.QtWidgets import QComboBox
+
+        for combo in self.window.findChildren(QComboBox):
+            items = tuple(combo.itemText(index) for index in range(combo.count()))
+            if items != ANIMATION_MODE_ITEMS:
+                continue
+            combo.setObjectName("AnimationModeCombo")
+            combo.setToolTip(
+                "Auto (AI): belum tersedia. Random App: Auto Motion semua Scene. "
+                "Manual: editor animasi aset Scene terpilih."
+            )
+            combo.activated.connect(
+                lambda index, source=combo: self._activate_animation_mode(
+                    source.itemText(index)
+                )
+            )
+            self._animation_mode_combo = combo
+            break
+
+    def _activate_animation_mode(self, mode: str) -> None:
+        action = animation_mode_action(mode)
+        if action == "auto_motion_all":
+            self.randomize_native_motion(selected_only=False)
+            return
+        if action == "manual_asset":
+            self.edit_selected_scene_asset_motion()
+            return
+        if action == "ai_unavailable":
+            self._show_project_notice(
+                "Auto (AI) belum tersedia",
+                "Provider AI untuk Mode Animasi belum terhubung pada build ini. "
+                "Gunakan Random App untuk Auto Motion render-backed atau Manual "
+                "untuk mengatur animasi aset Scene terpilih.",
+            )
+            return
+        self.window.statusBar().showMessage(
+            f"Mode Animasi tidak dikenali: {mode}",
+            5000,
+        )
 
     def _refresh_animation_menu_state(self) -> None:
         project = self.services.project_session.current
