@@ -4,6 +4,10 @@ from math import ceil
 from typing import Any
 
 from aavc.domain.project.models import ProjectState
+from aavc.presentation.timeline_smooth_follow import (
+    TIMELINE_FOLLOW_ANIMATION_MS,
+    timeline_smooth_follow_scroll_target,
+)
 
 MIN_TIMELINE_ZOOM_PERCENT = 50
 MAX_TIMELINE_ZOOM_PERCENT = 400
@@ -187,7 +191,7 @@ def _stored_int_property(owner: Any, name: str, default: int) -> int:
 def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
     """Install timeline zoom, horizontal scroll, global ruler, and synced playhead."""
 
-    from PySide6.QtCore import QPointF, Qt, QTimer
+    from PySide6.QtCore import QEasingCurve, QPointF, QPropertyAnimation, Qt, QTimer
     from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
     from PySide6.QtWidgets import (
         QFrame,
@@ -398,6 +402,26 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
         + 4
     )
 
+    bar = scroll.horizontalScrollBar()
+    follow_animation = QPropertyAnimation(bar, b"value", root)
+    follow_animation.setDuration(TIMELINE_FOLLOW_ANIMATION_MS)
+    follow_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+    root._aavc_timeline_follow_animation = follow_animation
+
+    def smooth_follow_playhead(x: int) -> None:
+        target = timeline_smooth_follow_scroll_target(
+            x,
+            scroll.viewport().width(),
+            bar.value(),
+            bar.maximum(),
+        )
+        if target is None:
+            return
+        follow_animation.stop()
+        follow_animation.setStartValue(bar.value())
+        follow_animation.setEndValue(target)
+        follow_animation.start()
+
     def update_playhead(*, follow: bool) -> None:
         if scene_list is None or progress_slider is None:
             playhead.hide()
@@ -427,12 +451,12 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
             follow,
             owner.property(TIMELINE_FOLLOW_PLAYHEAD_PROPERTY),
         ):
-            scroll.ensureVisible(x, 0, 48, 0)
+            smooth_follow_playhead(x)
 
     def apply_zoom(value: int) -> None:
         normalized = normalize_timeline_zoom_percent(value)
         owner.setProperty("aavcTimelineZoomPercent", normalized)
-        current_scroll = scroll.horizontalScrollBar().value()
+        current_scroll = bar.value()
         for button, scene in zip(buttons, project.scenes, strict=True):
             button.setFixedWidth(
                 timeline_scene_pixel_width(scene.duration_seconds, normalized)
@@ -446,9 +470,7 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
         QTimer.singleShot(0, lambda: update_playhead(follow=False))
         QTimer.singleShot(
             0,
-            lambda: scroll.horizontalScrollBar().setValue(
-                min(current_scroll, scroll.horizontalScrollBar().maximum())
-            ),
+            lambda: bar.setValue(min(current_scroll, bar.maximum())),
         )
 
     apply_zoom(zoom_percent)
@@ -475,13 +497,15 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
         follow_button.setChecked(follow_playhead)
         follow_button.setText("Follow ON" if follow_playhead else "Follow OFF")
         follow_button.setToolTip(
-            "Aktif: timeline otomatis mengikuti playhead. Nonaktif: viewport tetap diam saat playhead bergerak."
+            "Aktif: timeline mengikuti playhead dengan scroll halus. Nonaktif: viewport tetap diam saat playhead bergerak."
         )
         follow_button.setStyleSheet("QPushButton { padding: 2px 7px; font-size: 9px; }")
 
         def set_follow_playhead(checked: bool) -> None:
             owner.setProperty(TIMELINE_FOLLOW_PLAYHEAD_PROPERTY, bool(checked))
             follow_button.setText("Follow ON" if checked else "Follow OFF")
+            if not checked:
+                follow_animation.stop()
             status_bar = owner.statusBar() if hasattr(owner, "statusBar") else None
             if status_bar is not None:
                 state = "aktif" if checked else "nonaktif"
@@ -493,7 +517,6 @@ def install_timeline_zoom_scroll(root: Any, project: ProjectState) -> bool:
         header_layout.addWidget(follow_button)
         root._aavc_timeline_follow_playhead_button = follow_button
 
-    bar = scroll.horizontalScrollBar()
     bar.valueChanged.connect(
         lambda value: owner.setProperty("aavcTimelineScrollValue", int(value))
     )
