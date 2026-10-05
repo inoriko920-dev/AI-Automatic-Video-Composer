@@ -1,1 +1,0 @@
-Split selected Scene at current preview playhead. Preserve assets, clone animation assignments, keep total duration, one Undo/Redo step.
