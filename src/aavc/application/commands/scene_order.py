@@ -4,6 +4,8 @@ from dataclasses import dataclass, replace
 
 from aavc.domain.project.models import ProjectState
 
+MIN_SCENE_SEGMENT_SECONDS = 0.001
+
 
 @dataclass(frozen=True, slots=True)
 class MoveScene:
@@ -76,6 +78,58 @@ class MoveSceneToIndex:
 
     def describe(self) -> str:
         return f"Pindah Scene {self.scene_number} ke posisi {self.target_index + 1}"
+
+
+@dataclass(frozen=True, slots=True)
+class SplitScene:
+    """Split one Scene at scene-local time and preserve all visual assignments."""
+
+    scene_number: int
+    split_seconds: float
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        source_index = next(
+            (
+                index
+                for index, scene in enumerate(project.scenes)
+                if scene.scene_number == self.scene_number
+            ),
+            None,
+        )
+        if source_index is None:
+            raise ValueError(f"Scene {self.scene_number} tidak ditemukan")
+
+        source = project.scenes[source_index]
+        split_seconds = round(float(self.split_seconds), 3)
+        remaining_seconds = source.duration_seconds - split_seconds
+        if split_seconds < MIN_SCENE_SEGMENT_SECONDS:
+            raise ValueError("Playhead terlalu dekat dengan awal Scene untuk Split")
+        if remaining_seconds < MIN_SCENE_SEGMENT_SECONDS:
+            raise ValueError("Playhead terlalu dekat dengan akhir Scene untuk Split")
+
+        new_scene_number = max(scene.scene_number for scene in project.scenes) + 1
+        first = replace(source, duration_seconds=split_seconds)
+        second = replace(
+            source,
+            scene_number=new_scene_number,
+            duration_seconds=remaining_seconds,
+        )
+
+        scenes = list(project.scenes)
+        scenes[source_index : source_index + 1] = [first, second]
+        cloned_animations = tuple(
+            replace(assignment, scene_number=new_scene_number)
+            for assignment in project.animations
+            if assignment.scene_number == self.scene_number
+        )
+        return replace(
+            project,
+            scenes=tuple(scenes),
+            animations=(*project.animations, *cloned_animations),
+        )
+
+    def describe(self) -> str:
+        return f"Split Scene {self.scene_number} pada {self.split_seconds:.3f}s"
 
 
 @dataclass(frozen=True, slots=True)

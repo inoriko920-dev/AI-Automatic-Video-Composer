@@ -11,7 +11,13 @@ from .project_commands import (
     SetSubtitleStyle,
 )
 from .project_metadata import SetProjectTitle
-from .scene_order import DeleteScene, DuplicateScene, MoveScene, MoveSceneToIndex
+from .scene_order import (
+    DeleteScene,
+    DuplicateScene,
+    MoveScene,
+    MoveSceneToIndex,
+    SplitScene,
+)
 
 __all__ = [
     "DeleteScene",
@@ -29,4 +35,5 @@ __all__ = [
     "SetSubtitleAnimation",
     "SetSubtitleSource",
     "SetSubtitleStyle",
+    "SplitScene",
 ]
