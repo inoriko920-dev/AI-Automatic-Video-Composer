@@ -154,9 +154,17 @@ class NativeMotionPreviewMainWindow(NativeMotionMainWindow):
         from PySide6.QtWidgets import QLabel, QSlider
 
         for label in root.findChildren(QLabel):
-            if "Split dan trim kiri belum aktif." in label.text():
+            text = label.text()
+            if "Split belum aktif." in text:
                 label.setText(
-                    label.text().replace(
+                    text.replace(
+                        "Split belum aktif.",
+                        "Split: Ctrl+B pada playhead.",
+                    )
+                )
+            elif "Split dan trim kiri belum aktif." in text:
+                label.setText(
+                    text.replace(
                         "Split dan trim kiri belum aktif.",
                         "Split: Ctrl+B pada playhead. Trim kiri belum aktif.",
                     )
