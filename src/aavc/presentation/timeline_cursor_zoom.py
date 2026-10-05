@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Any
 
 from aavc.domain.project.models import ProjectState
@@ -143,10 +144,8 @@ def install_timeline_cursor_zoom(root: Any, project: ProjectState) -> bool:
     previous_targets = getattr(root, "_aavc_timeline_cursor_zoom_targets", ())
     if previous_filter is not None:
         for target in previous_targets:
-            try:
+            with suppress(RuntimeError):
                 target.removeEventFilter(previous_filter)
-            except RuntimeError:
-                pass
 
     event_filter = _TimelineCursorZoomFilter(root)
     raw_targets = [scroll, viewport, track_widget, *track_widget.findChildren(QWidget)]
