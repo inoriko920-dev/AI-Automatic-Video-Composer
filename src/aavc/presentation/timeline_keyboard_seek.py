@@ -53,16 +53,33 @@ def timeline_keyboard_seek_target(
     return last_index, durations[last_index]
 
 
-def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
-    """Enable frame stepping and one-second jumps with Left/Right shortcuts."""
+def timeline_keyboard_terminal_target(
+    durations_seconds: tuple[float, ...],
+    *,
+    end: bool,
+) -> tuple[int, float] | None:
+    """Return the project Home/End target as Scene index plus local seconds."""
 
-    from PySide6.QtCore import QEvent, QObject, Qt
+    if not durations_seconds:
+        return None
+    durations = tuple(max(0.0, float(item)) for item in durations_seconds)
+    if end:
+        last_index = len(durations) - 1
+        return last_index, durations[last_index]
+    return 0, 0.0
+
+
+def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
+    """Enable precise timeline navigation and J/K/L preview transport shortcuts."""
+
+    from PySide6.QtCore import QEvent, QObject, Qt, QTimer
     from PySide6.QtWidgets import (
         QAbstractSpinBox,
         QApplication,
         QLineEdit,
         QListWidget,
         QPlainTextEdit,
+        QPushButton,
         QSlider,
         QTextEdit,
     )
@@ -83,6 +100,10 @@ def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
 
     sliders = root.findChildren(QSlider)
     progress_slider: Any | None = sliders[0] if sliders else None
+    play_button = next(
+        (button for button in root.findChildren(QPushButton) if button.text() in {"▶", "⏸"}),
+        None,
+    )
     app: Any = QApplication.instance()
     if scene_list is None or progress_slider is None or app is None:
         return False
@@ -96,6 +117,10 @@ def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
         durations[state_scene_index],
     )
     applying_keyboard_seek = False
+
+    reverse_timer = QTimer(root)
+    reverse_timer.setTimerType(Qt.TimerType.PreciseTimer)
+    reverse_timer.setInterval(max(15, int(round(frame_seconds * 1000.0))))
 
     def sync_from_slider(value: int) -> None:
         nonlocal state_scene_index, state_local_seconds
@@ -118,16 +143,10 @@ def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
         state_scene_index = row
         state_local_seconds = 0.0
 
-    def seek_by(delta_seconds: float) -> None:
+    def seek_to_target(target: tuple[int, float] | None) -> tuple[int, float] | None:
         nonlocal applying_keyboard_seek, state_scene_index, state_local_seconds
-        target = timeline_keyboard_seek_target(
-            durations,
-            state_scene_index,
-            state_local_seconds,
-            delta_seconds,
-        )
         if target is None:
-            return
+            return None
         target_index, target_local = target
         applying_keyboard_seek = True
         try:
@@ -145,6 +164,51 @@ def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
             state_local_seconds = target_local
         finally:
             applying_keyboard_seek = False
+        return target
+
+    def seek_by(delta_seconds: float) -> tuple[int, float] | None:
+        return seek_to_target(
+            timeline_keyboard_seek_target(
+                durations,
+                state_scene_index,
+                state_local_seconds,
+                delta_seconds,
+            )
+        )
+
+    def pause_forward_preserving_position() -> None:
+        if play_button is None or play_button.text() != "⏸":
+            return
+        preserved = (state_scene_index, state_local_seconds)
+        play_button.click()
+        seek_to_target(preserved)
+
+    def pause_transport() -> None:
+        reverse_timer.stop()
+        pause_forward_preserving_position()
+
+    def start_forward() -> None:
+        reverse_timer.stop()
+        if play_button is None or play_button.text() == "⏸":
+            return
+        play_button.click()
+
+    def reverse_tick() -> None:
+        target = seek_by(-frame_seconds)
+        if target is None:
+            reverse_timer.stop()
+            return
+        target_index, target_local = target
+        if target_index == 0 and target_local <= 1e-12:
+            reverse_timer.stop()
+
+    def start_reverse() -> None:
+        pause_forward_preserving_position()
+        if state_scene_index == 0 and state_local_seconds <= 1e-12:
+            return
+        reverse_timer.start()
+
+    reverse_timer.timeout.connect(reverse_tick)
 
     class _KeyboardSeekFilter(QObject):
         def eventFilter(self, watched: Any, event: Any) -> bool:  # noqa: N802
@@ -153,15 +217,26 @@ def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
                 return False
 
             key = event.key()
-            if key not in {Qt.Key.Key_Left, Qt.Key.Key_Right}:
+            supported_keys = {
+                Qt.Key.Key_Left,
+                Qt.Key.Key_Right,
+                Qt.Key.Key_Home,
+                Qt.Key.Key_End,
+                Qt.Key.Key_J,
+                Qt.Key.Key_K,
+                Qt.Key.Key_L,
+            }
+            if key not in supported_keys:
                 return False
 
             modifiers = event.modifiers()
-            allowed_modifiers = {
-                Qt.KeyboardModifier.NoModifier,
-                Qt.KeyboardModifier.ShiftModifier,
-            }
-            if modifiers not in allowed_modifiers:
+            if key in {Qt.Key.Key_Left, Qt.Key.Key_Right}:
+                if modifiers not in {
+                    Qt.KeyboardModifier.NoModifier,
+                    Qt.KeyboardModifier.ShiftModifier,
+                }:
+                    return False
+            elif modifiers != Qt.KeyboardModifier.NoModifier:
                 return False
 
             focus = app.focusWidget()
@@ -173,26 +248,46 @@ def install_timeline_keyboard_seek(root: Any, project: ProjectState) -> bool:
             if focus is not None and focus is not root and not root.isAncestorOf(focus):
                 return False
 
-            magnitude = (
-                KEYBOARD_TIME_JUMP_SECONDS
-                if modifiers == Qt.KeyboardModifier.ShiftModifier
-                else frame_seconds
-            )
-            direction = -1.0 if key == Qt.Key.Key_Left else 1.0
-            seek_by(direction * magnitude)
+            if key in {Qt.Key.Key_Left, Qt.Key.Key_Right}:
+                reverse_timer.stop()
+                magnitude = (
+                    KEYBOARD_TIME_JUMP_SECONDS
+                    if modifiers == Qt.KeyboardModifier.ShiftModifier
+                    else frame_seconds
+                )
+                direction = -1.0 if key == Qt.Key.Key_Left else 1.0
+                seek_by(direction * magnitude)
+            elif key == Qt.Key.Key_Home:
+                reverse_timer.stop()
+                seek_to_target(timeline_keyboard_terminal_target(durations, end=False))
+            elif key == Qt.Key.Key_End:
+                reverse_timer.stop()
+                seek_to_target(timeline_keyboard_terminal_target(durations, end=True))
+            elif key == Qt.Key.Key_J:
+                start_reverse()
+            elif key == Qt.Key.Key_K:
+                pause_transport()
+            else:
+                start_forward()
+
             event.accept()
             return True
 
     previous_filter = getattr(root, "_aavc_timeline_keyboard_seek_filter", None)
     if previous_filter is not None:
         app.removeEventFilter(previous_filter)
+    previous_reverse_timer = getattr(root, "_aavc_timeline_reverse_timer", None)
+    if previous_reverse_timer is not None:
+        previous_reverse_timer.stop()
 
     event_filter = _KeyboardSeekFilter(root)
     app.installEventFilter(event_filter)
     root._aavc_timeline_keyboard_seek_filter = event_filter
+    root._aavc_timeline_reverse_timer = reverse_timer
     progress_slider.valueChanged.connect(sync_from_slider)
     scene_list.currentRowChanged.connect(sync_from_scene)
     progress_slider.setToolTip(
-        f"{progress_slider.toolTip()} Left/Right = 1 frame; Shift+Left/Right = 1 detik."
+        f"{progress_slider.toolTip()} Left/Right = 1 frame; Shift+Left/Right = 1 detik; "
+        "Home/End = awal/akhir project; J/K/L = reverse/pause/play."
     )
     return True
