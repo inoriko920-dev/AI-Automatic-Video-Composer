@@ -1,4 +1,5 @@
 from .compiler import compile_srt_to_ass
+from .history import SubtitleWorkingCopyHistory, SubtitleWorkingCopySnapshot
 from .overlap import resolve_subtitle_cue_overlap
 from .presets import ANIMATION_PRESETS, STYLE_PRESETS, get_animation_preset, get_style_preset
 from .srt import (
@@ -23,6 +24,8 @@ __all__ = [
     "ANIMATION_PRESETS",
     "STYLE_PRESETS",
     "SubtitleCue",
+    "SubtitleWorkingCopyHistory",
+    "SubtitleWorkingCopySnapshot",
     "WordTiming",
     "compile_srt_to_ass",
     "delete_subtitle_cue",
