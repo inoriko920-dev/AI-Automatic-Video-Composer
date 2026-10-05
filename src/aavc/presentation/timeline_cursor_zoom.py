@@ -4,6 +4,9 @@ from contextlib import suppress
 from typing import Any
 
 from aavc.domain.project.models import ProjectState
+from aavc.presentation.timeline_follow_override import (
+    install_timeline_manual_follow_override,
+)
 from aavc.presentation.timeline_zoom_actions import install_timeline_zoom_actions
 from aavc.presentation.timeline_zoom_scroll import (
     TIMELINE_TRACK_SPACING_PX,
@@ -166,4 +169,5 @@ def install_timeline_cursor_zoom(root: Any, project: ProjectState) -> bool:
         f"{scroll.toolTip()} Ctrl+mouse wheel = zoom timeline pada posisi kursor."
     )
     install_timeline_zoom_actions(root, project)
+    install_timeline_manual_follow_override(root)
     return True
