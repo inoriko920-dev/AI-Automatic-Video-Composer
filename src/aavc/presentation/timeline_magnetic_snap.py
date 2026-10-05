@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Literal
 
-from aavc.presentation.timeline_magnet_control import timeline_magnet_runtime_active
+from aavc.presentation.timeline_magnet_control import (
+    timeline_magnet_runtime_active,
+    timeline_magnet_runtime_target_enabled,
+)
 from aavc.presentation.timeline_markers import timeline_marker_snap_seconds
 from aavc.presentation.timeline_zoom_scroll import timeline_global_seconds_pixel_x
 
@@ -33,7 +36,7 @@ def timeline_magnetic_snap_target(
     playhead_seconds: float | None = None,
     tolerance_px: int = TIMELINE_MAGNETIC_SNAP_RADIUS_PX,
 ) -> tuple[float, TimelineMagneticSnapKind] | None:
-    """Return the nearest visual magnetic target within the pixel tolerance."""
+    """Return the nearest enabled visual magnetic target within the pixel tolerance."""
 
     if not durations_seconds or not timeline_magnet_runtime_active():
         return None
@@ -44,12 +47,17 @@ def timeline_magnetic_snap_target(
     pointer_x = float(pixel_x)
 
     raw_candidates: list[tuple[float, TimelineMagneticSnapKind, int]] = []
-    raw_candidates.extend(
-        (seconds, "scene", 2)
-        for seconds in timeline_scene_boundaries_seconds(durations_seconds)
-    )
-    raw_candidates.extend((float(seconds), "marker", 1) for seconds in markers_seconds)
-    if playhead_seconds is not None:
+    if timeline_magnet_runtime_target_enabled("scene"):
+        raw_candidates.extend(
+            (seconds, "scene", 2)
+            for seconds in timeline_scene_boundaries_seconds(durations_seconds)
+        )
+    if timeline_magnet_runtime_target_enabled("marker"):
+        raw_candidates.extend((float(seconds), "marker", 1) for seconds in markers_seconds)
+    if (
+        playhead_seconds is not None
+        and timeline_magnet_runtime_target_enabled("playhead")
+    ):
         raw_candidates.append((float(playhead_seconds), "playhead", 0))
 
     normalized: dict[tuple[float, TimelineMagneticSnapKind], int] = {}
