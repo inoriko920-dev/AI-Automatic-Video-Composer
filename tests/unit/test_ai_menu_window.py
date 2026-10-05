@@ -34,8 +34,8 @@ def test_secure_gemini_store_is_windows_only() -> None:
 
 def test_configured_slots_and_status_never_expose_secret_values() -> None:
     credentials = InMemoryCredentialStore()
-    secret_one = "AIzaSYNTHETIC_SECRET_ONE_123456789"
-    secret_three = "AIzaSYNTHETIC_SECRET_THREE_987654321"
+    secret_one = "synthetic-secret-one-do-not-leak"
+    secret_three = "synthetic-secret-three-do-not-leak"
     credentials.set_secret(gemini_credential_reference(1), secret_one)
     credentials.set_secret(gemini_credential_reference(3), secret_three)
 
