@@ -9,6 +9,7 @@ from aavc.presentation.timeline_zoom_scroll import (
     TIMELINE_PLAYHEAD_WIDTH_PX,
     TIMELINE_TRACK_SPACING_PX,
     normalize_timeline_zoom_percent,
+    timeline_global_seconds_pixel_x,
     timeline_scene_pixel_width,
     timeline_track_pixel_width,
 )
@@ -83,6 +84,87 @@ def timeline_navigator_scaled_x(
         return 0
     ratio = max(0.0, min(1.0, float(track_x) / track))
     return max(0, min(nav, int(round(nav * ratio))))
+
+
+def timeline_navigator_global_seconds_x(
+    durations_seconds: tuple[float, ...],
+    global_seconds: float,
+    zoom_percent: int | float,
+    track_width_px: int | float,
+    navigator_width_px: int | float,
+) -> int:
+    """Map global project seconds into the compressed navigator coordinates."""
+
+    if not durations_seconds:
+        return 0
+    track_x = timeline_global_seconds_pixel_x(
+        durations_seconds,
+        global_seconds,
+        zoom_percent,
+    )
+    return timeline_navigator_scaled_x(
+        track_x,
+        track_width_px,
+        navigator_width_px,
+    )
+
+
+def timeline_navigator_scene_boundary_xs(
+    durations_seconds: tuple[float, ...],
+    zoom_percent: int | float,
+    track_width_px: int | float,
+    navigator_width_px: int | float,
+) -> tuple[int, ...]:
+    """Return visual Scene-end boundaries in navigator coordinates."""
+
+    if not durations_seconds:
+        return ()
+    boundaries = [0]
+    visual_x = 0.0
+    last_index = len(durations_seconds) - 1
+    for index, duration in enumerate(durations_seconds):
+        visual_x += timeline_scene_pixel_width(duration, zoom_percent)
+        boundaries.append(
+            timeline_navigator_scaled_x(
+                visual_x,
+                track_width_px,
+                navigator_width_px,
+            )
+        )
+        if index < last_index:
+            visual_x += TIMELINE_TRACK_SPACING_PX
+    return tuple(boundaries)
+
+
+def timeline_navigator_range_geometry(
+    durations_seconds: tuple[float, ...],
+    in_seconds: float | None,
+    out_seconds: float | None,
+    zoom_percent: int | float,
+    track_width_px: int | float,
+    navigator_width_px: int | float,
+) -> tuple[int, int] | None:
+    """Return left/width for a complete In/Out range in navigator coordinates."""
+
+    if in_seconds is None or out_seconds is None or not durations_seconds:
+        return None
+    in_x = timeline_navigator_global_seconds_x(
+        durations_seconds,
+        in_seconds,
+        zoom_percent,
+        track_width_px,
+        navigator_width_px,
+    )
+    out_x = timeline_navigator_global_seconds_x(
+        durations_seconds,
+        out_seconds,
+        zoom_percent,
+        track_width_px,
+        navigator_width_px,
+    )
+    left = min(in_x, out_x)
+    right = max(in_x, out_x)
+    return left, max(1, right - left)
 
 
 def timeline_navigator_hit_region(
@@ -162,8 +244,8 @@ def timeline_navigator_anchor_scroll_value(
 def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
     """Install a compressed project overview with draggable viewport window."""
 
-    from PySide6.QtCore import QEvent, QObject, QRectF, Qt, QTimer
-    from PySide6.QtGui import QColor, QPainter, QPen
+    from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, QTimer
+    from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
     from PySide6.QtWidgets import (
         QBoxLayout,
         QListWidget,
@@ -191,8 +273,10 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
     bar = scroll.horizontalScrollBar()
     viewport = scroll.viewport()
     durations = tuple(max(0.0, float(scene.duration_seconds)) for scene in project.scenes)
+    owner: Any = timeline.window()
 
     playhead = root.findChild(QWidget, "TimelinePlayhead")
+    ruler = root.findChild(QWidget, "TimelineTimeRuler")
     progress_sliders = root.findChildren(QSlider)
     progress_slider: Any | None = progress_sliders[0] if progress_sliders else None
     scene_list: Any | None = None
@@ -214,7 +298,8 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
             self.setMouseTracking(True)
             self.setCursor(Qt.CursorShape.OpenHandCursor)
             self.setToolTip(
-                "Overview seluruh timeline. Drag tengah window = pan; drag tepi kiri/kanan = zoom; klik area lain = lompat."
+                "Overview seluruh timeline. Marker amber, In/Out biru, dan batas Scene tampil sebagai referensi; "
+                "drag tengah window = pan; drag tepi kiri/kanan = zoom; klik area lain = lompat."
             )
 
         def _handle_geometry(self) -> tuple[int, int]:
@@ -225,6 +310,29 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
                 bar.value(),
                 bar.maximum(),
             )
+
+        def _session_markers(self) -> tuple[float, ...]:
+            raw = getattr(owner, "_aavc_timeline_markers_seconds", ())
+            values: list[float] = []
+            for item in raw:
+                try:
+                    values.append(float(item))
+                except (TypeError, ValueError):
+                    continue
+            return tuple(sorted(values))
+
+        def _session_range(self) -> tuple[float | None, float | None]:
+            raw_in = getattr(owner, "_aavc_timeline_in_seconds", None)
+            raw_out = getattr(owner, "_aavc_timeline_out_seconds", None)
+            try:
+                in_point = None if raw_in is None else float(raw_in)
+            except (TypeError, ValueError):
+                in_point = None
+            try:
+                out_point = None if raw_out is None else float(raw_out)
+            except (TypeError, ValueError):
+                out_point = None
+            return in_point, out_point
 
         def _activate_manual_override(self) -> None:
             callback = getattr(root, "_aavc_timeline_set_manual_follow_override", None)
@@ -341,6 +449,34 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
                 if index < last_index:
                     main_x += TIMELINE_TRACK_SPACING_PX
 
+            painter.setPen(QPen(QColor("#94A3B8"), 1))
+            for boundary_x in timeline_navigator_scene_boundary_xs(
+                durations,
+                active_zoom,
+                track_width,
+                nav_width,
+            ):
+                painter.drawLine(boundary_x, 4, boundary_x, self.height() - 4)
+
+            in_point, out_point = self._session_range()
+            range_geometry = timeline_navigator_range_geometry(
+                durations,
+                in_point,
+                out_point,
+                active_zoom,
+                track_width,
+                nav_width,
+            )
+            if range_geometry is not None:
+                range_left, range_width = range_geometry
+                painter.fillRect(
+                    range_left,
+                    5,
+                    range_width,
+                    max(1, self.height() - 10),
+                    QColor(37, 99, 235, 34),
+                )
+
             handle_x, handle_width = self._handle_geometry()
             painter.fillRect(
                 handle_x,
@@ -370,6 +506,48 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
                 handle_x + max(4, handle_width - 4),
                 edge_bottom,
             )
+
+            marker_color = QColor("#F59E0B")
+            for marker_seconds in self._session_markers():
+                marker_x = timeline_navigator_global_seconds_x(
+                    durations,
+                    marker_seconds,
+                    active_zoom,
+                    track_width,
+                    nav_width,
+                )
+                painter.setPen(QPen(marker_color, 1))
+                painter.drawLine(marker_x, 7, marker_x, self.height() - 5)
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(marker_color)
+                painter.drawPolygon(
+                    QPolygonF(
+                        (
+                            QPointF(float(marker_x), 2.0),
+                            QPointF(float(marker_x + 3), 5.0),
+                            QPointF(float(marker_x), 8.0),
+                            QPointF(float(marker_x - 3), 5.0),
+                        )
+                    )
+                )
+
+            def draw_range_point(seconds: float | None, label: str) -> None:
+                if seconds is None:
+                    return
+                point_x = timeline_navigator_global_seconds_x(
+                    durations,
+                    seconds,
+                    active_zoom,
+                    track_width,
+                    nav_width,
+                )
+                painter.setPen(QPen(QColor("#2563EB"), 2))
+                painter.drawLine(point_x, 3, point_x, self.height() - 3)
+                painter.setPen(QColor("#1D4ED8"))
+                painter.drawText(point_x + 2, 10, label)
+
+            draw_range_point(in_point, "I")
+            draw_range_point(out_point, "O")
 
             if playhead is not None and playhead.isVisible():
                 playhead_center = (
@@ -454,16 +632,23 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
     else:
         root_layout.addWidget(navigator)
 
-    class _NavigatorResizeFilter(QObject):
+    class _NavigatorRefreshFilter(QObject):
         def eventFilter(self, watched: Any, event: Any) -> bool:  # noqa: N802
             del watched
-            if event.type() == QEvent.Type.Resize:
+            if event.type() in {
+                QEvent.Type.Resize,
+                QEvent.Type.ChildAdded,
+                QEvent.Type.ChildRemoved,
+            }:
                 QTimer.singleShot(0, navigator.update)
             return False
 
-    resize_filter = _NavigatorResizeFilter(root)
-    for target in (viewport, track_widget):
-        target.installEventFilter(resize_filter)
+    refresh_filter = _NavigatorRefreshFilter(root)
+    refresh_targets: list[Any] = [viewport, track_widget]
+    if ruler is not None:
+        refresh_targets.append(ruler)
+    for target in refresh_targets:
+        target.installEventFilter(refresh_filter)
 
     bar.valueChanged.connect(lambda _value: navigator.update())
     bar.rangeChanged.connect(lambda _minimum, _maximum: navigator.update())
@@ -478,7 +663,7 @@ def install_timeline_navigator(root: Any, project: ProjectState) -> bool:
         )
 
     root._aavc_timeline_navigator = navigator
-    root._aavc_timeline_navigator_resize_filter = resize_filter
-    root._aavc_timeline_navigator_resize_targets = (viewport, track_widget)
+    root._aavc_timeline_navigator_resize_filter = refresh_filter
+    root._aavc_timeline_navigator_resize_targets = tuple(refresh_targets)
     QTimer.singleShot(0, navigator.update)
     return True
