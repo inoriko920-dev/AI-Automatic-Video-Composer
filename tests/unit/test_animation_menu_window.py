@@ -3,6 +3,7 @@ from __future__ import annotations
 from aavc.presentation.windows.animation_menu_window import (
     AnimationMenuMainWindow,
     animation_menu_enabled,
+    animation_mode_action,
     auto_motion_all_enabled,
     stored_animation_seed,
 )
@@ -23,6 +24,13 @@ def test_selected_scene_animation_actions_require_project_and_scene() -> None:
 def test_auto_motion_all_only_requires_active_project() -> None:
     assert auto_motion_all_enabled(has_project=False) is False
     assert auto_motion_all_enabled(has_project=True) is True
+
+
+def test_toolbar_animation_modes_route_to_live_workflows() -> None:
+    assert animation_mode_action("Auto (AI)") == "ai_unavailable"
+    assert animation_mode_action("Random App") == "auto_motion_all"
+    assert animation_mode_action("Manual") == "manual_asset"
+    assert animation_mode_action("Tidak Ada") is None
 
 
 def test_stored_animation_seed_is_resilient_and_qt_safe() -> None:
