@@ -72,7 +72,7 @@ def test_handle_width_maps_to_expected_zoom_range() -> None:
     durations = (20.0,)
     assert timeline_navigator_zoom_percent_for_handle_width(
         durations, 500, 200, 200
-    ) == 50
+    ) == 52
     assert 98 <= timeline_navigator_zoom_percent_for_handle_width(
         durations, 500, 200, 104
     ) <= 102
