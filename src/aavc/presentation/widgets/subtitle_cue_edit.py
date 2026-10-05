@@ -8,6 +8,7 @@ from aavc.presentation.subtitle_view import build_subtitle_views
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
 from aavc.subtitles import (
     SubtitleCue,
+    delete_subtitle_cue,
     format_srt_timestamp,
     insert_subtitle_cue,
     merge_subtitle_cues,
@@ -46,7 +47,7 @@ def create_subtitle_cue_edit_page(
     layout.addWidget(title)
     layout.addWidget(
         muted_label(
-            "Edit teks/timing, tambah, pisah, atau gabungkan cue pada working copy. Source asli "
+            "Edit teks/timing, tambah, pisah, gabungkan, atau hapus cue pada working copy. Source asli "
             "tidak ditimpa; Simpan Salinan SRT menulis file baru lalu project diarahkan ke salinan."
         )
     )
@@ -75,6 +76,7 @@ def create_subtitle_cue_edit_page(
     add_cue = QPushButton("＋ Tambah Cue Setelah Ini")
     split_cue = QPushButton("✂ Pisah Cue di Kursor")
     merge_cue = QPushButton("⇄ Gabung dengan Cue Berikutnya")
+    delete_cue = QPushButton("🗑 Hapus Cue")
     save_copy = make_primary_button("Simpan Salinan SRT…")
     if on_save_copy is None:
         save_copy.setEnabled(False)
@@ -82,6 +84,7 @@ def create_subtitle_cue_edit_page(
     action_row.addWidget(add_cue)
     action_row.addWidget(split_cue)
     action_row.addWidget(merge_cue)
+    action_row.addWidget(delete_cue)
     action_row.addStretch(1)
     action_row.addWidget(save_copy)
     layout.addLayout(action_row)
@@ -110,6 +113,13 @@ def create_subtitle_cue_edit_page(
         available = 0 <= row < len(working_cues)
         split_cue.setEnabled(available)
         merge_cue.setEnabled(0 <= row < len(working_cues) - 1)
+        can_delete = available and len(working_cues) > 1
+        delete_cue.setEnabled(can_delete)
+        delete_cue.setToolTip(
+            "Hapus cue terpilih dari working copy."
+            if can_delete
+            else "Cue terakhir tidak dapat dihapus dari working copy."
+        )
         if not available:
             text.clear()
             start.clear()
@@ -191,6 +201,28 @@ def create_subtitle_cue_edit_page(
             return
         refresh_list(row)
 
+    def delete_current_cue() -> None:
+        nonlocal working_cues
+        row = cue_list.currentRow()
+        if row < 0 or row >= len(working_cues):
+            return
+        cue = working_cues[row]
+        answer = QMessageBox.question(
+            page,
+            "Hapus Cue",
+            f"Hapus cue {cue.index} dari working copy?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            working_cues = delete_subtitle_cue(working_cues, row)
+        except ValueError as error:
+            QMessageBox.warning(page, "Cue tidak dapat dihapus", str(error))
+            return
+        refresh_list(min(row, len(working_cues) - 1))
+
     def save_selected_copy() -> None:
         if not apply_current_form():
             return
@@ -203,6 +235,7 @@ def create_subtitle_cue_edit_page(
     add_cue.clicked.connect(add_new_cue)
     split_cue.clicked.connect(split_current_cue)
     merge_cue.clicked.connect(merge_with_next_cue)
+    delete_cue.clicked.connect(delete_current_cue)
     if on_save_copy is not None:
         save_copy.clicked.connect(save_selected_copy)
     refresh_list(0 if working_cues else None)
