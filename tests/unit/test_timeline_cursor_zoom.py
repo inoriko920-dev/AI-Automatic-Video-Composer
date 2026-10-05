@@ -3,7 +3,10 @@ from aavc.presentation.timeline_cursor_zoom import (
     timeline_cursor_zoom_percent,
     timeline_global_seconds_for_pixel_x,
 )
-from aavc.presentation.timeline_zoom_scroll import timeline_global_seconds_pixel_x
+from aavc.presentation.timeline_zoom_scroll import (
+    timeline_global_seconds_pixel_x,
+    timeline_scene_pixel_width,
+)
 
 
 def test_pixel_to_global_seconds_respects_minimum_scene_width() -> None:
@@ -16,9 +19,16 @@ def test_pixel_to_global_seconds_respects_minimum_scene_width() -> None:
 
 def test_pixel_in_inter_scene_gap_maps_to_shared_scene_boundary() -> None:
     durations = (2.0, 3.0)
-    boundary_x = timeline_global_seconds_pixel_x(durations, 2.0, 100)
+    first_scene_end_x = timeline_scene_pixel_width(durations[0], 100)
 
-    assert timeline_global_seconds_for_pixel_x(durations, boundary_x + 1.0, 100) == 2.0
+    assert (
+        timeline_global_seconds_for_pixel_x(
+            durations,
+            first_scene_end_x + 1.0,
+            100,
+        )
+        == 2.0
+    )
 
 
 def test_ctrl_wheel_zoom_uses_25_percent_steps_and_clamps() -> None:
