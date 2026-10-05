@@ -6,8 +6,14 @@ from typing import Any
 from aavc.domain.project.models import ProjectState
 from aavc.presentation.motion_preview import preview_scrub_seconds
 from aavc.presentation.timeline_ruler_seek import timeline_slider_value_for_local_seconds
+from aavc.presentation.timeline_zoom_scroll import (
+    DEFAULT_TIMELINE_ZOOM_PERCENT,
+    normalize_timeline_zoom_percent,
+    timeline_global_seconds_pixel_x,
+)
 
 MARKER_TIME_EPSILON_SECONDS = 1e-6
+TIMELINE_MARKER_WIDTH_PX = 9
 
 
 def timeline_marker_snap_seconds(
@@ -127,7 +133,8 @@ def timeline_marker_seek_target(
 def install_timeline_markers(root: Any, project: ProjectState) -> bool:
     """Install session-only timeline markers and keyboard marker navigation."""
 
-    from PySide6.QtCore import QEvent, QObject, Qt
+    from PySide6.QtCore import QEvent, QObject, QPointF, Qt
+    from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
     from PySide6.QtWidgets import (
         QAbstractSpinBox,
         QApplication,
@@ -135,6 +142,7 @@ def install_timeline_markers(root: Any, project: ProjectState) -> bool:
         QListWidget,
         QPlainTextEdit,
         QSlider,
+        QSpinBox,
         QTextEdit,
         QWidget,
     )
@@ -173,9 +181,71 @@ def install_timeline_markers(root: Any, project: ProjectState) -> bool:
     elif not hasattr(owner, "_aavc_timeline_markers_seconds"):
         owner._aavc_timeline_markers_seconds = ()
 
+    class _TimelineMarkerGlyph(QWidget):
+        def __init__(self, parent: Any) -> None:
+            super().__init__(parent)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+        def paintEvent(self, event: Any) -> None:  # noqa: N802
+            del event
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            center_x = self.width() / 2.0
+            color = QColor("#F59E0B")
+            painter.setPen(QPen(color, 2))
+            painter.drawLine(
+                int(round(center_x)),
+                7,
+                int(round(center_x)),
+                self.height(),
+            )
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawPolygon(
+                QPolygonF(
+                    (
+                        QPointF(center_x - 4.0, 0.0),
+                        QPointF(center_x + 4.0, 0.0),
+                        QPointF(center_x, 7.0),
+                    )
+                )
+            )
+            painter.end()
+
+    marker_glyphs: list[Any] = []
+    root._aavc_timeline_marker_glyphs = marker_glyphs
+
     def markers() -> tuple[float, ...]:
         stored = getattr(owner, "_aavc_timeline_markers_seconds", ())
         return tuple(float(item) for item in stored)
+
+    def stored_zoom_percent() -> int:
+        value = owner.property("aavcTimelineZoomPercent")
+        try:
+            raw = DEFAULT_TIMELINE_ZOOM_PERCENT if value is None else int(value)
+        except (TypeError, ValueError):
+            raw = DEFAULT_TIMELINE_ZOOM_PERCENT
+        return normalize_timeline_zoom_percent(raw)
+
+    def refresh_marker_glyphs() -> None:
+        for glyph in marker_glyphs:
+            glyph.deleteLater()
+        marker_glyphs.clear()
+        zoom = stored_zoom_percent()
+        for marker_seconds in markers():
+            x = timeline_global_seconds_pixel_x(durations, marker_seconds, zoom)
+            glyph = _TimelineMarkerGlyph(ruler)
+            glyph.setObjectName("TimelineSessionMarker")
+            glyph.setGeometry(
+                max(0, x - TIMELINE_MARKER_WIDTH_PX // 2),
+                0,
+                TIMELINE_MARKER_WIDTH_PX,
+                max(1, ruler.height()),
+            )
+            glyph.setToolTip(f"Marker sesi · {marker_seconds:.3f} detik")
+            glyph.show()
+            glyph.raise_()
+            marker_glyphs.append(glyph)
 
     def show_status(message: str) -> None:
         status_bar = owner.statusBar() if hasattr(owner, "statusBar") else None
@@ -210,17 +280,18 @@ def install_timeline_markers(root: Any, project: ProjectState) -> bool:
         progress_slider.sliderReleased.emit()
 
     def toggle_current_marker() -> None:
+        playhead_seconds = current_global_seconds()
         updated, added = timeline_toggle_marker(
             markers(),
-            current_global_seconds(),
+            playhead_seconds,
             total_duration,
             project.fps,
         )
         owner._aavc_timeline_markers_seconds = updated
-        ruler.update()
+        refresh_marker_glyphs()
         action = "ditambahkan" if added else "dihapus"
         marker_time = timeline_marker_snap_seconds(
-            current_global_seconds(),
+            playhead_seconds,
             total_duration,
             project.fps,
         )
@@ -283,9 +354,14 @@ def install_timeline_markers(root: Any, project: ProjectState) -> bool:
     event_filter = _TimelineMarkerKeyFilter(root)
     app.installEventFilter(event_filter)
     root._aavc_timeline_marker_key_filter = event_filter
+
+    zoom_box = root.findChild(QSpinBox, "TimelineZoomPercent")
+    if zoom_box is not None:
+        zoom_box.valueChanged.connect(lambda _value: refresh_marker_glyphs())
+
     ruler.setToolTip(
         f"{ruler.toolTip()} M = tambah/hapus marker; Shift+M = marker berikutnya; "
         "Ctrl+Shift+M = marker sebelumnya. Marker hanya untuk sesi ini."
     )
-    ruler.update()
+    refresh_marker_glyphs()
     return True
