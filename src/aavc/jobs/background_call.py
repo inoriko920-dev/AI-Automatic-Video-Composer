@@ -3,19 +3,16 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from threading import Lock, Thread
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
-class BackgroundCallSnapshot(Generic[T]):
+class BackgroundCallSnapshot[T]:
     done: bool
     result: T | None = None
     error: Exception | None = None
 
 
-class BackgroundCall(Generic[T]):
+class BackgroundCall[T]:
     """Run one blocking callable outside the GUI thread and expose a pollable snapshot."""
 
     def __init__(self, work: Callable[[], T]) -> None:
