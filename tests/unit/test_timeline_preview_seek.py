@@ -8,6 +8,7 @@ from aavc.presentation.timeline_preview_seek import (
     timeline_resize_handle_hit,
     timeline_resized_duration,
     timeline_seek_slider_value,
+    timeline_snap_duration,
 )
 
 
@@ -68,6 +69,14 @@ def test_timeline_resize_edge_resolves_both_sides_and_narrow_overlap() -> None:
     assert timeline_resize_edge(50.0, 100.0) is None
     assert timeline_resize_edge(2.0, 6.0) == "left"
     assert timeline_resize_edge(4.0, 6.0) == "right"
+
+
+def test_timeline_snap_duration_uses_tenth_second_grid() -> None:
+    assert timeline_snap_duration(3.04) == 3.0
+    assert timeline_snap_duration(3.05) == 3.1
+    assert timeline_snap_duration(3.16) == 3.2
+    assert timeline_snap_duration(0.01) == 0.001
+    assert timeline_snap_duration(2.345, snap_seconds=0.0) == 2.345
 
 
 def test_timeline_left_resized_duration_scales_from_pixel_delta() -> None:
