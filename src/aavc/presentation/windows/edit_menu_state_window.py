@@ -29,11 +29,23 @@ def edit_menu_action_state(
     """Return truthful enabled-state for the existing Edit menu actions."""
 
     scene_ready = has_project and has_selected_scene and selected_index is not None
+    move_up = (
+        has_project
+        and has_selected_scene
+        and selected_index is not None
+        and selected_index > 0
+    )
+    move_down = (
+        has_project
+        and has_selected_scene
+        and selected_index is not None
+        and selected_index < scene_count - 1
+    )
     return EditMenuActionState(
         undo=has_project and can_undo,
         redo=has_project and can_redo,
-        move_up=scene_ready and selected_index > 0,
-        move_down=scene_ready and selected_index < scene_count - 1,
+        move_up=move_up,
+        move_down=move_down,
         duplicate=scene_ready,
         delete=scene_ready and scene_count > 1,
     )
