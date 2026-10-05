@@ -20,6 +20,7 @@ def create_live_subtitle_screen(
     on_apply_animation: Callable[[SubtitleAnimationSettings], None] | None = None,
     on_reload: Callable[[], None] | None = None,
     on_save_copy: Callable[[tuple[SubtitleCue, ...]], None] | None = None,
+    on_working_copy_dirty_changed: Callable[[bool], None] | None = None,
 ) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QLabel, QMessageBox, QVBoxLayout, QWidget
@@ -30,6 +31,8 @@ def create_live_subtitle_screen(
     def set_cue_working_copy_dirty(is_dirty: bool) -> None:
         nonlocal cue_working_copy_dirty
         cue_working_copy_dirty = is_dirty
+        if on_working_copy_dirty_changed is not None:
+            on_working_copy_dirty_changed(is_dirty)
 
     def reload_with_working_copy_guard() -> None:
         if on_reload is None:

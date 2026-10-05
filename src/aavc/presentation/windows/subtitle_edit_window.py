@@ -11,12 +11,143 @@ from aavc.bootstrap.composition_root import FoundationServices
 from aavc.domain.errors import AAVCError
 from aavc.domain.project.models import SubtitleAnimationSettings, SubtitleStyle
 from aavc.presentation.navigation import UiRoute
+from aavc.presentation.windows.main_window import format_window_title
 from aavc.presentation.windows.native_motion_preview_window import NativeMotionPreviewMainWindow
 from aavc.subtitles import SubtitleCue, write_srt_atomic
 
 
+def resolve_subtitle_working_copy_leave(
+    is_dirty: bool,
+    *,
+    discard_confirmed: bool,
+) -> bool:
+    """Return whether an action may leave a local subtitle working copy."""
+
+    return not is_dirty or discard_confirmed
+
+
 class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
     """Main window with safe selected-cue editing through copied SRT sources."""
+
+    def __init__(
+        self,
+        services: FoundationServices,
+        initial_state: str = "UI-002",
+    ) -> None:
+        self._subtitle_working_copy_dirty = False
+        self._subtitle_leave_bypass = False
+        super().__init__(services, initial_state=initial_state)
+
+    def _subtitle_editor_is_active(self) -> bool:
+        return str(self.window.property("ui_state") or "") == UiRoute.SUBTITLE_EDITOR.value
+
+    def _set_subtitle_working_copy_dirty(self, is_dirty: bool) -> None:
+        self._subtitle_working_copy_dirty = is_dirty
+        self._refresh_window_title()
+
+    def _refresh_window_title(self) -> None:
+        session = self.services.project_session
+        project = session.current
+        self.window.setWindowTitle(
+            format_window_title(
+                self.services.app_name,
+                project.title if project is not None else None,
+                is_dirty=session.is_dirty or self._subtitle_working_copy_dirty,
+            )
+        )
+
+    def _confirm_subtitle_working_copy_discard(self, action_label: str) -> bool:
+        from PySide6.QtWidgets import QMessageBox
+
+        if not self._subtitle_working_copy_dirty:
+            return True
+        answer = QMessageBox.question(
+            self.window,
+            "Buang edit working copy subtitle?",
+            "Working copy subtitle atau form cue aktif memiliki perubahan yang belum "
+            f"disimpan sebagai salinan. Buang perubahan sebelum {action_label}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return resolve_subtitle_working_copy_leave(
+            True,
+            discard_confirmed=answer == QMessageBox.StandardButton.Yes,
+        )
+
+    def _confirm_unsaved_changes(self, action_label: str) -> bool:
+        if not super()._confirm_unsaved_changes(action_label):
+            return False
+        if self._subtitle_leave_bypass:
+            return True
+        return self._confirm_subtitle_working_copy_discard(action_label)
+
+    def show_route(self, route: UiRoute) -> None:
+        leaving_subtitle = (
+            self._subtitle_editor_is_active()
+            and route is not UiRoute.SUBTITLE_EDITOR
+            and self._subtitle_working_copy_dirty
+        )
+        if (
+            leaving_subtitle
+            and not self._subtitle_leave_bypass
+            and not self._confirm_subtitle_working_copy_discard(
+                f"membuka {route.value}"
+            )
+        ):
+            return
+        super().show_route(route)
+        if leaving_subtitle:
+            self._set_subtitle_working_copy_dirty(False)
+
+    def open_project(self) -> None:
+        if self._subtitle_editor_is_active() and self._subtitle_working_copy_dirty:
+            if not self._confirm_subtitle_working_copy_discard("membuka project lain"):
+                return
+            self._subtitle_leave_bypass = True
+        try:
+            super().open_project()
+        finally:
+            self._subtitle_leave_bypass = False
+
+    def create_project_from_docx(self, scene_docx: str) -> None:
+        if self._subtitle_editor_is_active() and self._subtitle_working_copy_dirty:
+            if not self._confirm_subtitle_working_copy_discard("membuat project baru"):
+                return
+            self._subtitle_leave_bypass = True
+        try:
+            super().create_project_from_docx(scene_docx)
+        finally:
+            self._subtitle_leave_bypass = False
+
+    def undo_project(self) -> None:
+        session = self.services.project_session
+        if (
+            session.can_undo
+            and self._subtitle_editor_is_active()
+            and self._subtitle_working_copy_dirty
+        ):
+            if not self._confirm_subtitle_working_copy_discard("menjalankan Undo project"):
+                return
+            self._subtitle_leave_bypass = True
+        try:
+            super().undo_project()
+        finally:
+            self._subtitle_leave_bypass = False
+
+    def redo_project(self) -> None:
+        session = self.services.project_session
+        if (
+            session.can_redo
+            and self._subtitle_editor_is_active()
+            and self._subtitle_working_copy_dirty
+        ):
+            if not self._confirm_subtitle_working_copy_discard("menjalankan Redo project"):
+                return
+            self._subtitle_leave_bypass = True
+        try:
+            super().redo_project()
+        finally:
+            self._subtitle_leave_bypass = False
 
     def set_subtitle_style(self, style: SubtitleStyle) -> None:
         """Apply render-backed style without rebuilding and discarding local cue edits."""
@@ -49,6 +180,13 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
             "Working copy Edit Cue tetap dipertahankan; klik Simpan untuk menyimpan project.",
             7000,
         )
+
+    def _rebuild_subtitle_editor_after_discard_authorized(self) -> None:
+        self._subtitle_leave_bypass = True
+        try:
+            self.open_subtitle_editor()
+        finally:
+            self._subtitle_leave_bypass = False
 
     def save_subtitle_copy(self, cues: tuple[SubtitleCue, ...]) -> None:
         from PySide6.QtWidgets import QFileDialog
@@ -96,7 +234,7 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
 
         self._refresh_window_title()
         self.refresh_editor_overview()
-        self.open_subtitle_editor()
+        self._rebuild_subtitle_editor_after_discard_authorized()
         self.window.statusBar().showMessage(
             f"Salinan subtitle disimpan: {saved.name}. "
             "Project sekarang memakai source baru; klik Simpan untuk menyimpan referensi project.",
@@ -120,6 +258,17 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
             )
             return
 
+        old_working_copy_dirty = self._subtitle_working_copy_dirty
+        if (
+            self._subtitle_editor_is_active()
+            and old_working_copy_dirty
+            and not self._subtitle_leave_bypass
+            and not self._confirm_subtitle_working_copy_discard(
+                "memuat ulang Subtitle Editor"
+            )
+        ):
+            return
+
         try:
             replacement = create_live_subtitle_screen(
                 project.subtitle_source,
@@ -127,14 +276,17 @@ class SubtitleEditMainWindow(NativeMotionPreviewMainWindow):
                 animation=project.subtitle_animation,
                 on_apply_style=self.set_subtitle_style,
                 on_apply_animation=self.set_subtitle_animation,
-                on_reload=self.open_subtitle_editor,
+                on_reload=self._rebuild_subtitle_editor_after_discard_authorized,
                 on_save_copy=self.save_subtitle_copy,
+                on_working_copy_dirty_changed=self._set_subtitle_working_copy_dirty,
             )
         except (OSError, ValueError) as error:
+            self._set_subtitle_working_copy_dirty(old_working_copy_dirty)
             self._show_project_error("Gagal membaca subtitle", error)
             return
 
         self._replace_route_widget(UiRoute.SUBTITLE_EDITOR, replacement)
+        self._set_subtitle_working_copy_dirty(False)
         self.show_route(UiRoute.SUBTITLE_EDITOR)
         self.window.statusBar().showMessage(
             f"Subtitle dimuat: {Path(project.subtitle_source).name}",
