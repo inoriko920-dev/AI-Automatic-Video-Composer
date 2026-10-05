@@ -57,7 +57,7 @@ class ProjectActionStateMainWindow(EditMenuStateMainWindow):
         super()._build_menu(action_type)
 
         for menu_action in self.window.menuBar().actions():
-            menu = menu_action.menu()
+            menu: Any | None = menu_action.menu()
             if menu is None:
                 continue
             if menu_action.text() == "File":
