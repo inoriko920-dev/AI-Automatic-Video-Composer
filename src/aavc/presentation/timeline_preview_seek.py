@@ -38,6 +38,21 @@ def timeline_drag_target_index(
     )
 
 
+def timeline_left_resize_handle_hit(
+    position_x: float,
+    width: float,
+    edge_px: float = TIMELINE_RESIZE_EDGE_PX,
+) -> bool:
+    """Return whether a pointer is inside the left-edge resize handle zone."""
+
+    span = float(width)
+    if span <= 0:
+        return False
+    edge = max(1.0, min(float(edge_px), span / 2.0))
+    x = float(position_x)
+    return 0.0 <= x <= edge
+
+
 def timeline_resize_handle_hit(
     position_x: float,
     width: float,
@@ -51,6 +66,46 @@ def timeline_resize_handle_hit(
     edge = max(1.0, min(float(edge_px), span / 2.0))
     x = float(position_x)
     return span - edge <= x <= span
+
+
+def timeline_resize_edge(
+    position_x: float,
+    width: float,
+    edge_px: float = TIMELINE_RESIZE_EDGE_PX,
+) -> str | None:
+    """Return the active timeline resize edge, resolving overlap by nearest side."""
+
+    left = timeline_left_resize_handle_hit(position_x, width, edge_px)
+    right = timeline_resize_handle_hit(position_x, width, edge_px)
+    if left and right:
+        return "left" if float(position_x) <= float(width) / 2.0 else "right"
+    if left:
+        return "left"
+    if right:
+        return "right"
+    return None
+
+
+def timeline_left_resized_duration(
+    current_duration_seconds: float,
+    original_width: float,
+    delta_x: float,
+    *,
+    minimum_seconds: float = MIN_TIMELINE_SCENE_DURATION_SECONDS,
+) -> float:
+    """Scale Scene duration from a left-edge horizontal resize delta."""
+
+    duration = float(current_duration_seconds)
+    width = float(original_width)
+    minimum = max(MIN_TIMELINE_SCENE_DURATION_SECONDS, float(minimum_seconds))
+    if duration <= 0:
+        raise ValueError("Durasi Scene harus lebih dari 0")
+    if width <= 0:
+        return max(minimum, round(duration, 3))
+
+    resized_width = max(width * minimum / duration, width - float(delta_x))
+    resized_duration = duration * resized_width / width
+    return max(minimum, round(resized_duration, 3))
 
 
 def timeline_resized_duration(
@@ -96,7 +151,7 @@ def install_timeline_preview_seek(
     on_scene_reordered: Callable[[int, int], None] | None = None,
     on_scene_resized: Callable[[int, float], None] | None = None,
 ) -> bool:
-    """Seek on click, reorder by body drag, and resize duration by right-edge drag."""
+    """Seek on click, reorder by body drag, and resize duration from either edge."""
 
     from PySide6.QtCore import QEvent, QObject, Qt
     from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QSlider
@@ -126,7 +181,7 @@ def install_timeline_preview_seek(
         if on_scene_reordered is not None and on_scene_resized is not None:
             button.setToolTip(
                 f"Scene {scene.scene_number:02d}. Klik posisi untuk seek preview; "
-                "drag badan blok untuk reorder; drag tepi kanan untuk mengubah durasi."
+                "drag badan blok untuk reorder; drag tepi kiri/kanan untuk mengubah durasi."
             )
         elif on_scene_reordered is not None:
             button.setToolTip(
@@ -152,12 +207,12 @@ def install_timeline_preview_seek(
             if on_scene_reordered is not None and on_scene_resized is not None:
                 label.setText(
                     "Lebar blok mengikuti durasi scene. Klik untuk seek; drag badan blok untuk "
-                    "reorder; drag tepi kanan untuk durasi. Split dan trim kiri belum aktif."
+                    "reorder; drag tepi kiri/kanan untuk durasi. Split belum aktif."
                 )
             elif on_scene_reordered is not None:
                 label.setText(
                     "Lebar blok mengikuti durasi scene. Klik untuk seek; drag untuk reorder. "
-                    "Trim, split, dan resize belum aktif."
+                    "Split dan resize belum aktif."
                 )
 
     class _TimelineSeekFilter(QObject):
@@ -166,7 +221,7 @@ def install_timeline_preview_seek(
             self._pressed_button_id: int | None = None
             self._press_global_x = 0.0
             self._press_width = 0.0
-            self._resize_candidate = False
+            self._resize_edge: str | None = None
             self._resizing = False
             self._dragging = False
 
@@ -174,7 +229,7 @@ def install_timeline_preview_seek(
             self._pressed_button_id = None
             self._press_global_x = 0.0
             self._press_width = 0.0
-            self._resize_candidate = False
+            self._resize_edge = None
             self._resizing = False
             self._dragging = False
             watched.unsetCursor()
@@ -189,9 +244,9 @@ def install_timeline_preview_seek(
             if event.type() == QEvent.Type.MouseMove and not bool(
                 event.buttons() & Qt.MouseButton.LeftButton
             ):
-                if on_scene_resized is not None and timeline_resize_handle_hit(
+                if on_scene_resized is not None and timeline_resize_edge(
                     event.position().x(), watched.width()
-                ):
+                ) is not None:
                     watched.setCursor(Qt.CursorShape.SizeHorCursor)
                 else:
                     watched.unsetCursor()
@@ -204,9 +259,10 @@ def install_timeline_preview_seek(
                 self._pressed_button_id = id(watched)
                 self._press_global_x = float(event.globalPosition().x())
                 self._press_width = float(watched.width())
-                self._resize_candidate = (
-                    on_scene_resized is not None
-                    and timeline_resize_handle_hit(event.position().x(), watched.width())
+                self._resize_edge = (
+                    timeline_resize_edge(event.position().x(), watched.width())
+                    if on_scene_resized is not None
+                    else None
                 )
                 self._resizing = False
                 self._dragging = False
@@ -218,7 +274,7 @@ def install_timeline_preview_seek(
                 and bool(event.buttons() & Qt.MouseButton.LeftButton)
             ):
                 distance = abs(float(event.globalPosition().x()) - self._press_global_x)
-                if self._resize_candidate and on_scene_resized is not None:
+                if self._resize_edge is not None and on_scene_resized is not None:
                     if distance >= QApplication.startDragDistance():
                         self._resizing = True
                         watched.setCursor(Qt.CursorShape.SizeHorCursor)
@@ -243,11 +299,18 @@ def install_timeline_preview_seek(
             source_scene = project.scenes[scene_index]
             if self._resizing and on_scene_resized is not None:
                 delta_x = float(event.globalPosition().x()) - self._press_global_x
-                duration_seconds = timeline_resized_duration(
-                    source_scene.duration_seconds,
-                    self._press_width,
-                    delta_x,
-                )
+                if self._resize_edge == "left":
+                    duration_seconds = timeline_left_resized_duration(
+                        source_scene.duration_seconds,
+                        self._press_width,
+                        delta_x,
+                    )
+                else:
+                    duration_seconds = timeline_resized_duration(
+                        source_scene.duration_seconds,
+                        self._press_width,
+                        delta_x,
+                    )
                 self._reset_drag(watched)
                 if abs(duration_seconds - source_scene.duration_seconds) >= 0.0005:
                     on_scene_resized(source_scene.scene_number, duration_seconds)
