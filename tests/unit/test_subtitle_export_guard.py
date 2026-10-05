@@ -119,7 +119,7 @@ def test_clean_or_non_subtitle_export_passes_through_without_prompt(
         )
         monkeypatch.setattr(
             "aavc.presentation.windows.subtitle_import_guard_window.SubtitleImportGuardMainWindow.open_export",
-            lambda _self: calls.append("export"),
+            lambda _self, calls=calls: calls.append("export"),
         )
 
         SubtitleExportGuardMainWindow.open_export(target)
