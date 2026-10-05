@@ -5,6 +5,7 @@ from typing import Literal
 from aavc.presentation.timeline_magnet_control import (
     timeline_magnet_runtime_active,
     timeline_magnet_runtime_target_enabled,
+    timeline_magnet_runtime_tolerance_px,
 )
 from aavc.presentation.timeline_markers import timeline_marker_snap_seconds
 from aavc.presentation.timeline_zoom_scroll import timeline_global_seconds_pixel_x
@@ -34,16 +35,20 @@ def timeline_magnetic_snap_target(
     *,
     markers_seconds: tuple[float, ...] = (),
     playhead_seconds: float | None = None,
-    tolerance_px: int = TIMELINE_MAGNETIC_SNAP_RADIUS_PX,
+    tolerance_px: int | None = None,
 ) -> tuple[float, TimelineMagneticSnapKind] | None:
-    """Return the nearest enabled visual magnetic target within the pixel tolerance."""
+    """Return the nearest enabled visual magnetic target within the active radius."""
 
     if not durations_seconds or not timeline_magnet_runtime_active():
         return None
 
     total_duration = sum(max(0.0, float(item)) for item in durations_seconds)
     normalized_fps = max(1, int(round(float(fps))))
-    tolerance = max(0, int(tolerance_px))
+    tolerance = (
+        timeline_magnet_runtime_tolerance_px()
+        if tolerance_px is None
+        else max(0, int(tolerance_px))
+    )
     pointer_x = float(pixel_x)
 
     raw_candidates: list[tuple[float, TimelineMagneticSnapKind, int]] = []
