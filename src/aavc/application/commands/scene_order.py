@@ -43,6 +43,42 @@ class MoveScene:
 
 
 @dataclass(frozen=True, slots=True)
+class MoveSceneToIndex:
+    """Move one stable scene number directly to a final project-order index."""
+
+    scene_number: int
+    target_index: int
+
+    def apply(self, project: ProjectState) -> ProjectState:
+        scene_count = len(project.scenes)
+        if self.target_index < 0 or self.target_index >= scene_count:
+            raise ValueError(
+                f"Posisi target Scene harus antara 0 dan {max(0, scene_count - 1)}"
+            )
+
+        source_index = next(
+            (
+                current_index
+                for current_index, scene in enumerate(project.scenes)
+                if scene.scene_number == self.scene_number
+            ),
+            None,
+        )
+        if source_index is None:
+            raise ValueError(f"Scene {self.scene_number} tidak ditemukan")
+        if source_index == self.target_index:
+            raise ValueError("Scene sudah berada di posisi target")
+
+        scenes = list(project.scenes)
+        scene = scenes.pop(source_index)
+        scenes.insert(self.target_index, scene)
+        return replace(project, scenes=tuple(scenes))
+
+    def describe(self) -> str:
+        return f"Pindah Scene {self.scene_number} ke posisi {self.target_index + 1}"
+
+
+@dataclass(frozen=True, slots=True)
 class DeleteScene:
     """Delete one scene while preserving a renderable project."""
 

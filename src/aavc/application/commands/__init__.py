@@ -11,12 +11,13 @@ from .project_commands import (
     SetSubtitleStyle,
 )
 from .project_metadata import SetProjectTitle
-from .scene_order import DeleteScene, DuplicateScene, MoveScene
+from .scene_order import DeleteScene, DuplicateScene, MoveScene, MoveSceneToIndex
 
 __all__ = [
     "DeleteScene",
     "DuplicateScene",
     "MoveScene",
+    "MoveSceneToIndex",
     "ProjectCommand",
     "RandomizeAnimationAssignments",
     "RelinkAsset",
