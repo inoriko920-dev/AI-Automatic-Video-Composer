@@ -4,6 +4,8 @@ from aavc.presentation.timeline_navigator import timeline_navigator_global_secon
 from aavc.presentation.timeline_navigator_anchor_click import (
     timeline_navigator_anchor_center_scroll_value,
     timeline_navigator_anchor_hit,
+    timeline_navigator_anchor_timecode,
+    timeline_navigator_anchor_tooltip,
 )
 
 
@@ -134,6 +136,25 @@ def test_anchor_hit_clamps_session_time_to_project_bounds() -> None:
         track_width,
         navigator_width,
     ) == ("marker", 20.0)
+
+
+def test_anchor_timecode_formats_milliseconds_and_long_hours() -> None:
+    assert timeline_navigator_anchor_timecode(0.0) == "00:00:00.000"
+    assert timeline_navigator_anchor_timecode(65.4321) == "00:01:05.432"
+    assert timeline_navigator_anchor_timecode(3661.9996) == "01:01:02.000"
+    assert timeline_navigator_anchor_timecode(360000.0) == "100:00:00.000"
+
+
+def test_anchor_timecode_clamps_negative_values() -> None:
+    assert timeline_navigator_anchor_timecode(-2.5) == "00:00:00.000"
+
+
+def test_anchor_tooltip_uses_expected_labels() -> None:
+    assert timeline_navigator_anchor_tooltip(("marker", 5.25)) == (
+        "Marker • 00:00:05.250"
+    )
+    assert timeline_navigator_anchor_tooltip(("in", 65.0)) == "In • 00:01:05.000"
+    assert timeline_navigator_anchor_tooltip(("out", 125.5)) == "Out • 00:02:05.500"
 
 
 def test_anchor_center_scroll_clamps_to_scrollbar_edges() -> None:
