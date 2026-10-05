@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from math import floor
 from typing import Any
 
 from aavc.domain.project.models import ProjectState
 
 TIMELINE_RESIZE_EDGE_PX = 10.0
 MIN_TIMELINE_SCENE_DURATION_SECONDS = 0.001
+TIMELINE_RESIZE_SNAP_SECONDS = 0.1
 
 
 def timeline_seek_slider_value(
@@ -84,6 +86,23 @@ def timeline_resize_edge(
     if right:
         return "right"
     return None
+
+
+def timeline_snap_duration(
+    duration_seconds: float,
+    *,
+    snap_seconds: float = TIMELINE_RESIZE_SNAP_SECONDS,
+    minimum_seconds: float = MIN_TIMELINE_SCENE_DURATION_SECONDS,
+) -> float:
+    """Snap timeline resize duration to a positive fixed grid."""
+
+    value = float(duration_seconds)
+    minimum = max(MIN_TIMELINE_SCENE_DURATION_SECONDS, float(minimum_seconds))
+    step = float(snap_seconds)
+    if step <= 0:
+        return max(minimum, round(value, 3))
+    snapped = floor(max(0.0, value) / step + 0.5) * step
+    return max(minimum, round(snapped, 3))
 
 
 def timeline_left_resized_duration(
@@ -181,7 +200,8 @@ def install_timeline_preview_seek(
         if on_scene_reordered is not None and on_scene_resized is not None:
             button.setToolTip(
                 f"Scene {scene.scene_number:02d}. Klik posisi untuk seek preview; "
-                "drag badan blok untuk reorder; drag tepi kiri/kanan untuk mengubah durasi."
+                "drag badan blok untuk reorder; drag tepi kiri/kanan untuk mengubah durasi "
+                "dengan snap 0,1 detik."
             )
         elif on_scene_reordered is not None:
             button.setToolTip(
@@ -207,7 +227,7 @@ def install_timeline_preview_seek(
             if on_scene_reordered is not None and on_scene_resized is not None:
                 label.setText(
                     "Lebar blok mengikuti durasi scene. Klik untuk seek; drag badan blok untuk "
-                    "reorder; drag tepi kiri/kanan untuk durasi. Split belum aktif."
+                    "reorder; drag tepi kiri/kanan untuk durasi (snap 0,1 detik). Split belum aktif."
                 )
             elif on_scene_reordered is not None:
                 label.setText(
@@ -311,6 +331,7 @@ def install_timeline_preview_seek(
                         self._press_width,
                         delta_x,
                     )
+                duration_seconds = timeline_snap_duration(duration_seconds)
                 self._reset_drag(watched)
                 if abs(duration_seconds - source_scene.duration_seconds) >= 0.0005:
                     on_scene_resized(source_scene.scene_number, duration_seconds)
