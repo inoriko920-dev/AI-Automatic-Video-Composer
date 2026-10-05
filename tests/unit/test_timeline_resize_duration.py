@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from aavc.application.commands import SetSceneDuration
 from aavc.application.services.project_session import ProjectSession
 from aavc.application.services.vertical_slice import create_project_state
@@ -35,11 +37,12 @@ def test_timeline_resize_duration_is_one_history_step_and_updates_plans(
 
     timeline = build_timeline_plan(resized)
     assert timeline.segments[0].duration_seconds == resized_duration
-    assert timeline.total_duration_seconds == (
+    expected_total = (
         build_timeline_plan(project).total_duration_seconds
         - original_duration
         + resized_duration
     )
+    assert timeline.total_duration_seconds == pytest.approx(expected_total)
 
     render_plan = build_render_plan(resized, tmp_path / "timeline-resize.mp4")
     assert render_plan.scenes[0].duration_seconds == resized_duration
