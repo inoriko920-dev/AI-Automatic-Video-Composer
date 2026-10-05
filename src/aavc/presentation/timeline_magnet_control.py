@@ -8,8 +8,11 @@ TIMELINE_MAGNET_ENABLED_PROPERTY = "aavcTimelineMagnetEnabled"
 TIMELINE_MAGNET_MARKER_PROPERTY = "aavcTimelineSnapMarkerEnabled"
 TIMELINE_MAGNET_SCENE_PROPERTY = "aavcTimelineSnapSceneEnabled"
 TIMELINE_MAGNET_PLAYHEAD_PROPERTY = "aavcTimelineSnapPlayheadEnabled"
+TIMELINE_MAGNET_TOLERANCE_PROPERTY = "aavcTimelineSnapTolerancePx"
 TIMELINE_MAGNET_BUTTON_OBJECT_NAME = "TimelineMagnetToggle"
 TIMELINE_SNAP_SETTINGS_BUTTON_OBJECT_NAME = "TimelineSnapSettings"
+TIMELINE_MAGNET_TOLERANCE_OPTIONS_PX = (4, 8, 12, 16)
+DEFAULT_TIMELINE_MAGNET_TOLERANCE_PX = 8
 
 _TARGET_PROPERTIES: dict[TimelineMagnetTargetKind, str] = {
     "marker": TIMELINE_MAGNET_MARKER_PROPERTY,
@@ -19,6 +22,7 @@ _TARGET_PROPERTIES: dict[TimelineMagnetTargetKind, str] = {
 
 _runtime_magnet_enabled = True
 _runtime_magnet_bypass = False
+_runtime_magnet_tolerance_px = DEFAULT_TIMELINE_MAGNET_TOLERANCE_PX
 _runtime_target_enabled: dict[TimelineMagnetTargetKind, bool] = {
     "marker": True,
     "scene": True,
@@ -44,6 +48,21 @@ def normalize_timeline_magnet_enabled(value: object | None) -> bool:
     return bool(value)
 
 
+def normalize_timeline_magnet_tolerance_px(value: object | None) -> int:
+    """Normalize Snap Strength to the nearest supported pixel radius."""
+
+    if value is None or not isinstance(value, (int, float, str)):
+        return DEFAULT_TIMELINE_MAGNET_TOLERANCE_PX
+    try:
+        raw = int(round(float(value)))
+    except ValueError:
+        return DEFAULT_TIMELINE_MAGNET_TOLERANCE_PX
+    return min(
+        TIMELINE_MAGNET_TOLERANCE_OPTIONS_PX,
+        key=lambda candidate: (abs(candidate - raw), candidate),
+    )
+
+
 def timeline_magnet_active(enabled: bool, *, alt_bypass: bool = False) -> bool:
     """Return whether magnetic snapping should apply for the current gesture."""
 
@@ -58,6 +77,15 @@ def set_timeline_magnet_runtime_enabled(enabled: bool) -> None:
 def set_timeline_magnet_runtime_bypass(bypass: bool) -> None:
     global _runtime_magnet_bypass
     _runtime_magnet_bypass = bool(bypass)
+
+
+def set_timeline_magnet_runtime_tolerance_px(value: int | float) -> None:
+    global _runtime_magnet_tolerance_px
+    _runtime_magnet_tolerance_px = normalize_timeline_magnet_tolerance_px(value)
+
+
+def timeline_magnet_runtime_tolerance_px() -> int:
+    return int(_runtime_magnet_tolerance_px)
 
 
 def set_timeline_magnet_runtime_target_enabled(
@@ -108,6 +136,14 @@ def timeline_magnet_target_enabled(
     return normalize_timeline_magnet_enabled(owner.property(_TARGET_PROPERTIES[kind]))
 
 
+def timeline_magnet_tolerance_px(owner: Any) -> int:
+    """Read the session-only Snap Strength pixel radius from the owning window."""
+
+    return normalize_timeline_magnet_tolerance_px(
+        owner.property(TIMELINE_MAGNET_TOLERANCE_PROPERTY)
+    )
+
+
 def timeline_magnet_active_for_owner(
     owner: Any,
     *,
@@ -122,7 +158,7 @@ def timeline_magnet_active_for_owner(
 def install_timeline_magnet_control(root: Any) -> bool:
     """Install the session-only Magnet master switch and per-target Snap menu."""
 
-    from PySide6.QtGui import QAction, QKeySequence, QShortcut
+    from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QShortcut
     from PySide6.QtWidgets import QMenu, QSpinBox, QToolButton
 
     zoom_box = root.findChild(QSpinBox, "TimelineZoomPercent")
@@ -136,6 +172,10 @@ def install_timeline_magnet_control(root: Any) -> bool:
     enabled = timeline_magnet_enabled(owner)
     owner.setProperty(TIMELINE_MAGNET_ENABLED_PROPERTY, enabled)
     set_timeline_magnet_runtime_enabled(enabled)
+
+    tolerance_px = timeline_magnet_tolerance_px(owner)
+    owner.setProperty(TIMELINE_MAGNET_TOLERANCE_PROPERTY, tolerance_px)
+    set_timeline_magnet_runtime_tolerance_px(tolerance_px)
 
     target_states: dict[TimelineMagnetTargetKind, bool] = {}
     for kind, property_name in _TARGET_PROPERTIES.items():
@@ -200,7 +240,7 @@ def install_timeline_magnet_control(root: Any) -> bool:
     settings_button.setObjectName(TIMELINE_SNAP_SETTINGS_BUTTON_OBJECT_NAME)
     settings_button.setText("Snap ▾")
     settings_button.setToolTip(
-        "Pilih target magnetic snapping: Marker/In-Out, Scene Edge, dan Playhead."
+        "Pilih target magnetic snapping dan kekuatan/toleransi magnet."
     )
     settings_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
     settings_button.setStyleSheet("QToolButton { padding: 2px 7px; font-size: 9px; }")
@@ -243,12 +283,42 @@ def install_timeline_magnet_control(root: Any) -> bool:
         target_actions[kind] = action
         apply_target_state(kind, target_states[kind], announce=False)
 
+    settings_menu.addSeparator()
+    strength_menu = settings_menu.addMenu("Snap Strength")
+    strength_group = QActionGroup(strength_menu)
+    strength_group.setExclusive(True)
+    strength_actions: dict[int, QAction] = {}
+
+    def apply_tolerance(value: int, *, announce: bool) -> None:
+        normalized = normalize_timeline_magnet_tolerance_px(value)
+        owner.setProperty(TIMELINE_MAGNET_TOLERANCE_PROPERTY, normalized)
+        set_timeline_magnet_runtime_tolerance_px(normalized)
+        hide_snap_guide()
+        if announce:
+            status(f"Snap Strength: {normalized} px.")
+
+    for value in TIMELINE_MAGNET_TOLERANCE_OPTIONS_PX:
+        action = QAction(f"{value} px", strength_menu)
+        action.setCheckable(True)
+        action.setChecked(value == tolerance_px)
+        strength_group.addAction(action)
+        strength_menu.addAction(action)
+        action.triggered.connect(
+            lambda checked, active_value=value: (
+                apply_tolerance(active_value, announce=True) if checked else None
+            )
+        )
+        strength_actions[value] = action
+    apply_tolerance(tolerance_px, announce=False)
+
     insert_at = max(0, header_layout.count() - 2)
     header_layout.insertWidget(insert_at, magnet_button)
     header_layout.insertWidget(insert_at + 1, settings_button)
     root._aavc_timeline_magnet_button = magnet_button
     root._aavc_timeline_snap_settings_button = settings_button
     root._aavc_timeline_snap_target_actions = target_actions
+    root._aavc_timeline_snap_strength_actions = strength_actions
+    root._aavc_timeline_snap_strength_group = strength_group
 
     def split_without_magnet() -> None:
         split_action = next(
