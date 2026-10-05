@@ -58,6 +58,8 @@ def install_timeline_snap_guide_feedback(root: Any, project: ProjectState) -> bo
     if scene_list is None or progress_slider is None or app is None:
         return False
 
+    active_scene_list: Any = scene_list
+    active_slider: Any = progress_slider
     durations = tuple(scene.duration_seconds for scene in project.scenes)
     owner: Any = ruler.window()
 
@@ -89,12 +91,12 @@ def install_timeline_snap_guide_feedback(root: Any, project: ProjectState) -> bo
         return tuple(values)
 
     def current_global_seconds() -> float:
-        row = int(scene_list.currentRow())
+        row = int(active_scene_list.currentRow())
         if row < 0 or row >= len(durations):
             return 0.0
         local = preview_scrub_seconds(
-            progress_slider.value(),
-            progress_slider.maximum(),
+            active_slider.value(),
+            active_slider.maximum(),
             durations[row],
         )
         return timeline_marker_global_seconds(durations, row, local)
@@ -251,12 +253,12 @@ def install_timeline_snap_guide_feedback(root: Any, project: ProjectState) -> bo
             focus = app.focusWidget()
             if focus is not None and focus is not root and not root.isAncestorOf(focus):
                 return False
-            row = int(scene_list.currentRow())
+            row = int(active_scene_list.currentRow())
             if row < 0 or row >= len(durations):
                 return False
             local_seconds = preview_scrub_seconds(
-                progress_slider.value(),
-                progress_slider.maximum(),
+                active_slider.value(),
+                active_slider.maximum(),
                 durations[row],
             )
             snapped_local, snapped = timeline_magnetic_split_local_seconds(
