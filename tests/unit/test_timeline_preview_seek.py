@@ -2,6 +2,9 @@ import pytest
 
 from aavc.presentation.timeline_preview_seek import (
     timeline_drag_target_index,
+    timeline_left_resize_handle_hit,
+    timeline_left_resized_duration,
+    timeline_resize_edge,
     timeline_resize_handle_hit,
     timeline_resized_duration,
     timeline_seek_slider_value,
@@ -43,12 +46,42 @@ def test_timeline_drag_target_index_clamps_by_nearest_edge_and_handles_empty() -
     assert timeline_drag_target_index(10.0, ()) == -1
 
 
+def test_timeline_left_resize_handle_hit_only_accepts_left_edge() -> None:
+    assert timeline_left_resize_handle_hit(0.0, 100.0)
+    assert timeline_left_resize_handle_hit(5.0, 100.0)
+    assert not timeline_left_resize_handle_hit(11.0, 100.0)
+    assert not timeline_left_resize_handle_hit(-1.0, 100.0)
+    assert not timeline_left_resize_handle_hit(0.0, 0.0)
+
+
 def test_timeline_resize_handle_hit_only_accepts_right_edge() -> None:
     assert timeline_resize_handle_hit(95.0, 100.0)
     assert timeline_resize_handle_hit(100.0, 100.0)
     assert not timeline_resize_handle_hit(89.0, 100.0)
     assert not timeline_resize_handle_hit(101.0, 100.0)
     assert not timeline_resize_handle_hit(0.0, 0.0)
+
+
+def test_timeline_resize_edge_resolves_both_sides_and_narrow_overlap() -> None:
+    assert timeline_resize_edge(4.0, 100.0) == "left"
+    assert timeline_resize_edge(96.0, 100.0) == "right"
+    assert timeline_resize_edge(50.0, 100.0) is None
+    assert timeline_resize_edge(2.0, 6.0) == "left"
+    assert timeline_resize_edge(4.0, 6.0) == "right"
+
+
+def test_timeline_left_resized_duration_scales_from_pixel_delta() -> None:
+    assert timeline_left_resized_duration(4.0, 200.0, 50.0) == 3.0
+    assert timeline_left_resized_duration(4.0, 200.0, -100.0) == 6.0
+    assert timeline_left_resized_duration(4.0, 200.0, 0.0) == 4.0
+
+
+def test_timeline_left_resized_duration_clamps_to_positive_minimum() -> None:
+    assert timeline_left_resized_duration(4.0, 200.0, 10000.0) == 0.001
+    assert timeline_left_resized_duration(4.0, 0.0, 100.0) == 4.0
+
+    with pytest.raises(ValueError, match="lebih dari 0"):
+        timeline_left_resized_duration(0.0, 200.0, 10.0)
 
 
 def test_timeline_resized_duration_scales_from_pixel_delta() -> None:
