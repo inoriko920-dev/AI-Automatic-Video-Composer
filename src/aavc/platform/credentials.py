@@ -5,6 +5,13 @@ import sys
 from typing import Any, Protocol
 
 
+def _decode_windows_credential_blob(raw_bytes: bytes) -> str:
+    try:
+        return raw_bytes.decode("utf-16-le")
+    except UnicodeDecodeError as error:
+        raise OSError("Credential Windows rusak atau tidak dapat dibaca") from error
+
+
 class CredentialStore(Protocol):
     def get_secret(self, reference: str) -> str | None: ...
 
@@ -122,7 +129,7 @@ class WindowsCredentialManagerStore:
             raw_bytes = bytes(
                 ctypes.string_at(credential.CredentialBlob, credential.CredentialBlobSize)
             )
-            return raw_bytes.decode("utf-16-le")
+            return _decode_windows_credential_blob(raw_bytes)
         finally:
             cred_free(pointer)
 
