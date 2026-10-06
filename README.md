@@ -19,14 +19,14 @@ Current published maintenance release: **0.1.1**.
 
 Latest completed post-release source line: **0.2 stability-hardened test build verified** (not yet a published GitHub Release).
 
-- Stability-hardened runtime source: `9ce7d3c3125947c69e7dcf357f6ecbbc6707fee7`
-- Post-merge CI run `37429362040`: **PASS**
-- Post-merge CodeQL run `37429362044`: **PASS**
-- Windows portable packaging run `37429446908`: **PASS**
-- Actions artifact ID: `11396573064`
-- Portable ZIP SHA-256: `6d9f3d57dd5c8ba47a18bb65a56e5c26ce8cac1962bacfee0ffff8c9efdfbe52`
+- Stability-hardened runtime source: `d520b7afd975902ee3d2068a70a5fdcfc07957aa`
+- Post-merge CI run `37431110423`: **PASS**
+- Post-merge CodeQL run `37431110449`: **PASS**
+- Windows portable packaging run `37431186070`: **PASS**
+- Actions artifact ID: `11396354889`
+- Portable ZIP SHA-256: `93042ce86e317453a5e1b88b3e1685d222425e33b461b5419768b805516b50e3`
 - Portable smoke/content verification: **PASS**
-- Stability hardening includes atomic render output, tolerant external-process decoding, atomic narration replacement, future-schema rejection, malformed-DOCX error boundaries, blocking application close while Render/Auto AI work is active, strict rejection of empty/malformed SRT imports, and safe handling of corrupt Windows Credential Manager blobs.
+- Stability hardening includes atomic render output, tolerant external-process decoding, atomic narration replacement, future-schema rejection, malformed-DOCX error boundaries, blocking application close while Render/Auto AI work is active, strict rejection of empty/malformed SRT imports, safe handling of corrupt Windows Credential Manager blobs, and temporary non-destructive ASS staging for subtitle burn-in.
 - Published `v0.1.1` remains frozen and unchanged.
 
 ## Official release 0.1.1
