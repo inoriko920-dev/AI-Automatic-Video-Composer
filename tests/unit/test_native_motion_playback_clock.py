@@ -38,6 +38,7 @@ def _project() -> ProjectState:
 
 
 def _preview_root(project: ProjectState):
+    from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
         QApplication,
         QLabel,
@@ -46,7 +47,6 @@ def _preview_root(project: ProjectState):
         QSlider,
         QWidget,
     )
-    from PySide6.QtCore import Qt
 
     app = QApplication.instance() or QApplication([])
     root = QWidget()
