@@ -28,8 +28,8 @@ class FakeRunner(ProcessRunner):
         del timeout_seconds
         command = list(argv)
         self.commands.append(command)
-        if "-filter_complex_script" in command:
-            graph_path = Path(command[command.index("-filter_complex_script") + 1])
+        if "-/filter_complex" in command:
+            graph_path = Path(command[command.index("-/filter_complex") + 1])
             self.filter_graphs.append(graph_path.read_text(encoding="utf-8"))
         Path(command[-1]).write_bytes(b"fake-mp4")
         return ProcessResult(0, "", "")
@@ -81,7 +81,7 @@ def test_render_project_maps_options_into_ffmpeg_command(tmp_path: Path) -> None
     assert command[command.index("-preset") + 1] == "slow"
     assert command[command.index("-crf") + 1] == "20"
     assert command[command.index("-r") + 1] == "60"
-    assert "-filter_complex_script" in command
+    assert "-/filter_complex" in command
     assert "s=1280x720" in runner.filter_graphs[0]
 
 

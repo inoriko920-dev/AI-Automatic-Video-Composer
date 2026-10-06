@@ -22,7 +22,7 @@ class CapturingRunner(ProcessRunner):
     ) -> ProcessResult:
         del timeout_seconds
         self.command = list(argv)
-        graph_index = self.command.index("-filter_complex_script") + 1
+        graph_index = self.command.index("-/filter_complex") + 1
         self.graph_path = Path(self.command[graph_index])
         self.graph = self.graph_path.read_text(encoding="utf-8")
         Path(self.command[-1]).write_bytes(b"fake-mp4")
@@ -48,7 +48,7 @@ def test_large_filter_graph_is_moved_out_of_process_command(tmp_path: Path) -> N
     assert result.output_path == str(output)
     assert runner.command is not None
     assert "-filter_complex" not in runner.command
-    assert "-filter_complex_script" in runner.command
+    assert "-/filter_complex" in runner.command
     assert windows_command_units(runner.command) < 32767
     assert runner.graph == huge_graph
     assert runner.graph_path is not None

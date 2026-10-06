@@ -29,8 +29,8 @@ class FakeRunner(ProcessRunner):
         del timeout_seconds
         command = list(argv)
         self.commands.append(command)
-        if "-filter_complex_script" in command:
-            graph_path = Path(command[command.index("-filter_complex_script") + 1])
+        if "-/filter_complex" in command:
+            graph_path = Path(command[command.index("-/filter_complex") + 1])
             self.filter_graphs.append(graph_path.read_text(encoding="utf-8"))
         Path(command[-1]).write_bytes(b"selection-mp4")
         return ProcessResult(0, "", "")

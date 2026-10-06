@@ -42,7 +42,7 @@ def _externalize_filter_graph(command: list[str], graph_path: Path) -> list[str]
 
     graph_path.write_text(command[graph_index], encoding="utf-8")
     transformed = list(command)
-    transformed[option_index] = "-filter_complex_script"
+    transformed[option_index] = "-/filter_complex"
     transformed[graph_index] = str(graph_path)
     return transformed
 
