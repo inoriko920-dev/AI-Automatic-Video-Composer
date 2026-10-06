@@ -42,7 +42,8 @@ Current 0.2 completion source includes:
 - tolerant external-process output decoding from #282/#283 so invalid tool bytes cannot crash the Python decode boundary;
 - final stability hardening from #280/#285/#287/#289 via #290: narration records to staging before atomic replacement, unsupported future project schemas are refused, malformed DOCX XML becomes a safe import error, and application close is blocked while Render/Auto AI work is active;
 - SRT import hardening from #292/#293: empty, structurally malformed, or invalid-timing subtitle sources are rejected before ProjectState mutation;
-- Windows credential hardening from #295/#296: corrupt Credential Manager blobs are normalized into safe credential errors instead of leaking raw Unicode decode exceptions.
+- Windows credential hardening from #295/#296: corrupt Credential Manager blobs are normalized into safe credential errors instead of leaking raw Unicode decode exceptions;
+- subtitle render staging hardening from #298/#299: full/selection export use unique temporary ASS intermediates that are always cleaned and never overwrite a user-owned sidecar ASS.
 
 Raw API-key values remain outside `ProjectState`, project files, logs, and status diagnostics. FFmpeg/ffprobe remain external dependencies.
 
@@ -90,9 +91,9 @@ No runtime blocker is known for normal `0.1.x` maintenance. Repository administr
 The approved 0.2 completion scope is complete and has undergone focused stability audits. The latest runtime source is verified by CI, CodeQL, regression tests, STEP09 visual checks, and a fresh Windows portable packaging gate.
 
 Stability-hardened runtime source:
-- application source: `main` @ `9ce7d3c3125947c69e7dcf357f6ecbbc6707fee7`;
-- post-merge CI run `37429362040`: **PASS**;
-- post-merge CodeQL run `37429362044`: **PASS**.
+- application source: `main` @ `d520b7afd975902ee3d2068a70a5fdcfc07957aa`;
+- post-merge CI run `37431110423`: **PASS**;
+- post-merge CodeQL run `37431110449`: **PASS**.
 
 Additional stability fixes:
 - #278/#279 — render output is staged and atomically finalized; failed renders preserve existing destination files;
@@ -102,28 +103,30 @@ Additional stability fixes:
 - #287/#290 — malformed DOCX XML is converted into a safe AAVC import error;
 - #289/#290 — the app refuses to close while Render/Auto AI background work is active so the GUI event loop is not removed from a running job;
 - #292/#293 — empty, structurally malformed, or invalid-timing SRT files are rejected before subtitle source mutation;
-- #295/#296 — corrupt Windows Credential Manager blobs are converted into safe credential read failures instead of raw Unicode decode exceptions.
+- #295/#296 — corrupt Windows Credential Manager blobs are converted into safe credential read failures instead of raw Unicode decode exceptions;
+- #298/#299 — subtitle burn-in uses unique temporary ASS staging for both full and selection export; intermediates are always cleaned and user-owned sidecar ASS files are preserved.
 
 Latest Windows stability test packaging:
 - workflow: **Package Windows Foundation**;
-- run: `37429446908`;
-- build branch commit: `7e9cf5be09feb578d6f5a399121e86d7ca037cea`;
+- run: `37431186070`;
+- build branch commit: `e8281b4c8dd213a2e1d1102b3ab6c483bd22914b`;
 - build branch differed from runtime source only by the one-off workflow push trigger; no application source file differed;
 - PyInstaller onedir: **PASS**;
 - portable verification: **PASS**;
 - verification markers: `PORTABLE_SMOKE_OK`, `FFMPEG_SLOT_OK`, `FINAL_RELEASE_DOCS_OK`;
-- Actions artifact: `AAVC-foundation-win64` / artifact ID `11396573064`;
-- uploaded artifact wrapper digest: `sha256:e801c879a5efd1f95da555777f035b5fe554c52dcef5dfa1f46a8a8345269862`;
-- extracted portable ZIP SHA-256: `6d9f3d57dd5c8ba47a18bb65a56e5c26ce8cac1962bacfee0ffff8c9efdfbe52`;
-- extracted portable ZIP size: `62097701` bytes / 268 entries;
+- Actions artifact: `AAVC-foundation-win64` / artifact ID `11396354889`;
+- uploaded artifact wrapper digest: `sha256:d2fdb1c6b36db78a5248d237fda52485980b48b3ac2c93f5d7d23f1a49f0c7ec`;
+- extracted portable ZIP SHA-256: `93042ce86e317453a5e1b88b3e1685d222425e33b461b5419768b805516b50e3`;
+- extracted portable ZIP size: `62096463` bytes / 268 entries;
 - root `AI Automatic Video Composer.exe` present;
 - root `tools/ffmpeg/README.md` present;
-- redundant `_internal/tools/ffmpeg/README.md` absent.
+- redundant `_internal/tools/ffmpeg/README.md` absent;
+- no `.aavc-subtitle-*.ass` staging file is bundled.
 
 This is a **test build**, not a new published GitHub Release. Published `v0.1.1` remains frozen and unchanged.
 
 ## ACTIVE TASK
-No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, MIT licensing #27, and stability issues #278/#280/#282/#285/#287/#289/#292/#295 are complete. Remaining repository administration item #20 (branch protection) requires owner/admin access.
+No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, MIT licensing #27, and stability issues #278/#280/#282/#285/#287/#289/#292/#295/#298 are complete. Remaining repository administration item #20 (branch protection) requires owner/admin access.
 
 ## NEXT EXACT ACTION
 Run direct end-to-end testing of the stability-hardened Windows portable ZIP on the target Windows PC. Automated/build gates are green, but production stability cannot be proven without real runtime use. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding product scope.
