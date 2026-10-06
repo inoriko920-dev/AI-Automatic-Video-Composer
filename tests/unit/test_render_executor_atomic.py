@@ -7,7 +7,7 @@ import pytest
 
 from aavc.domain.errors import RenderError
 from aavc.platform.process_runner import ProcessResult, ProcessRunner
-from aavc.rendering.executor import execute_ffmpeg
+from aavc.rendering.executor import ensure_windows_command_line_fits, execute_ffmpeg
 
 
 class RecordingRunner(ProcessRunner):
@@ -72,3 +72,19 @@ def test_execute_ffmpeg_rejects_empty_temporary_output_without_clobbering_destin
 
     assert output.read_bytes() == b"old-valid-video"
     assert _temporary_candidates(output) == []
+
+
+
+def test_windows_command_preflight_rejects_impossible_argv() -> None:
+    with pytest.raises(RenderError, match="terlalu panjang untuk Windows"):
+        ensure_windows_command_line_fits(
+            ["ffmpeg.exe", "-i", "C:/" + ("x" * 33000) + ".png", "out.mp4"],
+            is_windows=True,
+        )
+
+
+def test_windows_command_preflight_can_be_exercised_cross_platform() -> None:
+    ensure_windows_command_line_fits(
+        ["ffmpeg.exe", "-i", "C:/short/input.png", "out.mp4"],
+        is_windows=True,
+    )
