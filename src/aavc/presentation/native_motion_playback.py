@@ -194,6 +194,36 @@ def _load_preview_subtitles(project: ProjectState) -> tuple[SubtitleCue, ...]:
         return ()
 
 
+def _scene_position_for_global_time(
+    scene_durations: tuple[float, ...],
+    global_seconds: float,
+) -> tuple[int, float]:
+    if not scene_durations:
+        return 0, 0.0
+
+    normalized = tuple(max(0.0, float(value)) for value in scene_durations)
+    total = sum(normalized)
+    remaining = max(0.0, min(float(global_seconds), total))
+    if remaining >= total:
+        return len(normalized) - 1, normalized[-1]
+
+    for index, duration in enumerate(normalized):
+        if remaining < duration:
+            return index, remaining
+        remaining -= duration
+    return len(normalized) - 1, normalized[-1]
+
+
+def _elapsed_global_position(
+    anchor_global: float,
+    anchor_monotonic: float,
+    now_monotonic: float,
+    total_seconds: float,
+) -> float:
+    elapsed = max(0.0, float(now_monotonic) - float(anchor_monotonic))
+    return min(max(0.0, float(total_seconds)), max(0.0, anchor_global) + elapsed)
+
+
 def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     """Enable continuous motion, scrub, narration, timecode, and timed subtitles."""
 
@@ -362,17 +392,6 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
                 fraction = max(0.0, min(1.0, time_seconds / plan.duration_seconds))
                 progress_slider.setValue(int(round(fraction * 1000)))
 
-    def global_to_scene_position(global_seconds: float) -> tuple[int, float]:
-        if not scene_durations:
-            return 0, 0.0
-        remaining = max(0.0, min(global_seconds, total_project_seconds))
-        for index, duration in enumerate(scene_durations):
-            duration = max(0.0, float(duration))
-            if remaining <= duration or index == len(scene_durations) - 1:
-                return index, min(remaining, duration)
-            remaining -= duration
-        return len(scene_durations) - 1, max(0.0, scene_durations[-1])
-
     def set_playback_anchor(global_seconds: float) -> None:
         nonlocal playback_anchor_global, playback_anchor_monotonic
         playback_anchor_global = max(
@@ -384,12 +403,19 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     def current_playback_global() -> float:
         if not timer.isActive():
             return project_seconds(playback_seconds)
-        elapsed = max(0.0, time.monotonic() - playback_anchor_monotonic)
-        return min(total_project_seconds, playback_anchor_global + elapsed)
+        return _elapsed_global_position(
+            playback_anchor_global,
+            playback_anchor_monotonic,
+            time.monotonic(),
+            total_project_seconds,
+        )
 
     def render_global_position(global_seconds: float) -> None:
         nonlocal continuing_across_scene, playback_seconds
-        row, local_seconds = global_to_scene_position(global_seconds)
+        row, local_seconds = _scene_position_for_global_time(
+            scene_durations,
+            global_seconds,
+        )
         if row != scene_list.currentRow():
             continuing_across_scene = True
             try:
