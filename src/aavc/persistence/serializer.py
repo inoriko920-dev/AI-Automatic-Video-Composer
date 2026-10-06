@@ -91,17 +91,25 @@ def _validate_settings_objects(data: dict[str, Any]) -> None:
             _object(data[name], name)
 
     subtitle_style = _object(data.get("subtitle_style", {}), "subtitle_style")
+    for key in ("preset_name", "font_family", "fill_color", "outline_color"):
+        if key in subtitle_style:
+            _string(subtitle_style[key], f"subtitle_style.{key}")
     for key in ("outline_width", "shadow"):
         if key in subtitle_style:
             _number(subtitle_style[key], f"subtitle_style.{key}", non_negative=True)
     for key in ("font_size", "background_opacity", "alignment", "margin_v"):
         if key in subtitle_style:
             _integer(subtitle_style[key], f"subtitle_style.{key}")
+    if "background_box" in subtitle_style:
+        _bool(subtitle_style["background_box"], "subtitle_style.background_box")
 
     subtitle_animation = _object(
         data.get("subtitle_animation", {}),
         "subtitle_animation",
     )
+    for key in ("preset", "highlight_color"):
+        if key in subtitle_animation:
+            _string(subtitle_animation[key], f"subtitle_animation.{key}")
     for key in ("enter_duration_ms", "exit_duration_ms"):
         if key in subtitle_animation:
             value = _integer(subtitle_animation[key], f"subtitle_animation.{key}")
@@ -115,6 +123,9 @@ def _validate_settings_objects(data: dict[str, Any]) -> None:
         )
 
     render_quality = _object(data.get("render_quality", {}), "render_quality")
+    for key in ("preset_name", "video_codec", "encoder_preset", "scale_algorithm"):
+        if key in render_quality:
+            _string(render_quality[key], f"render_quality.{key}")
     for key in ("crf", "audio_bitrate_kbps"):
         if key in render_quality:
             _integer(render_quality[key], f"render_quality.{key}")
@@ -233,6 +244,8 @@ def loads_project(text: str) -> ProjectState:
         status = _string(binding_data.get("status"), f"{field}.status")
         if status not in _VALID_ASSET_STATUSES:
             _fail(f"{field}.status", f"status tidak dikenal: {status}")
+        if status == "READY" and path is None:
+            _fail(f"{field}.path", "binding READY harus memiliki path")
 
         expected_quote = quote_by_asset.get(asset_id)
         if expected_quote is None:
