@@ -6,7 +6,9 @@ from aavc.presentation.windows.narration_recording_window import (
     NarrationRecordingMainWindow,
     default_narration_recording_path,
     ensure_wav_suffix,
+    finalize_narration_recording,
     narration_recording_enabled,
+    narration_staging_path,
 )
 from aavc.presentation.windows.project_action_state_window import (
     ProjectActionStateMainWindow,
@@ -55,3 +57,47 @@ def test_default_recording_path_falls_back_to_docx_directory(tmp_path: Path) -> 
     )
 
     assert result == source_dir / "project_narration.wav"
+
+
+
+def test_narration_staging_path_is_hidden_sibling_wav(tmp_path: Path) -> None:
+    destination = tmp_path / "voice.wav"
+
+    staging = narration_staging_path(destination)
+
+    assert staging.parent == destination.parent
+    assert staging.suffix == ".wav"
+    assert staging.name.startswith(".voice.aavc-recording-")
+    assert staging != destination
+
+
+def test_finalize_narration_recording_replaces_existing_destination_atomically(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "voice.wav"
+    destination.write_bytes(b"old-valid-audio")
+    staging = narration_staging_path(destination)
+    staging.write_bytes(b"new-valid-audio")
+
+    finalized = finalize_narration_recording(staging, destination)
+
+    assert finalized == destination.resolve()
+    assert destination.read_bytes() == b"new-valid-audio"
+    assert not staging.exists()
+
+
+def test_invalid_staging_does_not_clobber_existing_narration(tmp_path: Path) -> None:
+    destination = tmp_path / "voice.wav"
+    destination.write_bytes(b"old-valid-audio")
+    staging = narration_staging_path(destination)
+    staging.write_bytes(b"")
+
+    try:
+        finalize_narration_recording(staging, destination)
+    except ValueError as error:
+        assert "tidak valid" in str(error)
+    else:
+        raise AssertionError("empty recording must be rejected")
+
+    assert destination.read_bytes() == b"old-valid-audio"
+    assert staging.exists()
