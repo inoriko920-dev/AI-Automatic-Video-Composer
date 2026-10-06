@@ -324,3 +324,34 @@ def test_copied_subtitle_source_participates_in_undo_redo(tmp_path: Path) -> Non
     assert session.current.subtitle_source == str(original.resolve())
     session.redo()
     assert session.current.subtitle_source == str(edited_path.resolve())
+
+
+
+def test_parse_srt_rejects_empty_file(tmp_path: Path) -> None:
+    source = tmp_path / "empty.srt"
+    source.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="tidak memiliki cue"):
+        parse_srt(source)
+
+
+def test_parse_srt_rejects_incomplete_block(tmp_path: Path) -> None:
+    source = tmp_path / "broken.srt"
+    source.write_text(
+        "1\n00:00:00,000 --> 00:00:01,000\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="tidak lengkap"):
+        parse_srt(source)
+
+
+def test_parse_srt_rejects_invalid_cue_timing(tmp_path: Path) -> None:
+    source = tmp_path / "invalid-timing.srt"
+    source.write_text(
+        "1\n00:00:02,000 --> 00:00:01,000\nTeks\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="lebih besar"):
+        parse_srt(source)
