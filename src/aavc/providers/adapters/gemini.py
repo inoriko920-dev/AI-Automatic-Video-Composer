@@ -80,8 +80,7 @@ class GeminiProvider:
         if not api_key:
             raise ProviderError("Gemini credential is empty", retryable=False)
         model = parse.quote(request_data.model, safe="-._")
-        query = parse.urlencode({"key": api_key})
-        url = f"{self._base_url}/models/{model}:generateContent?{query}"
+        url = f"{self._base_url}/models/{model}:generateContent"
         body: dict[str, object] = {
             "contents": [{"role": "user", "parts": [{"text": request_data.prompt}]}],
             "generationConfig": {"temperature": request_data.temperature},
@@ -93,7 +92,10 @@ class GeminiProvider:
         response = self._transport.post_json(
             url,
             body=body,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key,
+            },
             timeout_seconds=self._timeout_seconds,
         )
         if response.status >= 400:
