@@ -1,9 +1,25 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-No product feature or release task is active.
+**#260 — 0.2 completion wave: ACTIVE**
 
-Software Factory STEP 00–15 remains complete. Maintenance work stays on the `0.1.x` line.
+Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The approved 0.2 source completion wave is being finished separately on `main`.
+
+### 0.2 completion wave — #260
+Status: **ACTIVE**
+
+Completed runtime work:
+- project/File/Export action-state synchronization (#258/#259);
+- real microphone narration workflow (#261/#262);
+- bounded live Gemini Auto (AI) using secure credential slots (#263/#264);
+- responsive background render/Gemini work through canonical JobManager (#265/#266);
+- visible-placeholder cleanup and documentation synchronization (#267).
+
+Next exact action after #267 merges:
+- run compile, Ruff, strict mypy, pytest, STEP09 screenshot verification, and CodeQL on merged `main`;
+- produce a fresh Windows portable **test build** from the completed source line;
+- verify that build before closing #260.
+
 
 ### REL-0.1.1-PUBLISH — Publish maintenance patch
 Status: **COMPLETE**
