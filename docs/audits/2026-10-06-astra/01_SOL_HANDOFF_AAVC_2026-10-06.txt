@@ -1,0 +1,27 @@
+SOL HANDOFF — AAVC ASTRA BUG AUDIT — 2026-10-06
+
+Baseline audited: main @ 8feeeb2e6e90489e5edb890ee67f3f59ca3d438c
+Working branch: sol/astra-aavc-bugfix-2026-10-06
+
+Goal:
+Implement exactly the five ASTRA findings from AUDIT_PLAN.md without reopening product/UI planning.
+
+Order:
+1) AAVC-ASTRA-01 project/recovery validation and transactional failure behavior.
+2) AAVC-ASTRA-02 Windows FFmpeg command-length transport fix.
+3) AAVC-ASTRA-03 ASS subtitle path escaping.
+4) AAVC-ASTRA-04 monotonic playback clock.
+5) AAVC-ASTRA-05 true pause/resume semantics.
+6) Integration gates, CI/CodeQL, Windows package/runtime evidence, then sync TASKS/PROJECT_STATE.
+
+Rules:
+- Search existing owner/tests before adding helpers.
+- Keep presentation -> application -> domain.
+- Keep ProjectSession, ProcessRunner, atomic output and unique temp files canonical.
+- No shell=True, no subprocess from UI, no UI redesign, no provider changes.
+- Preserve schema compatibility and missing-media relink behavior.
+- Regression tests must assert behavior/state, not only command strings or icons.
+- Windows-specific findings are not final PASS until tested on Windows.
+
+Original user-supplied DOCX SHA-256:
+7e8bace848baf649660ac64022d1786eccc2193b458897aea23b0d17184c478f
