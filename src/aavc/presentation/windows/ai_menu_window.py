@@ -32,11 +32,21 @@ def configured_gemini_slots(credentials: CredentialStore) -> tuple[int, ...]:
     """Return configured slot numbers without exposing stored secret values."""
 
     configured: list[int] = []
+    first_read_error: OSError | None = None
     for slot in range(GEMINI_CREDENTIAL_SLOT_MIN, GEMINI_CREDENTIAL_SLOT_MAX + 1):
-        secret = credentials.get_secret(gemini_credential_reference(slot))
+        try:
+            secret = credentials.get_secret(gemini_credential_reference(slot))
+        except OSError as error:
+            if first_read_error is None:
+                first_read_error = error
+            continue
         if secret:
             configured.append(slot)
-    return tuple(configured)
+    if configured:
+        return tuple(configured)
+    if first_read_error is not None:
+        raise first_read_error
+    return ()
 
 
 def gemini_status_text(slots: tuple[int, ...]) -> str:

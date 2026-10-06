@@ -72,3 +72,35 @@ def test_missing_credential_is_disabled_and_next_key_is_used() -> None:
 
     assert response.text == "OK"
     assert pool.snapshot()[0].disabled is True
+
+
+class PartiallyBrokenCredentialStore(InMemoryCredentialStore):
+    def __init__(self, broken_reference: str) -> None:
+        super().__init__()
+        self._broken_reference = broken_reference
+
+    def get_secret(self, reference: str) -> str | None:
+        if reference == self._broken_reference:
+            raise OSError("corrupt credential blob")
+        return super().get_secret(reference)
+
+
+def test_credential_read_failure_disables_bad_key_and_fails_over() -> None:
+    pool = ApiKeyPool()
+    pool.register(key_id="broken", credential_ref="gemini/broken")
+    pool.register(key_id="ready", credential_ref="gemini/ready")
+    credentials = PartiallyBrokenCredentialStore("gemini/broken")
+    credentials.set_secret("gemini/ready", "good-secret")
+    provider = FakeProvider()
+    manager = ProviderManager(
+        provider=provider,
+        key_pool=pool,
+        credentials=credentials,
+        clock=lambda: 1.0,
+    )
+
+    response = manager.generate(ProviderRequest(prompt="ok", model="m"))
+
+    assert response.text == "OK"
+    assert provider.seen == ["good-secret"]
+    assert pool.snapshot()[0].disabled is True

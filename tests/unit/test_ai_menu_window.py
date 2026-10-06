@@ -53,3 +53,38 @@ def test_empty_gemini_status_contains_no_credential_material() -> None:
     status = gemini_status_text(())
     assert "Belum ada API key Gemini" in status
     assert "100 slot" in status
+
+
+class PartiallyUnreadableStore(InMemoryCredentialStore):
+    def __init__(self, broken_reference: str) -> None:
+        super().__init__()
+        self._broken_reference = broken_reference
+
+    def get_secret(self, reference: str) -> str | None:
+        if reference == self._broken_reference:
+            raise OSError("credential unreadable")
+        return super().get_secret(reference)
+
+
+def test_configured_slots_skip_one_unreadable_slot_when_healthy_slots_exist() -> None:
+    broken = gemini_credential_reference(1)
+    credentials = PartiallyUnreadableStore(broken)
+    credentials.set_secret(gemini_credential_reference(2), "healthy-secret")
+
+    assert configured_gemini_slots(credentials) == (2,)
+
+
+def test_configured_slots_surface_store_failure_when_nothing_is_readable() -> None:
+    class FullyUnreadableStore:
+        def get_secret(self, reference: str) -> str | None:
+            del reference
+            raise OSError("credential store unavailable")
+
+        def set_secret(self, reference: str, secret: str) -> None:
+            raise NotImplementedError
+
+        def delete_secret(self, reference: str) -> None:
+            raise NotImplementedError
+
+    with pytest.raises(OSError, match="credential store unavailable"):
+        configured_gemini_slots(FullyUnreadableStore())

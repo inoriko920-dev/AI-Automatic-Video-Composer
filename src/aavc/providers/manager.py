@@ -38,6 +38,7 @@ class ProviderManager:
     def generate(self, request: ProviderRequest) -> ProviderResponse:
         attempted: set[str] = set()
         last_error: ProviderError | None = None
+        last_credential_error: OSError | None = None
         attempt_limit = min(self._max_attempts, len(self._key_pool))
         for _ in range(attempt_limit):
             now = self._clock()
@@ -45,7 +46,17 @@ class ProviderManager:
             if entry is None:
                 break
             attempted.add(entry.key_id)
-            secret = self._credentials.get_secret(entry.credential_ref)
+            try:
+                secret = self._credentials.get_secret(entry.credential_ref)
+            except OSError as exc:
+                last_credential_error = exc
+                self._key_pool.mark_failure(
+                    entry.key_id,
+                    now=now,
+                    cooldown_seconds=0.0,
+                    disable=True,
+                )
+                continue
             if not secret:
                 self._key_pool.mark_failure(
                     entry.key_id,
@@ -75,6 +86,12 @@ class ProviderManager:
                 f"{self._provider.name} provider exhausted after {len(attempted)} attempt(s): "
                 f"{safe_message}"
             ) from last_error
+        if last_credential_error is not None:
+            safe_message = redact_sensitive_text(str(last_credential_error))
+            raise ProviderExhaustedError(
+                f"{self._provider.name} credential store failed after "
+                f"{len(attempted)} attempt(s): {safe_message}"
+            ) from last_credential_error
         raise ProviderExhaustedError(
             f"{self._provider.name} provider has no usable configured credentials"
         )
