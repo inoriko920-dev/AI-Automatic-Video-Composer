@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-CURRENT_SCHEMA_VERSION = 2
-
 from aavc.domain.project.models import (
     AnimationAssignment,
     AssetBinding,
@@ -14,6 +12,8 @@ from aavc.domain.project.models import (
     SubtitleAnimationSettings,
     SubtitleStyle,
 )
+
+CURRENT_SCHEMA_VERSION = 2
 
 
 def dumps_project(project: ProjectState) -> str:
