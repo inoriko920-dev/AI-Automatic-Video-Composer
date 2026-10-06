@@ -104,3 +104,85 @@ def test_recovery_restore_does_not_touch_legacy_fixed_restore_temp(tmp_path: Pat
 
     assert legacy_temp.read_text(encoding="utf-8") == "user-owned-restore-temp"
     assert list(tmp_path.glob(".*.aavc-restore-*.tmp")) == []
+
+
+@pytest.mark.parametrize("payload", ["[]", "null", "1", '"text"'])
+def test_project_root_must_be_json_object(payload: str) -> None:
+    with pytest.raises(ValueError, match="root"):
+        loads_project(payload)
+
+
+def test_structurally_invalid_project_payloads_are_rejected() -> None:
+    base = _project().to_dict()
+
+    invalid_payloads: list[dict[str, object]] = []
+
+    no_assets = json.loads(json.dumps(base))
+    no_assets["scenes"][0]["asset_ids"] = []
+    no_assets["scenes"][0]["source_quotes"] = []
+    invalid_payloads.append(no_assets)
+
+    three_assets = json.loads(json.dumps(base))
+    three_assets["scenes"][0]["asset_ids"] = ["A001", "A002", "A003"]
+    three_assets["scenes"][0]["source_quotes"] = ["one", "two", "three"]
+    invalid_payloads.append(three_assets)
+
+    duplicate_scene = json.loads(json.dumps(base))
+    duplicate_scene["scenes"][1]["scene_number"] = duplicate_scene["scenes"][0]["scene_number"]
+    invalid_payloads.append(duplicate_scene)
+
+    string_duration = json.loads(json.dumps(base))
+    string_duration["scenes"][0]["duration_seconds"] = "3.0"
+    invalid_payloads.append(string_duration)
+
+    negative_duration = json.loads(json.dumps(base))
+    negative_duration["scenes"][0]["duration_seconds"] = -1.0
+    invalid_payloads.append(negative_duration)
+
+    infinite_duration = json.loads(json.dumps(base))
+    infinite_duration["scenes"][0]["duration_seconds"] = float("inf")
+    invalid_payloads.append(infinite_duration)
+
+    missing_binding = json.loads(json.dumps(base))
+    missing_binding["bindings"] = missing_binding["bindings"][1:]
+    invalid_payloads.append(missing_binding)
+
+    for payload in invalid_payloads:
+        with pytest.raises(ValueError):
+            loads_project(json.dumps(payload))
+
+
+def test_missing_media_binding_remains_loadable_for_relink() -> None:
+    payload = _project().to_dict()
+    payload["bindings"][0]["path"] = "Z:/moved/A001.png"
+    payload["bindings"][0]["status"] = "MISSING"
+
+    restored = loads_project(json.dumps(payload))
+
+    assert restored.bindings[0].status == "MISSING"
+    assert restored.bindings[0].path == "Z:/moved/A001.png"
+
+
+def test_structurally_invalid_recovery_preserves_project_and_existing_backup(
+    tmp_path: Path,
+) -> None:
+    project = _project()
+    project_path = save_project(project, tmp_path / "demo.aavcproj")
+    original_project_bytes = project_path.read_bytes()
+
+    manager = RecoveryManager()
+    payload = project.to_dict()
+    payload["scenes"][0]["asset_ids"] = []
+    payload["scenes"][0]["source_quotes"] = []
+    recovery = manager.recovery_path_for(project_path)
+    recovery.write_text(json.dumps(payload), encoding="utf-8")
+
+    backup = project_path.with_suffix(project_path.suffix + ".pre-recovery.bak")
+    backup.write_bytes(b"existing-backup")
+
+    with pytest.raises(ValueError, match="asset_ids"):
+        manager.restore_snapshot(project_path)
+
+    assert project_path.read_bytes() == original_project_bytes
+    assert backup.read_bytes() == b"existing-backup"
+    assert list(tmp_path.glob(".*.aavc-restore-*.tmp")) == []
