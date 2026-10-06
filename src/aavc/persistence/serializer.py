@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from aavc.domain.project.models import (
     AnimationAssignment,
     AssetBinding,
+    AssetStatus,
     ProjectState,
     RenderQualitySettings,
     Scene,
@@ -36,12 +37,16 @@ def _list(value: Any, field: str) -> list[Any]:
     return value
 
 
-def _string(value: Any, field: str, *, allow_none: bool = False) -> str | None:
-    if allow_none and value is None:
-        return None
+def _string(value: Any, field: str) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} harus berupa string")
     return value
+
+
+def _optional_string(value: Any, field: str) -> str | None:
+    if value is None:
+        return None
+    return _string(value, field)
 
 
 def _integer(value: Any, field: str, *, positive: bool = false) -> int:
@@ -111,7 +116,7 @@ def _deserialize_binding(raw: Any, index: int) -> AssetBinding:
     source_quote = _string(
         data.get("source_quote"), f"bindings[{index}].source_quote"
     )
-    path = _string(data.get("path"), f"bindings[{index}].path", allow_none=True)
+    path = _optional_string(data.get("path"), f"bindings[{index}].path")
     status = _string(data.get("status"), f"bindings[{index}].status")
     if status not in _ASSET_STATUSES:
         raise ValueError(f"bindings[{index}].status tidak didukung: {status}")
@@ -119,7 +124,7 @@ def _deserialize_binding(raw: Any, index: int) -> AssetBinding:
         asset_id=asset_id,
         source_quote=source_quote,
         path=path,
-        status=status,
+        status=cast(AssetStatus, status),
     )
 
 
@@ -239,14 +244,14 @@ def loads_project(text: str) -> ProjectState:
         asset_directory=_string(data.get("asset_directory"), "asset_directory"),
         scenes=scenes,
         bindings=bindings,
-        narration_audio=_string(
-            data.get("narration_audio"), "narration_audio", allow_none=True
+        narration_audio=_optional_string(
+            data.get("narration_audio"), "narration_audio"
         ),
-        subtitle_source=_string(
-            data.get("subtitle_source"), "subtitle_source", allow_none=True
+        subtitle_source=_optional_string(
+            data.get("subtitle_source"), "subtitle_source"
         ),
-        background_source=_string(
-            data.get("background_source"), "background_source", allow_none=True
+        background_source=_optional_string(
+            data.get("background_source"), "background_source"
         ),
         fps=_integer(data.get("fps", 30), "fps", positive=True),
         width=_integer(data.get("width", 1920), "width", positive=True),
