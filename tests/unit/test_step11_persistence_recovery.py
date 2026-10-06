@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.persistence.recovery import RecoveryManager
 from aavc.persistence.serializer import loads_project, save_project
@@ -37,3 +39,13 @@ def test_recovery_snapshot_roundtrip(tmp_path: Path) -> None:
     assert recovered.title == project.title
     restored_path = manager.restore_snapshot(project_path)
     assert restored_path.exists()
+
+
+
+def test_future_schema_is_rejected_instead_of_silently_downgraded() -> None:
+    project = _project()
+    payload = project.to_dict()
+    payload["schema_version"] = 99
+
+    with pytest.raises(ValueError, match="lebih baru"):
+        loads_project(json.dumps(payload))

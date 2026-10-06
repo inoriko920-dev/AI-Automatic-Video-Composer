@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -156,3 +157,23 @@ def test_save_requires_active_project() -> None:
     assert not session.is_dirty
     with pytest.raises(ValueError, match="Tidak ada proyek aktif"):
         session.save()
+
+
+
+def test_future_schema_open_preserves_existing_session(tmp_path: Path) -> None:
+    previous = _project("project-lama")
+    previous_path = tmp_path / "previous.aavcproj"
+    session = ProjectSession()
+    session.create(previous, previous_path)
+
+    future = tmp_path / "future.aavcproj"
+    payload = previous.to_dict()
+    payload["schema_version"] = 99
+    future.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lebih baru"):
+        session.open(future)
+
+    assert session.current == previous
+    assert session.path == previous_path.resolve()
+    assert not session.is_dirty
