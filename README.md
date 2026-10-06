@@ -19,10 +19,11 @@ Current published maintenance release: **0.1.1**.
 
 Latest completed post-release source line: **0.2 completion test build verified** (not yet a published GitHub Release).
 
-- Latest verified application source before final dead-code cleanup: `b1a98fa38684afc884510b9f525e8efac20cbe01`
+- Final verified 0.2 application source: `2efd414b6a582b86d39c5b6d1f7d4ff7d0bb6897`
 - Gemini API-key transport hardening: **PASS** — raw key is sent in `x-goog-api-key`, not the request URL
-- Latest Windows portable test packaging run `37418690461`: **PASS**
-- Latest portable ZIP SHA-256: `e9134653c5b40eb5c6ce681b7b5021d5731ecd1a68b0280ff41365d709dc875c`
+- Final Windows portable test packaging run `37420955954`: **PASS**
+- Final Actions artifact ID: `11392374584`
+- Final portable ZIP SHA-256: `a59737cd2cf5766eb3c2b7c76d2c549dbbb435f1db7ad84683efd3d7489d7802`
 - Portable smoke/content verification: **PASS**
 - Published `v0.1.1` remains frozen and unchanged.
 

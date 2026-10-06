@@ -84,29 +84,31 @@ None known for normal `0.1.x` maintenance.
 
 The approved 0.2 completion wave (#260) has completed its source/runtime scope and fresh Windows test-build gate.
 
-Verified source before final dead-code/documentation cleanup #274:
-- application source: `main` @ `b1a98fa38684afc884510b9f525e8efac20cbe01`;
-- post-merge CI run `37418374428`: **PASS**;
-- post-merge CodeQL run `37418374423`: **PASS**.
+Final verified 0.2 application source after cleanup #274:
+- application source: `main` @ `2efd414b6a582b86d39c5b6d1f7d4ff7d0bb6897`;
+- post-merge CI run `37420784262`: **PASS**;
+- post-merge CodeQL run `37420784256`: **PASS**;
+- seven unreferenced deferred source stubs were retired without changing user-visible runtime behavior;
+- architecture/data-flow documentation now matches the live Qt preview and external FFmpeg contract.
 
-Latest Windows test packaging before #274 cleanup:
+Final Windows test packaging after #274 cleanup:
 - workflow: **Package Windows Foundation**;
-- run: `37418690461`;
-- build branch commit: `85549ffe818ec91e4f6527f96889eeee670ffad9`;
-- branch differed from source `b1a98fa38684afc884510b9f525e8efac20cbe01` only by the one-off workflow push trigger; no application source file differed;
+- run: `37420955954`;
+- build branch commit: `60345bc140cfa8a47e0e718c1d792c640da45431`;
+- branch differed from final application source `2efd414b6a582b86d39c5b6d1f7d4ff7d0bb6897` only by the one-off workflow push trigger; no application source file differed;
 - PyInstaller onedir: **PASS**;
 - portable verification: **PASS**;
 - verification markers: `PORTABLE_SMOKE_OK`, `FFMPEG_SLOT_OK`, `FINAL_RELEASE_DOCS_OK`;
-- Actions artifact: `AAVC-foundation-win64` / artifact ID `11392605021`;
-- uploaded artifact wrapper digest: `sha256:6a6800feeac16f296d83bf7088788cdf3f206ee581701942aeb9bb84557702e9`;
-- extracted portable ZIP SHA-256: `e9134653c5b40eb5c6ce681b7b5021d5731ecd1a68b0280ff41365d709dc875c`;
+- Actions artifact: `AAVC-foundation-win64` / artifact ID `11392374584`;
+- uploaded artifact wrapper digest: `sha256:0fc80d64e1a022dd2c4530c89186316217ae1ad0d062eb1bbd39520139a1e221`;
+- extracted portable ZIP SHA-256: `a59737cd2cf5766eb3c2b7c76d2c549dbbb435f1db7ad84683efd3d7489d7802`;
 - portable ZIP contains root `AI Automatic Video Composer.exe` and `tools/ffmpeg/README.md`;
 - redundant `_internal/tools/ffmpeg/README.md` is absent.
 
 This is a **test build**, not a new published GitHub Release. Published `v0.1.1` remains frozen and unchanged.
 
 ## ACTIVE TASK
-Maintenance cleanup **#274** is active to remove unreferenced deferred owner stubs, align architecture/data-flow documentation with the actual 0.2 runtime, and refresh the Windows test artifact from the merged cleanup source. No new product capability is being added.
+No technical implementation or cleanup task is active. **#260 and #274 are complete.** Remaining repository issues #20 (branch protection) and #27 (project license) require owner/admin decisions and are not runtime implementation work.
 
 ## NEXT EXACT ACTION
-Complete #274 gates, merge the cleanup, produce one fresh Windows portable build from the resulting source, then return to direct user end-to-end testing. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding into the separate arbitrary-video/multitrack experiment.
+User performs direct end-to-end testing of the final 0.2 Windows portable ZIP on the target PC. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding into the separate arbitrary-video/multitrack experiment.
