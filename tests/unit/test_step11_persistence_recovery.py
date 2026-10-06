@@ -49,3 +49,24 @@ def test_future_schema_is_rejected_instead_of_silently_downgraded() -> None:
 
     with pytest.raises(ValueError, match="lebih baru"):
         loads_project(json.dumps(payload))
+
+
+
+def test_corrupt_recovery_snapshot_does_not_replace_project_or_backup(tmp_path: Path) -> None:
+    project = _project()
+    project_path = save_project(project, tmp_path / "demo.aavcproj")
+    original_project_bytes = project_path.read_bytes()
+
+    manager = RecoveryManager()
+    recovery = manager.recovery_path_for(project_path)
+    recovery.write_text("{not valid json", encoding="utf-8")
+
+    backup = project_path.with_suffix(project_path.suffix + ".pre-recovery.bak")
+    backup.write_bytes(b"existing-backup")
+
+    with pytest.raises(ValueError):
+        manager.restore_snapshot(project_path)
+
+    assert project_path.read_bytes() == original_project_bytes
+    assert backup.read_bytes() == b"existing-backup"
+    assert not project_path.with_suffix(project_path.suffix + ".restore.tmp").exists()
