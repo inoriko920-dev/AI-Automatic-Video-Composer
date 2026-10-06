@@ -1,7 +1,7 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-No technical implementation task is active. Completion wave #260 and final technical cleanup #274 are complete. Project license #27 is resolved as **MIT**. The only remaining repository administration item is #20 (branch protection), which requires owner/admin access.
+No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, project license #27, and the focused stability hardening issues #278/#280/#282/#285/#287/#289 are complete. The only remaining repository administration item is #20 (branch protection), which requires owner/admin access.
 
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 
@@ -18,14 +18,29 @@ Completed runtime work:
 - fresh Windows portable test build: PASS;
 - portable smoke/content verification: PASS.
 
-Final verified 0.2 build evidence:
-- application source `2efd414b6a582b86d39c5b6d1f7d4ff7d0bb6897`;
-- CI run `37420784262`: PASS;
-- CodeQL run `37420784256`: PASS;
-- packaging run `37420955954`: PASS;
-- Actions artifact ID `11392374584`;
-- artifact wrapper SHA-256 `0fc80d64e1a022dd2c4530c89186316217ae1ad0d062eb1bbd39520139a1e221`;
-- portable ZIP SHA-256 `a59737cd2cf5766eb3c2b7c76d2c549dbbb435f1db7ad84683efd3d7489d7802`.
+Latest stability-hardened 0.2 build evidence:
+- runtime application source `ab2bd435abf090e26cbfb8188ebedeedb85c567e`;
+- CI run `37425086508`: PASS;
+- CodeQL run `37425086490`: PASS;
+- packaging run `37425405061`: PASS;
+- Actions artifact ID `11394412396`;
+- artifact wrapper SHA-256 `fe3bd6d8d071426eab8463dc84b8925903855524ace82c8fb68e75d64f21ef9d`;
+- portable ZIP SHA-256 `6e9e41ae9953332b61a014dfad1c793a3fad9f88f152f11345690d6c1789d13e`.
+
+### Stability hardening — #278 / #280 / #282 / #285 / #287 / #289
+Status: **COMPLETE**
+
+Completed:
+- atomic FFmpeg output finalization preserves prior valid output on render failure;
+- external-process output decoding cannot fail on undecodable bytes;
+- narration recording stages output and preserves an existing WAV on cancel/error;
+- unsupported future project schemas are refused before session mutation;
+- malformed DOCX XML is surfaced as a controlled import error;
+- application close is blocked while Render/Auto AI background work is active;
+- focused regression tests added for each behavior;
+- final combined PR #290 CI + CodeQL: PASS;
+- merged runtime source CI + CodeQL: PASS;
+- fresh Windows portable packaging and smoke/content verification: PASS.
 
 ### Final technical cleanup — #274
 Status: **COMPLETE**
@@ -39,7 +54,7 @@ Completed:
 - fresh Windows portable build from the cleaned runtime source: PASS;
 - portable smoke/content verification: PASS.
 
-Next action is direct user testing. New capability work still requires explicit approval.
+Next action is direct end-to-end Windows testing of the stability-hardened portable build. New capability work still requires explicit approval.
 
 
 ### REL-0.1.1-PUBLISH — Publish maintenance patch
