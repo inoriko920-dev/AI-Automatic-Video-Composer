@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "ai-automatic-video-composer"
 version = "0.1.1"
 description = "AI Automatic Video Composer - Windows portable release"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "PySide6==6.11.2",
