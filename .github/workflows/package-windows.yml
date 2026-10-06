@@ -2,6 +2,9 @@ name: Package Windows Foundation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - build/0.2-stable-recovery-2d92446
 
 permissions:
   contents: read
