@@ -49,7 +49,7 @@ def _optional_string(value: Any, field: str) -> str | None:
     return _string(value, field)
 
 
-def _integer(value: Any, field: str, *, positive: bool = false) -> int:
+def _integer(value: Any, field: str, *, positive: bool = False) -> int:
     if type(value) is not int:
         raise ValueError(f"{field} harus berupa integer")
     if positive and value <= 0:
@@ -61,8 +61,8 @@ def _finite_number(
     value: Any,
     field: str,
     *,
-    positive: bool = false,
-    non_negative: bool = false,
+    positive: bool = False,
+    non_negative: bool = False,
 ) -> float:
     if type(value) not in {int, float}:
         raise ValueError(f"{field} harus berupa angka")
