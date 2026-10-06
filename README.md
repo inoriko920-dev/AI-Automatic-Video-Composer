@@ -128,3 +128,10 @@ For release evidence, publication, rollback rules and maintenance policy, see:
 Current published release line: **0.1.1** on the compatible **0.1.x** maintenance line.
 
 Current post-release source state: **0.2 completion test build verified / not published as a GitHub Release**.
+
+
+## License
+
+AI Automatic Video Composer project source is licensed under the **MIT License**. See `LICENSE`.
+
+Third-party dependencies retain their own licenses. FFmpeg/ffprobe are external dependencies and are not redistributed by AAVC.
