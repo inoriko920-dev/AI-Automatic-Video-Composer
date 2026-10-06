@@ -1,7 +1,7 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, project license #27, and focused stability hardening issues #278/#280/#282/#285/#287/#289/#292/#295 are complete. The only remaining repository administration item is #20 (branch protection), which requires owner/admin access.
+No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, project license #27, and focused stability hardening issues #278/#280/#282/#285/#287/#289/#292/#295/#298 are complete. The only remaining repository administration item is #20 (branch protection), which requires owner/admin access.
 
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 
@@ -19,15 +19,15 @@ Completed runtime work:
 - portable smoke/content verification: PASS.
 
 Latest stability-hardened 0.2 build evidence:
-- runtime application source `9ce7d3c3125947c69e7dcf357f6ecbbc6707fee7`;
-- CI run `37429362040`: PASS;
-- CodeQL run `37429362044`: PASS;
-- packaging run `37429446908`: PASS;
-- Actions artifact ID `11396573064`;
-- artifact wrapper SHA-256 `e801c879a5efd1f95da555777f035b5fe554c52dcef5dfa1f46a8a8345269862`;
-- portable ZIP SHA-256 `6d9f3d57dd5c8ba47a18bb65a56e5c26ce8cac1962bacfee0ffff8c9efdfbe52`.
+- runtime application source `d520b7afd975902ee3d2068a70a5fdcfc07957aa`;
+- CI run `37431110423`: PASS;
+- CodeQL run `37431110449`: PASS;
+- packaging run `37431186070`: PASS;
+- Actions artifact ID `11396354889`;
+- artifact wrapper SHA-256 `d2fdb1c6b36db78a5248d237fda52485980b48b3ac2c93f5d7d23f1a49f0c7ec`;
+- portable ZIP SHA-256 `93042ce86e317453a5e1b88b3e1685d222425e33b461b5419768b805516b50e3`.
 
-### Stability hardening — #278 / #280 / #282 / #285 / #287 / #289 / #292 / #295
+### Stability hardening — #278 / #280 / #282 / #285 / #287 / #289 / #292 / #295 / #298
 Status: **COMPLETE**
 
 Completed:
@@ -39,6 +39,7 @@ Completed:
 - application close is blocked while Render/Auto AI background work is active;
 - empty/malformed/invalid-timing SRT imports are rejected before project mutation;
 - corrupt Windows Credential Manager blobs are normalized into safe errors;
+- subtitle burn-in uses temporary ASS staging and preserves user-owned sidecar files;
 - focused regression tests added for each behavior;
 - final combined PR #290 CI + CodeQL: PASS;
 - merged runtime source CI + CodeQL: PASS;
