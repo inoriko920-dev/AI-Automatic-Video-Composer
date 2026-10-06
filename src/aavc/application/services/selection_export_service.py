@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from aavc.application.services.export_service import ExportOptions
+from aavc.application.services.export_service import ExportOptions, subtitle_staging_path
 from aavc.domain.errors import RenderError
 from aavc.domain.project.models import ProjectState
 from aavc.platform.process_runner import ProcessRunner
@@ -47,36 +47,42 @@ def render_project_selection(
     )
 
     subtitle_ass: Path | None = None
-    if options.burn_subtitles and project.subtitle_source:
-        subtitle_ass = output.with_suffix(".subtitle.ass")
-        compile_srt_to_ass(
-            project.subtitle_source,
-            subtitle_ass,
-            width=options.width,
-            height=options.height,
-            style=project.subtitle_style,
-            animation=project.subtitle_animation,
-        )
-
-    plan = build_render_plan(
-        export_project,
-        output,
-        str(subtitle_ass) if subtitle_ass is not None else None,
-    )
-    preflight = validate_render_plan(plan)
-    errors = [issue.message for issue in preflight.issues if issue.severity.value == "ERROR"]
-    if errors:
-        raise RenderError(f"Render preflight gagal: {'; '.join(errors)}")
-
     try:
-        selection: RenderSelection = validate_render_selection(
-            start_seconds,
-            end_seconds,
-            plan.duration_seconds,
-        )
-    except ValueError as error:
-        raise RenderError(f"Range In/Out render tidak valid: {error}") from error
+        if options.burn_subtitles and project.subtitle_source:
+            subtitle_ass = subtitle_staging_path(output)
+            compile_srt_to_ass(
+                project.subtitle_source,
+                subtitle_ass,
+                width=options.width,
+                height=options.height,
+                style=project.subtitle_style,
+                animation=project.subtitle_animation,
+            )
 
-    ffmpeg_path = ffmpeg or resolve_ffmpeg().path
-    command = build_ffmpeg_selection_command(plan, selection, ffmpeg=ffmpeg_path)
-    return execute_ffmpeg(command, runner=runner)
+        plan = build_render_plan(
+            export_project,
+            output,
+            str(subtitle_ass) if subtitle_ass is not None else None,
+        )
+        preflight = validate_render_plan(plan)
+        errors = [
+            issue.message for issue in preflight.issues if issue.severity.value == "ERROR"
+        ]
+        if errors:
+            raise RenderError(f"Render preflight gagal: {'; '.join(errors)}")
+
+        try:
+            selection: RenderSelection = validate_render_selection(
+                start_seconds,
+                end_seconds,
+                plan.duration_seconds,
+            )
+        except ValueError as error:
+            raise RenderError(f"Range In/Out render tidak valid: {error}") from error
+
+        ffmpeg_path = ffmpeg or resolve_ffmpeg().path
+        command = build_ffmpeg_selection_command(plan, selection, ffmpeg=ffmpeg_path)
+        return execute_ffmpeg(command, runner=runner)
+    finally:
+        if subtitle_ass is not None:
+            subtitle_ass.unlink(missing_ok=True)
