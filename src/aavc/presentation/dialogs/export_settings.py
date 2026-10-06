@@ -77,7 +77,6 @@ def create_export_dialog(
 ) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
-        QCheckBox,
         QComboBox,
         QDialog,
         QFormLayout,
@@ -133,16 +132,9 @@ def create_export_dialog(
     form2.addRow("Subtitle", subtitle)
     layout.addLayout(form2)
 
-    gpu = QCheckBox("Gunakan akselerasi GPU jika tersedia")
-    gpu.setEnabled(False)
-    gpu.setToolTip("GPU encoder belum diaktifkan pada render pipeline saat ini.")
-    layout.addWidget(gpu)
     layout.addStretch(1)
 
     footer = QHBoxLayout()
-    advanced = QPushButton("Pengaturan Lanjutan")
-    advanced.setEnabled(False)
-    advanced.setToolTip("Pengaturan lanjutan belum tersedia pada build ini.")
     cancel = QPushButton("Batal")
     cancel.clicked.connect(dialog.reject)
     render = make_primary_button("Mulai Render")
@@ -175,7 +167,6 @@ def create_export_dialog(
             dialog.accept()
 
     render.clicked.connect(submit_render)
-    footer.addWidget(advanced)
     footer.addStretch(1)
     footer.addWidget(cancel)
     footer.addWidget(render)
