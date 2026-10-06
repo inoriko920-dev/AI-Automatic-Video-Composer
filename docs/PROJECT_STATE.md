@@ -37,7 +37,10 @@ Current 0.2 completion source includes:
 - bounded live Gemini Auto (AI) from PR #264, restricted to validated native render-backed animation assignments and one-step Undo;
 - background render and Gemini execution from PR #266 using the canonical `JobManager`, with overlapping work rejected and stale Gemini results discarded;
 - completion cleanup from #267: unsupported GPU/Advanced export controls are not advertised, reference-only AI Agent/empty tabs are removed from live runtime surfaces, obsolete read-only subtitle actions are hidden, and Home/New Project no longer present fake project/history controls;
-- Gemini transport hardening from #271/#272: the selected raw API key is sent in the `x-goog-api-key` request header rather than being embedded in the request URL.
+- Gemini transport hardening from #271/#272: the selected raw API key is sent in the `x-goog-api-key` request header rather than being embedded in the request URL;
+- atomic render output from #278/#279 so failed FFmpeg work cannot clobber a previously valid output;
+- tolerant external-process output decoding from #282/#283 so invalid tool bytes cannot crash the Python decode boundary;
+- final stability hardening from #280/#285/#287/#289 via #290: narration records to staging before atomic replacement, unsupported future project schemas are refused, malformed DOCX XML becomes a safe import error, and application close is blocked while Render/Auto AI work is active.
 
 Raw API-key values remain outside `ProjectState`, project files, logs, and status diagnostics. FFmpeg/ffprobe remain external dependencies.
 
@@ -80,35 +83,43 @@ No factory blocker remains. Before later patch releases, re-check compatibility 
 ## BLOCKERS
 No runtime blocker is known for normal `0.1.x` maintenance. Repository administration still has #20 (branch protection), which requires owner/admin access.
 
-## 0.2 COMPLETION TEST BUILD
+## 0.2 STABILITY-HARDENED TEST BUILD
 
-The approved 0.2 completion wave (#260) has completed its source/runtime scope and fresh Windows test-build gate.
+The approved 0.2 completion scope is complete and has undergone an additional focused stability audit. The latest runtime source is verified by CI, CodeQL, regression tests, STEP09 visual checks, and a fresh Windows portable packaging gate.
 
-Final verified 0.2 application source after cleanup #274:
-- application source: `main` @ `2efd414b6a582b86d39c5b6d1f7d4ff7d0bb6897`;
-- post-merge CI run `37420784262`: **PASS**;
-- post-merge CodeQL run `37420784256`: **PASS**;
-- seven unreferenced deferred source stubs were retired without changing user-visible runtime behavior;
-- architecture/data-flow documentation now matches the live Qt preview and external FFmpeg contract.
+Stability-hardened runtime source:
+- application source: `main` @ `ab2bd435abf090e26cbfb8188ebedeedb85c567e`;
+- post-merge CI run `37425086508`: **PASS**;
+- post-merge CodeQL run `37425086490`: **PASS**.
 
-Final Windows test packaging after #274 cleanup:
+Additional stability fixes:
+- #278/#279 — render output is staged and atomically finalized; failed renders preserve existing destination files;
+- #282/#283 — external-process stdout/stderr decoding tolerates invalid Windows/tool bytes;
+- #280/#290 — narration recording uses staging and never deletes/replaces an existing WAV until the new recording is valid;
+- #285/#290 — project files with unsupported future schema versions are rejected instead of silently loaded;
+- #287/#290 — malformed DOCX XML is converted into a safe AAVC import error;
+- #289/#290 — the app refuses to close while Render/Auto AI background work is active so the GUI event loop is not removed from a running job.
+
+Latest Windows stability test packaging:
 - workflow: **Package Windows Foundation**;
-- run: `37420955954`;
-- build branch commit: `60345bc140cfa8a47e0e718c1d792c640da45431`;
-- branch differed from final application source `2efd414b6a582b86d39c5b6d1f7d4ff7d0bb6897` only by the one-off workflow push trigger; no application source file differed;
+- run: `37425405061`;
+- build branch commit: `2cb51ca8f206e1d516c185e1bda9c77a0c07d43d`;
+- build branch differed from runtime source only by the one-off workflow push trigger; no application source file differed;
 - PyInstaller onedir: **PASS**;
 - portable verification: **PASS**;
 - verification markers: `PORTABLE_SMOKE_OK`, `FFMPEG_SLOT_OK`, `FINAL_RELEASE_DOCS_OK`;
-- Actions artifact: `AAVC-foundation-win64` / artifact ID `11392374584`;
-- uploaded artifact wrapper digest: `sha256:0fc80d64e1a022dd2c4530c89186316217ae1ad0d062eb1bbd39520139a1e221`;
-- extracted portable ZIP SHA-256: `a59737cd2cf5766eb3c2b7c76d2c549dbbb435f1db7ad84683efd3d7489d7802`;
-- portable ZIP contains root `AI Automatic Video Composer.exe` and `tools/ffmpeg/README.md`;
-- redundant `_internal/tools/ffmpeg/README.md` is absent.
+- Actions artifact: `AAVC-foundation-win64` / artifact ID `11394412396`;
+- uploaded artifact wrapper digest: `sha256:fe3bd6d8d071426eab8463dc84b8925903855524ace82c8fb68e75d64f21ef9d`;
+- extracted portable ZIP SHA-256: `6e9e41ae9953332b61a014dfad1c793a3fad9f88f152f11345690d6c1789d13e`;
+- extracted portable ZIP size: `62096822` bytes / 268 entries;
+- root `AI Automatic Video Composer.exe` present;
+- root `tools/ffmpeg/README.md` present;
+- redundant `_internal/tools/ffmpeg/README.md` absent.
 
 This is a **test build**, not a new published GitHub Release. Published `v0.1.1` remains frozen and unchanged.
 
 ## ACTIVE TASK
-No technical implementation or cleanup task is active. **#260 and #274 are complete.** Project license decision #27 is resolved as **MIT** with root `LICENSE`, SPDX package metadata, and provenance documentation. Remaining repository administration item #20 (branch protection) requires owner/admin access.
+No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, MIT licensing #27, and the stability issues #278/#280/#282/#285/#287/#289 are complete. Remaining repository administration item #20 (branch protection) requires owner/admin access.
 
 ## NEXT EXACT ACTION
-User performs direct end-to-end testing of the final 0.2 Windows portable ZIP on the target PC. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding into the separate arbitrary-video/multitrack experiment.
+Run direct end-to-end testing of the stability-hardened Windows portable ZIP on the target Windows PC. Automated/build gates are green, but production stability cannot be proven without real runtime use. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding product scope.
