@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from aavc.domain.project.models import ProjectState
-from aavc.persistence.serializer import load_project, save_project
+from aavc.persistence.serializer import load_project, save_project, temporary_sibling_path
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,10 +46,13 @@ class RecoveryManager:
         backup = project.with_suffix(project.suffix + ".pre-recovery.bak")
         if project.exists():
             shutil.copy2(project, backup)
-        temp = project.with_suffix(project.suffix + ".restore.tmp")
-        shutil.copy2(recovery, temp)
-        temp.replace(project)
-        return project
+        temp = temporary_sibling_path(project, label="restore")
+        try:
+            shutil.copy2(recovery, temp)
+            temp.replace(project)
+            return project
+        finally:
+            temp.unlink(missing_ok=True)
 
     def clear_snapshot(self, project_path: str | Path) -> None:
         self.recovery_path_for(project_path).unlink(missing_ok=True)
