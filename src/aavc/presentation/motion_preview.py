@@ -49,6 +49,50 @@ def preview_narration_seconds(
     return sum(normalized[:index]) + local
 
 
+def preview_scene_position_for_global_seconds(
+    scene_durations: tuple[float, ...],
+    global_seconds: float,
+) -> tuple[int, float] | None:
+    """Map a global preview clock to a Scene index and residual local time."""
+
+    if not scene_durations:
+        return None
+    durations = tuple(max(0.0, float(value)) for value in scene_durations)
+    total = sum(durations)
+    target = max(0.0, min(float(global_seconds), total))
+    last_index = len(durations) - 1
+    elapsed = 0.0
+    for index, duration in enumerate(durations):
+        scene_end = elapsed + duration
+        if target < scene_end:
+            return index, target - elapsed
+        if abs(target - scene_end) < 1e-12:
+            if index < last_index:
+                elapsed = scene_end
+                continue
+            return index, duration
+        elapsed = scene_end
+    return last_index, durations[last_index]
+
+
+def preview_elapsed_global_seconds(
+    *,
+    anchor_global_seconds: float,
+    anchor_monotonic_seconds: float,
+    now_monotonic_seconds: float,
+    total_duration_seconds: float,
+) -> float:
+    """Advance playback from elapsed monotonic time, independent of timer callbacks."""
+
+    total = max(0.0, float(total_duration_seconds))
+    anchor = max(0.0, min(float(anchor_global_seconds), total))
+    elapsed = max(
+        0.0,
+        float(now_monotonic_seconds) - float(anchor_monotonic_seconds),
+    )
+    return min(total, anchor + elapsed)
+
+
 def preview_timecode(seconds: float, fps: int) -> str:
     """Format a non-negative preview position as HH:MM:SS:FF."""
 
