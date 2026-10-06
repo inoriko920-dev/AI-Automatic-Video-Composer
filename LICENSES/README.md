@@ -1,7 +1,13 @@
 # License and provenance notes
 
-Project license: NOT YET SELECTED. Do not infer a project license from dependencies.
+Project source license: **MIT**.
 
-STEP 08 runtime/dev dependencies are pinned for reproducibility. Before release, verify exact binary/module license obligations, notices, and provenance.
+- Root license text: `LICENSE`
+- SPDX identifier: `MIT`
+- Copyright notice: `Copyright (c) 2026 inoriko920-dev`
+- The MIT license applies to AAVC project source and documentation unless a file or bundled third-party notice states otherwise.
+- Third-party dependencies retain their own licenses; the project MIT license does not relicense those dependencies.
 
-FFmpeg/ffprobe binaries are intentionally absent from this repository foundation pending capability and license approval.
+Runtime/dev dependencies are pinned for reproducibility. Their exact license obligations, notices, and provenance remain independently applicable.
+
+FFmpeg/ffprobe binaries are intentionally not redistributed by AAVC. They remain external dependencies discovered from the app-local `tools/ffmpeg/` slot or system `PATH`, and their licensing is separate from the AAVC MIT license.
