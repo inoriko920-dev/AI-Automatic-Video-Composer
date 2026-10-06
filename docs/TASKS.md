@@ -1,7 +1,7 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-No technical implementation task is active. Completion wave #260 and final technical cleanup #274 are complete. Remaining open repository items #20 (branch protection) and #27 (project license) require owner/admin decisions.
+No technical implementation task is active. Completion wave #260 and final technical cleanup #274 are complete. Project license #27 is resolved as **MIT**. The only remaining repository administration item is #20 (branch protection), which requires owner/admin access.
 
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 

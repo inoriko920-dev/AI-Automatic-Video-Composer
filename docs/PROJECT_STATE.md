@@ -78,7 +78,7 @@ A duplicate publication attempt was blocked by the overwrite guard after `v0.1.1
 No factory blocker remains. Before later patch releases, re-check compatibility when Gemini/provider behavior, PySide6/Qt, Python 3.12 support, FFmpeg capability/license profile, or Windows 11 packaging/runtime behavior changes.
 
 ## BLOCKERS
-None known for normal `0.1.x` maintenance.
+No runtime blocker is known for normal `0.1.x` maintenance. Repository administration still has #20 (branch protection), which requires owner/admin access.
 
 ## 0.2 COMPLETION TEST BUILD
 
@@ -108,7 +108,7 @@ Final Windows test packaging after #274 cleanup:
 This is a **test build**, not a new published GitHub Release. Published `v0.1.1` remains frozen and unchanged.
 
 ## ACTIVE TASK
-No technical implementation or cleanup task is active. **#260 and #274 are complete.** Remaining repository issues #20 (branch protection) and #27 (project license) require owner/admin decisions and are not runtime implementation work.
+No technical implementation or cleanup task is active. **#260 and #274 are complete.** Project license decision #27 is resolved as **MIT** with root `LICENSE`, SPDX package metadata, and provenance documentation. Remaining repository administration item #20 (branch protection) requires owner/admin access.
 
 ## NEXT EXACT ACTION
 User performs direct end-to-end testing of the final 0.2 Windows portable ZIP on the target PC. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding into the separate arbitrary-video/multitrack experiment.
