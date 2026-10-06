@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from aavc.application.services.export_service import ExportOptions, subtitle_staging_path
+from aavc.application.services.export_service import (
+    ExportOptions,
+    stage_filter_complex,
+    subtitle_staging_path,
+)
 from aavc.domain.errors import RenderError
 from aavc.domain.project.models import ProjectState
 from aavc.platform.process_runner import ProcessRunner
@@ -47,6 +51,7 @@ def render_project_selection(
     )
 
     subtitle_ass: Path | None = None
+    filter_graph: Path | None = None
     try:
         if options.burn_subtitles and project.subtitle_source:
             subtitle_ass = subtitle_staging_path(output)
@@ -82,7 +87,10 @@ def render_project_selection(
 
         ffmpeg_path = ffmpeg or resolve_ffmpeg().path
         command = build_ffmpeg_selection_command(plan, selection, ffmpeg=ffmpeg_path)
+        command, filter_graph = stage_filter_complex(command, output)
         return execute_ffmpeg(command, runner=runner)
     finally:
+        if filter_graph is not None:
+            filter_graph.unlink(missing_ok=True)
         if subtitle_ass is not None:
             subtitle_ass.unlink(missing_ok=True)
