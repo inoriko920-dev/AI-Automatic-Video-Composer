@@ -2,7 +2,7 @@
 
 - Local repository skeleton: COMPLETE
 - Canonical documents: COMPLETE
-- UI reference pack UI-001..UI-047: COMPLETE
+- UI reference pack UI-001..UI-042: COMPLETE (canonical source inventory corrected by UIF-AAVC-v1.0)
 - Exact tooling pins: COMPLETE
 - Cheap local tests: COMPLETE in current container using Python 3.13.5 + pytest 9.0.2 for syntax/contract validation only
 - Windows GitHub Actions workflows: AUTHORED

@@ -17,6 +17,13 @@ Windows desktop application for composing narrative/infographic videos from scen
 
 Current published maintenance release: **0.1.1**.
 
+Latest completed post-release source line: **0.2 completion test build verified** (not yet a published GitHub Release).
+
+- Completed application source: `de07255fc2dee1d0a0804dc79f153c18b85ae1f3`
+- Windows portable test packaging: **PASS**
+- Portable smoke/content verification: **PASS**
+- Published `v0.1.1` remains frozen and unchanged.
+
 ## Official release 0.1.1
 
 GitHub Release **`v0.1.1` is published and verified**.
@@ -70,12 +77,15 @@ Historical STEP 15 factory-gate evidence remains recorded in `STEP15_STATUS.md` 
 - Documentary Crisp render-quality profile
 - validation and asset relink workflow
 - external AI/provider boundary and Gemini integration
-- key-pool / credential-management foundation
-- Windows portable packaging and final-release gate
+- key-pool / secure Gemini credential management (slots 1–100)
+- real microphone narration recording into project history
+- bounded Gemini Auto (AI) for native render-backed animation assignment
+- background render/Gemini execution through the canonical JobManager
+- Windows portable packaging and final-release/test-build gates
 
 ## UI reference and parity
 
-The product design is based on **47 frozen visual references (`UI-001` through `UI-047`)** with a 1920×1080 desktop reference viewport.
+The product design is based on **42 canonical frozen visual references (`UI-001` through `UI-042`)** with a 1920×1080 desktop reference viewport.
 
 The implementation uses real Qt widgets and follows the normalized UI Freeze rules: preserve the white/blue professional visual direction and feature coverage, while correcting accidental overlaps, inconsistent spacing and other image-generation artifacts.
 
@@ -87,7 +97,7 @@ Untuk cara menjalankan versi portable, menyiapkan Scene DOCX dan aset canonical,
 
 - `docs/USER_GUIDE.md`
 
-Panduan tersebut juga membedakan frozen release `v0.1.1` dari maintenance yang sudah masuk ke branch `main` setelah rilis.
+Panduan tersebut juga membedakan frozen release `v0.1.1` dari completed post-release 0.2 source/test-build line pada `main`.
 
 ## Canonical local commands (PowerShell)
 
@@ -112,4 +122,6 @@ For release evidence, publication, rollback rules and maintenance policy, see:
 - `BACKUP_AND_RECOVERY.md`
 - `docs/`
 
-Current release line: **0.1.1** on the compatible **0.1.x** maintenance line.
+Current published release line: **0.1.1** on the compatible **0.1.x** maintenance line.
+
+Current post-release source state: **0.2 completion test build verified / not published as a GitHub Release**.

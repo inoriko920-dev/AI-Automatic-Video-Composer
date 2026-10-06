@@ -8,7 +8,7 @@
 - Frozen release source: `release/0.1.1` @ `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`
 - Canonical maintenance release workflow: `Maintenance Release Windows 0.1.1` run `#1` / `37181599863`
 - Published maintenance line: `0.1.x`
-- Active source line: **0.2 completion candidate / not yet published**
+- Active source line: **0.2 completion source / Windows test build verified / not yet published**
 - Architecture: ARCH-AAVC-v1.0
 - Product Blueprint: PB-AAVC-v1.0
 - UI Freeze: UIF-AAVC-v1.0
@@ -29,7 +29,7 @@ FFmpeg and ffprobe remain external dependencies and are not redistributed by AAV
 
 ### Post-release maintenance on `main`
 
-Branch `main` contains maintenance and the explicitly approved **0.2 completion wave (#260)** created after frozen release `v0.1.1`. These source-state capabilities must not be described as already present in the published `v0.1.1` binary until a fresh Windows build/release is produced.
+Branch `main` contains maintenance and the completed **0.2 completion wave (#260)** created after frozen release `v0.1.1`. These capabilities have been verified in a fresh Windows portable **test build**, but they are still not part of the published `v0.1.1` GitHub Release.
 
 Current 0.2 completion source includes:
 - secure Gemini credential management from PR #251 with deterministic slots `1–100`, Windows Credential Manager storage, and no plaintext fallback;
