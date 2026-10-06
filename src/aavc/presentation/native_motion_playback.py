@@ -10,7 +10,6 @@ from aavc.presentation.motion_preview import (
     native_visual_preview_opacity,
     native_visual_preview_rotation,
     native_visual_preview_scale,
-    preview_continuation_scene_index,
     preview_elapsed_global_seconds,
     preview_narration_seconds,
     preview_neighbor_scene_index,
@@ -398,11 +397,9 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         restore_static: bool = True,
         reset_position: bool = True,
     ) -> None:
-        nonlocal (
-            playback_anchor_global_seconds,
-            playback_anchor_monotonic_seconds,
-            playback_seconds,
-        )
+        nonlocal playback_anchor_global_seconds
+        nonlocal playback_anchor_monotonic_seconds
+        nonlocal playback_seconds
         timer.stop()
         pause_audio()
         playback_anchor_monotonic_seconds = None
@@ -482,7 +479,9 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         timer.start()
 
     def scrub_to_value(value: int) -> None:
-        nonlocal playback_anchor_global_seconds, playback_anchor_monotonic_seconds, playback_seconds
+        nonlocal playback_anchor_global_seconds
+        nonlocal playback_anchor_monotonic_seconds
+        nonlocal playback_seconds
         if progress_slider is None:
             return
         plan = selected_plan()
