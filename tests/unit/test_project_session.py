@@ -177,3 +177,34 @@ def test_future_schema_open_preserves_existing_session(tmp_path: Path) -> None:
     assert session.current == previous
     assert session.path == previous_path.resolve()
     assert not session.is_dirty
+
+
+def test_structurally_invalid_open_preserves_full_existing_session_state(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "good.aavcproj"
+    session = ProjectSession()
+    session.create(_project(), destination)
+    session.execute(SetSceneDuration(1, 4.5))
+    session.undo()
+
+    previous_project = session.current
+    previous_path = session.path
+    previous_dirty = session.is_dirty
+    previous_can_undo = session.can_undo
+    previous_can_redo = session.can_redo
+
+    payload = _project("invalid").to_dict()
+    payload["scenes"][0]["asset_ids"] = []
+    payload["scenes"][0]["source_quotes"] = []
+    broken = tmp_path / "invalid.aavcproj"
+    broken.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="asset_ids"):
+        session.open(broken)
+
+    assert session.current == previous_project
+    assert session.path == previous_path
+    assert session.is_dirty == previous_dirty
+    assert session.can_undo == previous_can_undo
+    assert session.can_redo == previous_can_redo
