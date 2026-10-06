@@ -88,7 +88,7 @@ Aksi credential yang tersedia:
 - **AI → Simpan / Ganti API Key Gemini…** — memilih slot `1–100`, lalu memasukkan API key melalui field password;
 - **AI → Hapus API Key Gemini…** — memilih slot lalu menghapus credential setelah konfirmasi.
 
-Pada Windows, credential produksi disimpan melalui **Windows Credential Manager** dengan reference deterministik `gemini-slot-001` sampai `gemini-slot-100`. Nilai raw API key tidak dimasukkan ke `ProjectState`, file `.aavcproj`, log, status diagnostic, atau tampilan hasil.
+Pada Windows, credential produksi disimpan melalui **Windows Credential Manager** dengan reference deterministik `gemini-slot-001` sampai `gemini-slot-100`. Nilai raw API key tidak dimasukkan ke `ProjectState`, file `.aavcproj`, log, status diagnostic, atau tampilan hasil. Saat request Gemini dikirim, key ditempatkan pada header `x-goog-api-key` dan tidak ditaruh di query URL.
 
 **Auto Animasi Gemini…** dan mode toolbar **Auto (AI)** memakai pool credential tersebut untuk meminta Gemini memilih assignment animasi hanya dari efek native yang sudah didukung renderer. Assignment yang dikunci tidak boleh diganti. Hasil divalidasi penuh sebelum diterapkan sebagai satu transaksi history, sehingga satu Undo dapat mengembalikan keadaan sebelum Auto (AI).
 
