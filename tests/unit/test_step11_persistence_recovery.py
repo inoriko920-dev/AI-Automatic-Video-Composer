@@ -70,3 +70,37 @@ def test_corrupt_recovery_snapshot_does_not_replace_project_or_backup(tmp_path: 
     assert project_path.read_bytes() == original_project_bytes
     assert backup.read_bytes() == b"existing-backup"
     assert not project_path.with_suffix(project_path.suffix + ".restore.tmp").exists()
+
+
+
+def test_save_project_does_not_touch_legacy_fixed_temp_name(tmp_path: Path) -> None:
+    destination = tmp_path / "demo.aavcproj"
+    legacy_temp = destination.with_suffix(destination.suffix + ".tmp")
+    legacy_temp.write_text("user-owned-temp", encoding="utf-8")
+
+    save_project(_project(), destination)
+
+    assert destination.is_file()
+    assert legacy_temp.read_text(encoding="utf-8") == "user-owned-temp"
+    assert list(tmp_path.glob(".*.aavc-save-*.tmp")) == []
+
+
+def test_recovery_restore_does_not_touch_legacy_fixed_restore_temp(tmp_path: Path) -> None:
+    original = _project()
+    project_path = save_project(original, tmp_path / "demo.aavcproj")
+    manager = RecoveryManager()
+
+    recovered = original.to_dict()
+    recovered["title"] = "recovered-title"
+    manager.recovery_path_for(project_path).write_text(
+        json.dumps(recovered),
+        encoding="utf-8",
+    )
+
+    legacy_temp = project_path.with_suffix(project_path.suffix + ".restore.tmp")
+    legacy_temp.write_text("user-owned-restore-temp", encoding="utf-8")
+
+    manager.restore_snapshot(project_path)
+
+    assert legacy_temp.read_text(encoding="utf-8") == "user-owned-restore-temp"
+    assert list(tmp_path.glob(".*.aavc-restore-*.tmp")) == []

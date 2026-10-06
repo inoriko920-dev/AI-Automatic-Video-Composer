@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from uuid import uuid4
 
 from aavc.domain.project.models import (
     AnimationAssignment,
@@ -60,13 +61,23 @@ def loads_project(text: str) -> ProjectState:
     )
 
 
+def temporary_sibling_path(path: str | Path, *, label: str) -> Path:
+    destination = Path(path)
+    return destination.with_name(
+        f".{destination.name}.aavc-{label}-{uuid4().hex}.tmp"
+    )
+
+
 def save_project(project: ProjectState, path: str | Path) -> Path:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_suffix(destination.suffix + ".tmp")
-    temporary.write_text(dumps_project(project), encoding="utf-8")
-    temporary.replace(destination)
-    return destination
+    temporary = temporary_sibling_path(destination, label="save")
+    try:
+        temporary.write_text(dumps_project(project), encoding="utf-8")
+        temporary.replace(destination)
+        return destination
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def load_project(path: str | Path) -> ProjectState:
