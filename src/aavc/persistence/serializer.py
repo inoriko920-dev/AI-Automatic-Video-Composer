@@ -187,12 +187,12 @@ def _validate_project_invariants(project: ProjectState) -> None:
 
     seen_assignments: set[tuple[int, str]] = set()
     for assignment in project.animations:
-        scene = scenes_by_number.get(assignment.scene_number)
-        if scene is None:
+        target_scene = scenes_by_number.get(assignment.scene_number)
+        if target_scene is None:
             raise ValueError(
                 f"Animasi merujuk scene yang tidak ada: {assignment.scene_number}"
             )
-        if assignment.asset_id not in scene.asset_ids:
+        if assignment.asset_id not in target_scene.asset_ids:
             raise ValueError(
                 "Animasi merujuk asset yang tidak ada pada scene "
                 f"{assignment.scene_number}: {assignment.asset_id}"
