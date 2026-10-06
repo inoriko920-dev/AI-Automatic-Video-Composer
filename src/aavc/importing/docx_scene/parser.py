@@ -18,10 +18,9 @@ def _paragraphs_from_docx(path: Path) -> list[str]:
     try:
         with zipfile.ZipFile(path) as archive:
             xml = archive.read("word/document.xml")
-    except (OSError, KeyError, zipfile.BadZipFile) as exc:
+        root = ET.fromstring(xml)
+    except (OSError, KeyError, zipfile.BadZipFile, ET.ParseError) as exc:
         raise AAVCImportError(f"DOCX tidak dapat dibaca: {path}") from exc
-
-    root = ET.fromstring(xml)
     lines: list[str] = []
     for paragraph in root.iter(f"{_WORD_NS}p"):
         text = "".join(
