@@ -446,11 +446,9 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
             play_button.setText("▶")
 
     def toggle_playback() -> None:
-        nonlocal (
-            playback_anchor_global_seconds,
-            playback_anchor_monotonic_seconds,
-            playback_seconds,
-        )
+        nonlocal playback_anchor_global_seconds
+        nonlocal playback_anchor_monotonic_seconds
+        nonlocal playback_seconds
         plan = selected_plan()
         if plan is None:
             return
