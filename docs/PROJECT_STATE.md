@@ -79,10 +79,33 @@ No factory blocker remains. Before later patch releases, re-check compatibility 
 ## BLOCKERS
 None known for normal `0.1.x` maintenance.
 
+## 0.2 COMPLETION TEST BUILD
+
+The approved 0.2 completion wave (#260) has completed its source/runtime scope and fresh Windows test-build gate.
+
+Verified source:
+- completed application source: `main` @ `de07255fc2dee1d0a0804dc79f153c18b85ae1f3`;
+- post-merge CI run `37415640990`: **PASS**;
+- post-merge CodeQL run `37415641148`: **PASS**.
+
+Windows test packaging:
+- workflow: **Package Windows Foundation**;
+- run: `37416521197`;
+- build branch commit: `3bf7b9025d8bdbc1d523831006dd515b9f563eef`;
+- branch differs from completed main source only by the one-off workflow push trigger; no application source file differs;
+- PyInstaller onedir: **PASS**;
+- portable verification: **PASS**;
+- verification markers: `PORTABLE_SMOKE_OK`, `FFMPEG_SLOT_OK`, `FINAL_RELEASE_DOCS_OK`;
+- Actions artifact: `AAVC-foundation-win64` / artifact ID `11391871118`;
+- uploaded artifact wrapper digest: `sha256:272bf8531b272bf376b87fa5594e5291161407aa42b397dc484b1e65e435eb36`;
+- extracted portable ZIP SHA-256: `744d704325d6b96e34c408b99882687411ea7e763e7c3924653ca41f480cbfeb`;
+- portable ZIP contains root `AI Automatic Video Composer.exe` and `tools/ffmpeg/README.md`;
+- redundant `_internal/tools/ffmpeg/README.md` is absent.
+
+This is a **test build**, not a new published GitHub Release. Published `v0.1.1` remains frozen and unchanged.
+
 ## ACTIVE TASK
-**#260 — 0.2 completion wave** is active. Runtime completion subtasks through #267 are complete once this cleanup merges.
+No completion-wave implementation task remains active. **#260 is complete** after the verified Windows test build.
 
 ## NEXT EXACT ACTION
-Run the full completion gates on the merged `main` line, then produce a **fresh Windows portable test build** for direct user testing. Keep frozen `v0.1.1` unchanged.
-
-Do not restart completed STEP 09–15 work unless regression evidence requires it, and do not expand this completion wave into the separate arbitrary-video/multitrack playback experiment.
+User tests the fresh Windows portable ZIP on the target PC and reports any concrete runtime defect. Any resulting defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding into the separate arbitrary-video/multitrack experiment.
