@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from aavc.presentation.visual_mock import project_thumb_pixmap
 from aavc.presentation.widgets.common import make_primary_button, muted_label
 
 
 def create_home_screen(
     on_new_project: Callable[[], None],
     on_open_editor: Callable[[], None],
+    on_quick_help: Callable[[], None] | None = None,
 ) -> Any:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
@@ -31,6 +31,10 @@ def create_home_screen(
     brand.setStyleSheet("font-size:20px; font-weight:700;")
     quick_help = QPushButton("?  Bantuan Cepat")
     quick_help.setStyleSheet("color:#2563EB; border:none; font-weight:600;")
+    if on_quick_help is None:
+        quick_help.setVisible(False)
+    else:
+        quick_help.clicked.connect(on_quick_help)
     header.addWidget(brand)
     header.addStretch(1)
     header.addWidget(quick_help)
@@ -109,90 +113,31 @@ def create_home_screen(
     action_row.addStretch(1)
     outer.addLayout(action_row)
 
-    recent = QFrame()
-    recent.setProperty("panel", True)
-    recent.setMaximumWidth(1420)
-    recent_layout = QVBoxLayout(recent)
-    recent_layout.setContentsMargins(28, 20, 28, 20)
-    recent_layout.setSpacing(0)
-    recent_header = QHBoxLayout()
-    recent_title = QLabel("Proyek Terbaru")
-    recent_title.setStyleSheet("font-size:20px; font-weight:700;")
-    see_all = QPushButton("Lihat Semua  ›")
-    see_all.setStyleSheet("color:#2563EB; border:none; font-weight:600;")
-    recent_header.addWidget(recent_title)
-    recent_header.addStretch(1)
-    recent_header.addWidget(see_all)
-    recent_layout.addLayout(recent_header)
+    project_panel = QFrame()
+    project_panel.setProperty("panel", True)
+    project_panel.setMaximumWidth(980)
+    project_layout = QHBoxLayout(project_panel)
+    project_layout.setContentsMargins(28, 22, 28, 22)
 
-    samples = [
-        ("Liburan ke Bromo", "D:\\Video Projects\\Liburan ke Bromo", "Selesai", "#DCFCE7"),
-        (
-            "Konten Promosi Produk",
-            "D:\\Video Projects\\Konten Promosi Produk",
-            "Dalam Proses",
-            "#DBEAFE",
-        ),
-        (
-            "Highlight Acara Seminar",
-            "D:\\Video Projects\\Highlight Acara Seminar",
-            "Jeda",
-            "#FEF3C7",
-        ),
-        (
-            "Travel Vlog Bali",
-            "D:\\Video Projects\\Travel Vlog Bali",
-            "Perlu Diperbaiki",
-            "#FEE2E2",
-        ),
-    ]
-    for index, (name, path, status, status_bg) in enumerate(samples):
-        if index == 0:
-            separator = QFrame()
-            separator.setFixedHeight(1)
-            separator.setStyleSheet("background:#D8E2EE;")
-            recent_layout.addWidget(separator)
-        row_widget = QWidget()
-        row = QHBoxLayout(row_widget)
-        row.setContentsMargins(0, 10, 0, 10)
-        thumbnail = QLabel()
-        thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        thumbnail.setFixedSize(112, 58)
-        thumbnail.setPixmap(project_thumb_pixmap(index))
-        thumbnail.setScaledContents(True)
-        thumbnail.setStyleSheet("border:1px solid #C8D8EA; border-radius:7px;")
-        info = QVBoxLayout()
-        project_name = QLabel(name)
-        project_name.setStyleSheet("font-size:14px; font-weight:650;")
-        opened = muted_label(f"Dibuka {12 - index} Sep 2026  ·  14:{32 - index * 7:02d}")
-        info.addWidget(project_name)
-        info.addWidget(opened)
-        path_label = muted_label(f"▱  {path}")
-        status_label = QLabel(status)
-        status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        status_label.setMinimumWidth(128)
-        status_label.setStyleSheet(
-            f"background:{status_bg}; border-radius:13px; padding:5px 10px; font-weight:600;"
+    project_text = QVBoxLayout()
+    project_title = QLabel("Project dari Perangkat")
+    project_title.setStyleSheet("font-size:20px; font-weight:700;")
+    project_text.addWidget(project_title)
+    project_text.addWidget(
+        muted_label(
+            "Pilih file .aavcproj yang sudah ada. Home runtime tidak menampilkan project "
+            "contoh atau riwayat palsu."
         )
-        open_recent = QPushButton("•••")
-        open_recent.clicked.connect(on_open_editor)
-        open_recent.setMaximumWidth(50)
-        open_recent.setStyleSheet("border:none; font-weight:700;")
-        row.addWidget(thumbnail)
-        row.addSpacing(12)
-        row.addLayout(info, 2)
-        row.addWidget(path_label, 3)
-        row.addWidget(status_label)
-        row.addWidget(open_recent)
-        recent_layout.addWidget(row_widget)
-        separator = QFrame()
-        separator.setFixedHeight(1)
-        separator.setStyleSheet("background:#E5EDF6;")
-        recent_layout.addWidget(separator)
+    )
+    project_layout.addLayout(project_text, 1)
 
-    recent_wrap = QHBoxLayout()
-    recent_wrap.addStretch(1)
-    recent_wrap.addWidget(recent, 1)
-    recent_wrap.addStretch(1)
-    outer.addLayout(recent_wrap, 1)
+    open_existing = QPushButton("Buka Proyek…")
+    open_existing.clicked.connect(on_open_editor)
+    project_layout.addWidget(open_existing)
+
+    project_wrap = QHBoxLayout()
+    project_wrap.addStretch(1)
+    project_wrap.addWidget(project_panel, 1)
+    project_wrap.addStretch(1)
+    outer.addLayout(project_wrap, 1)
     return root

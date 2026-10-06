@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from aavc.domain.project.models import SubtitleAnimationSettings, SubtitleStyle
-from aavc.presentation.widgets.editor_shell import create_editor_shell
+from aavc.presentation.widgets.editor_shell import create_editor_shell, remove_tabs_by_label
 from aavc.presentation.widgets.live_subtitle import create_live_subtitle_inspector
 from aavc.presentation.widgets.subtitle_cue_edit import create_subtitle_cue_edit_page
 from aavc.subtitles import SubtitleCue
@@ -52,6 +52,7 @@ def create_live_subtitle_screen(
             on_reload()
 
     parts = create_editor_shell("subtitle")
+    remove_tabs_by_label(parts.right_tabs, {"AI Agent"})
     inspector = create_live_subtitle_inspector(
         source_path,
         style=style,

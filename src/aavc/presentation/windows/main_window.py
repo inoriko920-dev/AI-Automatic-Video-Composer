@@ -595,6 +595,7 @@ class MainWindow:
         self._route_widgets[UiRoute.HOME] = create_home_screen(
             lambda: self.show_route(UiRoute.NEW_PROJECT_DOCX),
             self.open_project,
+            getattr(self, "open_quick_help", None),
         )
         self._route_widgets[UiRoute.NEW_PROJECT_DOCX] = create_new_project_screen(
             lambda: self.show_route(UiRoute.HOME),

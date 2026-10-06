@@ -71,10 +71,6 @@ def create_live_subtitle_inspector(
     header = QHBoxLayout()
     header.addWidget(section_title(f"Daftar Subtitle ({len(views)} cue)"))
     header.addStretch(1)
-    add_button = QPushButton("＋ Tambah Cue")
-    add_button.setEnabled(False)
-    add_button.setToolTip("Penulisan ulang SRT belum diaktifkan pada build ini.")
-    header.addWidget(add_button)
     layout.addLayout(header)
     layout.addWidget(muted_label(f"Sumber: {source_path.name}"))
 
@@ -107,19 +103,12 @@ def create_live_subtitle_inspector(
     layout.addLayout(form)
 
     row = QHBoxLayout()
-    split_button = QPushButton("Pisah Cue")
-    split_button.setEnabled(False)
-    split_button.setToolTip("Penulisan ulang SRT belum diaktifkan pada build ini.")
-    merge_button = QPushButton("Gabung")
-    merge_button.setEnabled(False)
-    merge_button.setToolTip("Penulisan ulang SRT belum diaktifkan pada build ini.")
     reload_button = QPushButton("Muat Ulang SRT")
     if on_reload is None:
         reload_button.setEnabled(False)
     else:
         reload_button.clicked.connect(on_reload)
-    row.addWidget(split_button)
-    row.addWidget(merge_button)
+    row.addStretch(1)
     row.addWidget(reload_button)
     layout.addLayout(row)
 

@@ -78,26 +78,25 @@ Tombol Validation pada toolbar memakai guard sesi yang sama sehingga fixture STE
 
 Menu **Bantuan → Shortcut & Bantuan Cepat** juga sudah aktif dan menyusun daftar shortcut dari QAction yang benar-benar aktif pada build source tersebut.
 
-### Menu AI dan credential Gemini
+### Menu AI, credential Gemini, dan Auto (AI)
 
-Pada source `main` setelah maintenance pasca-rilis, menu **AI** sudah menyediakan pengelolaan credential Gemini yang aman. Fitur ini belum berarti AAVC sudah menjalankan perintah AI terhadap project.
+Pada source `main` pasca-rilis, menu **AI** sudah menyediakan pengelolaan credential Gemini yang aman sekaligus workflow **Auto Animasi Gemini…** yang nyata dan dibatasi pada animasi native render-backed.
 
-Aksi yang tersedia:
+Aksi credential yang tersedia:
 
 - **AI → Status Gemini…** — menampilkan jumlah serta nomor slot yang mempunyai credential, tanpa menampilkan isi API key;
-- **AI → Simpan / Ganti API Key Gemini…** — memilih slot `1–100`, lalu memasukkan API key melalui field yang disamarkan seperti password;
+- **AI → Simpan / Ganti API Key Gemini…** — memilih slot `1–100`, lalu memasukkan API key melalui field password;
 - **AI → Hapus API Key Gemini…** — memilih slot lalu menghapus credential setelah konfirmasi.
 
-Pada Windows, credential produksi disimpan melalui **Windows Credential Manager** dengan reference deterministik `gemini-slot-001` sampai `gemini-slot-100`. Nilai raw API key tidak dimasukkan ke `ProjectState`, file `.aavcproj`, log, atau status diagnostic dan tidak ditampilkan kembali setelah disimpan.
+Pada Windows, credential produksi disimpan melalui **Windows Credential Manager** dengan reference deterministik `gemini-slot-001` sampai `gemini-slot-100`. Nilai raw API key tidak dimasukkan ke `ProjectState`, file `.aavcproj`, log, status diagnostic, atau tampilan hasil.
 
-Jika secure credential store tidak tersedia pada platform yang dipakai, aplikasi menolak menyimpan key daripada membuat fallback plaintext.
+**Auto Animasi Gemini…** dan mode toolbar **Auto (AI)** memakai pool credential tersebut untuk meminta Gemini memilih assignment animasi hanya dari efek native yang sudah didukung renderer. Assignment yang dikunci tidak boleh diganti. Hasil divalidasi penuh sebelum diterapkan sebagai satu transaksi history, sehingga satu Undo dapat mengembalikan keadaan sebelum Auto (AI).
 
-Batas penting source saat ini:
+Request Gemini berjalan melalui job background agar GUI tetap responsif. Bila project berubah saat request masih berjalan, hasil lama dibuang dan tidak dimutasi ke project.
 
-- menu ini baru mengelola credential;
-- belum ada live request Gemini dari workflow menu tersebut;
-- belum ada aksi AI yang otomatis mengubah Scene, subtitle, timeline, aset, atau konfigurasi project;
-- perubahan ini berada di source `main` pasca-rilis dan **bukan bagian dari binary frozen `v0.1.1`**.
+Jika secure credential store tidak tersedia, aplikasi menolak memakai fallback plaintext.
+
+Semua kemampuan pada paragraf ini berada di source `main` pasca-rilis dan **belum menjadi bagian dari binary frozen `v0.1.1`**.
 
 ## 6. Kontrol project utama
 
@@ -110,8 +109,10 @@ Kontrol berikut sudah mempunyai perilaku live pada source `main`:
 - **Undo / Redo** — bekerja melalui `ProjectHistory`;
 - **Impor Media** — memasukkan subtitle SRT atau audio narasi yang didukung;
 - **Tambah Teks** — membuka editor subtitle dari `subtitle_source` project aktif;
+- **Rekam Narasi** — merekam mikrofon ke WAV, lalu memasang hasilnya ke `narration_audio` melalui history;
+- **Mode Animasi Auto (AI)** — meminta Gemini memilih animasi native render-backed melalui credential pool yang aman;
 - **Validasi** — menjalankan validasi terhadap project aktif;
-- **Ekspor Video** — membuka pengaturan ekspor dan menjalankan render FFmpeg nyata;
+- **Ekspor Video** — membuka pengaturan ekspor dan menjalankan render FFmpeg nyata di background;
 - **Keluar** — mengikuti guard perubahan belum disimpan.
 
 Editor juga mempertahankan Scene terpilih sebisa mungkin setelah perubahan history atau refresh UI.
@@ -285,7 +286,7 @@ Preview subtitle pada editor tidak boleh dianggap sebagai jaminan WYSIWYG frame-
 
 ## 14. Ekspor video nyata
 
-Dialog ekspor meneruskan opsi yang sudah didukung ke render engine, termasuk:
+Dialog ekspor hanya menampilkan opsi yang memang didukung render engine saat ini:
 
 - **MP4 H.264** (`libx264`);
 - **MP4 H.265** (`libx265`);
@@ -300,21 +301,22 @@ Dialog ekspor meneruskan opsi yang sudah didukung ke render engine, termasuk:
 
 AAVC membangun `RenderPlan` dan menjalankan preflight sebelum FFmpeg. Missing asset, media yang dibutuhkan tetapi hilang, konfigurasi invalid, atau error render menghentikan proses dengan feedback UI.
 
-Render UI yang ada masih dapat bersifat synchronous pada jalur tertentu. Jangan menganggap progress persentase, GPU acceleration, atau opsi advanced bekerja bila kontrol tersebut masih dinonaktifkan pada build yang dipakai.
+Full-project render dan render Selection In/Out dijalankan melalui **JobManager** di luar Qt GUI thread. Selama render berjalan, UI tetap dapat memproses event. AAVC menolak memulai pekerjaan render/AI kedua sampai hasil pekerjaan aktif sudah diproses oleh GUI.
+
+Kontrol GPU encoder dan **Pengaturan Lanjutan** yang belum mempunyai implementasi tidak lagi ditampilkan pada dialog ekspor runtime.
 
 ## 15. Kontrol yang masih dibatasi
 
-Source `main` sudah jauh lebih aktif daripada dokumentasi lama, tetapi beberapa batas tetap perlu dibedakan:
+Source `main` sudah mengaktifkan Rekam Narasi, Auto (AI), render background, dan editor/timeline utama. Batas produk yang masih sengaja dipertahankan:
 
-- **Rekam Narasi** belum mempunyai recording engine mikrofon penuh;
-- waveform/audio-track editing multi-track belum diklaim sebagai workflow live;
-- background media arbitrary belum menjadi track editor penuh;
-- preview burn-in subtitle bukan WYSIWYG final FFmpeg;
-- opsi GPU/advanced export yang dinonaktifkan tidak boleh dianggap berfungsi;
-- menu AI saat ini baru mengelola credential Gemini; live provider request dan AI mutation ke project belum menjadi workflow runtime;
-- tidak semua konsep engine/provider otomatis mempunyai kontrol UI end-to-end.
+- waveform dan editing audio multi-track bukan workflow live AAVC;
+- media background arbitrary belum menjadi track editor penuh;
+- preview subtitle tidak dijanjikan WYSIWYG frame-per-frame terhadap burn-in FFmpeg;
+- GPU export encoder dan panel advanced export belum menjadi kemampuan produk, sehingga kontrolnya tidak diiklankan pada dialog runtime;
+- AI saat ini dibatasi pada perencanaan animasi native yang tervalidasi, bukan agen bebas yang dapat mengubah semua bagian project;
+- AAVC tetap compositor naratif/infografik berbasis Scene, bukan pengganti NLE multitrack umum.
 
-Jika sebuah kontrol dinonaktifkan atau memberi pesan bahwa fitur belum terhubung, jangan menganggap engine di belakangnya sudah siap hanya karena model/domain terkait ada di source.
+Permukaan runtime live juga tidak menampilkan tab **AI Agent** atau tab kosong yang hanya berasal dari reference shell. Fixture STEP09 tetap boleh mempertahankan elemen referensi untuk kebutuhan regression visual, tetapi fixture tersebut bukan kontrak fitur runtime.
 
 ## 16. Sebelum ekspor
 

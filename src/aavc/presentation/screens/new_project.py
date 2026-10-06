@@ -37,26 +37,13 @@ def create_new_project_screen(
     brand.setStyleSheet("font-size:16px; font-weight:700; padding:8px;")
     side.addWidget(brand)
     side.addSpacing(12)
-    for label, active in [
-        ("＋  Proyek Baru", True),
-        ("▱  Proyek Saya", False),
-        ("⚙  Pengaturan", False),
-        ("?   Bantuan", False),
-    ]:
-        button = QPushButton(label)
-        button.setMinimumHeight(48)
-        button.setStyleSheet(
-            (
-                "text-align:left; padding:10px 14px; background:#DBEAFE; color:#1D4ED8; "
-                "border:1px solid #BFDBFE; border-radius:8px; font-weight:650;"
-            )
-            if active
-            else (
-                "text-align:left; padding:10px 14px; background:transparent; "
-                "border:1px solid transparent; color:#334155;"
-            )
-        )
-        side.addWidget(button)
+    section = QLabel("＋  Proyek Baru")
+    section.setMinimumHeight(48)
+    section.setStyleSheet(
+        "padding:10px 14px; background:#DBEAFE; color:#1D4ED8; "
+        "border:1px solid #BFDBFE; border-radius:8px; font-weight:650;"
+    )
+    side.addWidget(section)
     side.addStretch(1)
     page.addWidget(sidebar)
 
@@ -201,14 +188,11 @@ def create_new_project_screen(
     footer = QHBoxLayout()
     cancel_button = QPushButton("Batal")
     cancel_button.clicked.connect(on_back)
-    back_button = QPushButton("Kembali")
-    back_button.setEnabled(False)
     next_button = make_primary_button("Lanjut")
     next_button.setEnabled(False)
     next_button.clicked.connect(lambda _checked=False: on_continue(path.text()))
     footer.addWidget(cancel_button)
     footer.addStretch(1)
-    footer.addWidget(back_button)
     footer.addWidget(next_button)
     inner.addLayout(footer)
 
