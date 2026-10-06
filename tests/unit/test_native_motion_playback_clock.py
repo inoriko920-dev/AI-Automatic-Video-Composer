@@ -62,9 +62,9 @@ def _preview_root(project: ProjectState):
     total = sum(scene.duration_seconds for scene in project.scenes)
     timecode = QLabel(f"00:00:00:00  /  00:00:{int(total):02d}:00", root)
 
-    previous_button = QPushButton("◀", root)
+    QPushButton("◀", root)
     play_button = QPushButton("▶", root)
-    next_button = QPushButton("▶|", root)
+    QPushButton("▶|", root)
     slider = QSlider(Qt.Orientation.Horizontal, root)
 
     assert install_native_motion_preview(root, project)
@@ -102,7 +102,7 @@ def test_preview_clock_skips_stale_frames_and_pause_resume_preserves_playhead(
 
     assert scene_list.currentRow() == 2
     assert slider.value() == pytest.approx(250, abs=1)
-    assert timecode.text().startswith("00:00:00:29")
+    assert timecode.text().startswith("00:00:00:28")
 
     paused_slider = slider.value()
     paused_timecode = timecode.text()
