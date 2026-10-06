@@ -146,3 +146,27 @@ No known technical implementation or automated-stability task is active. Complet
 
 ## NEXT EXACT ACTION
 Run direct end-to-end testing of the stability-hardened Windows portable ZIP on the target Windows PC. Automated/build gates are green, but production stability cannot be proven without real runtime use. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding product scope.
+
+## ASTRA WINDOWS RUNTIME VERIFICATION — 2026-10-06
+
+The ASTRA maintenance implementation was exercised against current FFmpeg on a Windows hosted runner after source-level CI.
+
+Canonical application source:
+- `main` @ `b9f5ef3547386c908622f62280a79bbf47c15333`
+- CI `37489092147`: **PASS**
+- CodeQL `37489092032`: **PASS**
+
+Windows verification workflow-only branch:
+- branch commit `589ad19ec71184860d16f4dc6f8e3507aba8020c`
+- workflow run `37489627888`: **PASS**
+- real 100-scene FFmpeg render + ffprobe: **PASS**, duration `50.000000` s for 100 scenes × 0.5 s
+- apostrophe/Unicode/drive-letter subtitle and output path: **PASS**, duration `0.500000` s
+- Windows onedir build: **PASS**
+- portable verification: **PASS**
+- artifact ID `11425525608`
+- artifact digest `sha256:78e8775c3bf52c7dbcb54dbf6c15aa801fb6e990dac7cf24e17f425f11e52ab7`
+
+The runtime gate discovered and fixed one real compatibility issue: current FFmpeg no longer accepted `-filter_complex_script`; AAVC now uses the documented `-/filter_complex` file-argument syntax while retaining unique staging, ProcessRunner ownership, Windows command-length protection, and atomic output.
+
+One acceptance item remains intentionally open: a direct 60-second narration playback observation on a real Windows multimedia runtime with measured drift <= 100 ms. Automated monotonic-clock regressions pass, but that is not substituted for the physical multimedia observation.
+

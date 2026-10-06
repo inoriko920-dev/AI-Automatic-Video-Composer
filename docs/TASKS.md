@@ -23,6 +23,32 @@ Residual release-candidate gates remain **OPEN** and must not be inferred from t
 
 The audit source of truth is `docs/audits/2026-10-06-astra/AUDIT_PLAN.md`. Published `v0.1.1` remains frozen and unchanged.
 
+### ASTRA Windows runtime verification — 2026-10-06
+Status: **PASS except direct 60-second multimedia drift observation**
+
+Canonical patched application source:
+- `main` @ `b9f5ef3547386c908622f62280a79bbf47c15333`
+- Windows CI run `37489092147`: **PASS**
+- CodeQL run `37489092032`: **PASS**
+
+Fresh Windows runtime/portable verification was executed from workflow-only branch commit `589ad19ec71184860d16f4dc6f8e3507aba8020c`, whose application source matches the canonical patch above:
+- workflow run `37489627888`: **PASS**
+- real FFmpeg 100-scene render: **PASS**
+- ffprobe coherent duration: `50.000000` seconds for 100 × 0.5 s scenes
+- apostrophe + Unicode + drive-letter subtitle/output path: **PASS**
+- special-path ffprobe duration: `0.500000` seconds
+- PyInstaller onedir: **PASS**
+- portable verification: **PASS**
+- `PORTABLE_SMOKE_OK`
+- `FFMPEG_SLOT_OK`
+- Actions artifact: `AAVC-foundation-win64` / artifact ID `11425525608`
+- artifact digest: `sha256:78e8775c3bf52c7dbcb54dbf6c15aa801fb6e990dac7cf24e17f425f11e52ab7`
+
+During this gate an actual compatibility defect was discovered: current FFmpeg rejects legacy `-filter_complex_script`. The application was corrected to the documented file-argument form `-/filter_complex <file>`, then all source and Windows runtime gates above passed.
+
+Residual acceptance:
+- direct 60-second preview + narration observation on a real Windows multimedia runtime, measuring final audio/timecode drift <= 100 ms.
+
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 
 ### 0.2 completion wave — #260
