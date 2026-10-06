@@ -36,7 +36,8 @@ Current 0.2 completion source includes:
 - real microphone narration recording from PR #262, producing WAV and binding it to `narration_audio` through project history;
 - bounded live Gemini Auto (AI) from PR #264, restricted to validated native render-backed animation assignments and one-step Undo;
 - background render and Gemini execution from PR #266 using the canonical `JobManager`, with overlapping work rejected and stale Gemini results discarded;
-- completion cleanup from #267: unsupported GPU/Advanced export controls are not advertised, reference-only AI Agent/empty tabs are removed from live runtime surfaces, obsolete read-only subtitle actions are hidden, and Home/New Project no longer present fake project/history controls.
+- completion cleanup from #267: unsupported GPU/Advanced export controls are not advertised, reference-only AI Agent/empty tabs are removed from live runtime surfaces, obsolete read-only subtitle actions are hidden, and Home/New Project no longer present fake project/history controls;
+- Gemini transport hardening from #271/#272: the selected raw API key is sent in the `x-goog-api-key` request header rather than being embedded in the request URL.
 
 Raw API-key values remain outside `ProjectState`, project files, logs, and status diagnostics. FFmpeg/ffprobe remain external dependencies.
 
@@ -83,29 +84,29 @@ None known for normal `0.1.x` maintenance.
 
 The approved 0.2 completion wave (#260) has completed its source/runtime scope and fresh Windows test-build gate.
 
-Verified source:
-- completed application source: `main` @ `de07255fc2dee1d0a0804dc79f153c18b85ae1f3`;
-- post-merge CI run `37415640990`: **PASS**;
-- post-merge CodeQL run `37415641148`: **PASS**.
+Verified source before final dead-code/documentation cleanup #274:
+- application source: `main` @ `b1a98fa38684afc884510b9f525e8efac20cbe01`;
+- post-merge CI run `37418374428`: **PASS**;
+- post-merge CodeQL run `37418374423`: **PASS**.
 
-Windows test packaging:
+Latest Windows test packaging before #274 cleanup:
 - workflow: **Package Windows Foundation**;
-- run: `37416521197`;
-- build branch commit: `3bf7b9025d8bdbc1d523831006dd515b9f563eef`;
-- branch differs from completed main source only by the one-off workflow push trigger; no application source file differs;
+- run: `37418690461`;
+- build branch commit: `85549ffe818ec91e4f6527f96889eeee670ffad9`;
+- branch differed from source `b1a98fa38684afc884510b9f525e8efac20cbe01` only by the one-off workflow push trigger; no application source file differed;
 - PyInstaller onedir: **PASS**;
 - portable verification: **PASS**;
 - verification markers: `PORTABLE_SMOKE_OK`, `FFMPEG_SLOT_OK`, `FINAL_RELEASE_DOCS_OK`;
-- Actions artifact: `AAVC-foundation-win64` / artifact ID `11391871118`;
-- uploaded artifact wrapper digest: `sha256:272bf8531b272bf376b87fa5594e5291161407aa42b397dc484b1e65e435eb36`;
-- extracted portable ZIP SHA-256: `744d704325d6b96e34c408b99882687411ea7e763e7c3924653ca41f480cbfeb`;
+- Actions artifact: `AAVC-foundation-win64` / artifact ID `11392605021`;
+- uploaded artifact wrapper digest: `sha256:6a6800feeac16f296d83bf7088788cdf3f206ee581701942aeb9bb84557702e9`;
+- extracted portable ZIP SHA-256: `e9134653c5b40eb5c6ce681b7b5021d5731ecd1a68b0280ff41365d709dc875c`;
 - portable ZIP contains root `AI Automatic Video Composer.exe` and `tools/ffmpeg/README.md`;
 - redundant `_internal/tools/ffmpeg/README.md` is absent.
 
 This is a **test build**, not a new published GitHub Release. Published `v0.1.1` remains frozen and unchanged.
 
 ## ACTIVE TASK
-No completion-wave implementation task remains active. **#260 is complete** after the verified Windows test build.
+Maintenance cleanup **#274** is active to remove unreferenced deferred owner stubs, align architecture/data-flow documentation with the actual 0.2 runtime, and refresh the Windows test artifact from the merged cleanup source. No new product capability is being added.
 
 ## NEXT EXACT ACTION
-User tests the fresh Windows portable ZIP on the target PC and reports any concrete runtime defect. Any resulting defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding into the separate arbitrary-video/multitrack experiment.
+Complete #274 gates, merge the cleanup, produce one fresh Windows portable build from the resulting source, then return to direct user end-to-end testing. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding into the separate arbitrary-video/multitrack experiment.

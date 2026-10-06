@@ -7,13 +7,13 @@ Widget action → application command → validate → ProjectSession transactio
 UI scope/seed → RandomizeAnimationCommand → lock checks → AnimationPlanner → one compound state patch → preview refresh; renderer never randomizes.
 
 ## AI edit
-Instruction → ContextBuilder → Provider job → validated ActionPlan → UI review → ApplyAIPlanCommand → one compound undo checkpoint → state event.
+Auto (AI) action → bounded ProviderRequest → background JobManager → ProviderManager/key pool → Gemini → fully validated native animation assignments → SetAnimationAssignmentsBatch → one compound undo checkpoint → UI refresh. Stale results are discarded if project state changes while the provider request is running.
 
 ## Import
 Wizard → ImportProjectCommand → worker probes DOCX/assets/media → normalized ImportResult → UI review/errors → CommitImportCommand.
 
 ## Preview
-ProjectSnapshot → RenderPlan/PreviewPlan → cached base proxy + PlaybackClock → Qt overlay evaluator → monitor.
+ProjectState/selected Scene → ScenePreviewPlan → canonical layout solver → Qt native-motion/subtitle evaluator → preview canvas. Timeline/playhead drives scene-local time; narration preview uses Qt Multimedia when a valid narration file is available.
 
 ## Render
-Export preflight → RenderJob → compile RenderPlan → FFmpeg process → progress parser → ffprobe validate → atomic finalize → success event.
+Export options → compile RenderPlan → preflight → background JobManager → ProcessRunner/FFmpeg → verify successful process and non-empty output → UI success/error result.

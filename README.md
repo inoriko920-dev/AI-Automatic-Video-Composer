@@ -19,8 +19,10 @@ Current published maintenance release: **0.1.1**.
 
 Latest completed post-release source line: **0.2 completion test build verified** (not yet a published GitHub Release).
 
-- Completed application source: `de07255fc2dee1d0a0804dc79f153c18b85ae1f3`
-- Windows portable test packaging: **PASS**
+- Latest verified application source before final dead-code cleanup: `b1a98fa38684afc884510b9f525e8efac20cbe01`
+- Gemini API-key transport hardening: **PASS** — raw key is sent in `x-goog-api-key`, not the request URL
+- Latest Windows portable test packaging run `37418690461`: **PASS**
+- Latest portable ZIP SHA-256: `e9134653c5b40eb5c6ce681b7b5021d5731ecd1a68b0280ff41365d709dc875c`
 - Portable smoke/content verification: **PASS**
 - Published `v0.1.1` remains frozen and unchanged.
 
@@ -93,7 +95,7 @@ STEP 09 is formally closed after actual Windows/PySide6 screenshot capture and C
 
 ## User guide
 
-Untuk cara menjalankan versi portable, menyiapkan Scene DOCX dan aset canonical, memahami kebutuhan FFmpeg/ffprobe, serta membedakan fitur UI yang sudah aktif dari kontrol yang belum terhubung penuh, lihat:
+Untuk cara menjalankan versi portable, menyiapkan Scene DOCX dan aset canonical, memahami kebutuhan FFmpeg/ffprobe, fitur UI yang aktif, serta batas produk yang sengaja dipertahankan, lihat:
 
 - `docs/USER_GUIDE.md`
 
