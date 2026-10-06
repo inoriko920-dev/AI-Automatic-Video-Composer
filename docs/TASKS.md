@@ -1,16 +1,27 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-ASTRA maintenance audit 2026-10-06 is **ACTIVE** on the 0.2 completion source.
+ASTRA maintenance audit 2026-10-06 source implementation is **IMPLEMENTED / AUTOMATED GATES PASS** on the 0.2 completion source.
 
-Active IDs:
-- AAVC-ASTRA-01 — persistence boundary validation / transactional open + recovery.
-- AAVC-ASTRA-02 — Windows-safe FFmpeg graph transport.
-- AAVC-ASTRA-03 — subtitle ASS path escaping.
-- AAVC-ASTRA-04 — monotonic preview clock.
-- AAVC-ASTRA-05 — Pause/Resume playhead preservation.
+Implemented IDs:
+- AAVC-ASTRA-01 — persistence boundary validation shared by open/recovery; invalid candidates fail before session/file replacement.
+- AAVC-ASTRA-02 — canonical FFmpeg filter graph is staged outside argv; Windows command length is measured after transport.
+- AAVC-ASTRA-03 — ASS path escaping covers nested FFmpeg option/filtergraph parsing.
+- AAVC-ASTRA-04 — preview uses monotonic elapsed time; redraw callbacks no longer define playback time.
+- AAVC-ASTRA-05 — Pause preserves the current playhead/frame; Resume continues from the paused position.
 
-The audit source of truth is `docs/audits/2026-10-06-astra/AUDIT_PLAN.md`. Implementation must preserve UI freeze, architecture, atomic staging/output and published `v0.1.1`.
+Evidence for source commit `b7dedba446be4453c3871abaf9020156f4fee2c9`:
+- Windows CI run `37453359983`: **PASS** — secret scan, dependency check, compile, Ruff, strict Mypy, 543 cheap tests with 1 deselected, STEP09 UI capture and screenshot verification.
+- CodeQL run `37453359998`: **PASS**.
+- UI freeze remained intact under screenshot verification.
+
+Residual release-candidate gates remain **OPEN** and must not be inferred from the automated source gate:
+- real FFmpeg Windows render of the 100-scene animated fixture plus ffprobe verification;
+- real subtitle render on Windows drive-letter paths including apostrophe/Unicode;
+- 60-second playback/audio drift measurement on the target Windows runtime;
+- fresh Windows portable packaging/smoke built from the maintenance patch SHA.
+
+The audit source of truth is `docs/audits/2026-10-06-astra/AUDIT_PLAN.md`. Published `v0.1.1` remains frozen and unchanged.
 
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 

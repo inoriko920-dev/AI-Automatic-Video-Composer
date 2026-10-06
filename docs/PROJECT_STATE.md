@@ -29,6 +29,25 @@ FFmpeg and ffprobe remain external dependencies and are not redistributed by AAV
 
 ### Post-release maintenance on `main`
 
+### ASTRA maintenance audit implementation — 2026-10-06
+
+The five ASTRA findings from baseline `8feeeb2e6e90489e5edb890ee67f3f59ca3d438c` have source patches and focused regressions on `main`.
+
+Automated source-gate evidence:
+- patched source commit: `b7dedba446be4453c3871abaf9020156f4fee2c9`;
+- Windows CI run `37453359983`: **PASS**;
+- CodeQL run `37453359998`: **PASS**;
+- CI included compile, Ruff, strict Mypy, 543 cheap tests with 1 deselected, STEP09 UI capture, and screenshot verification.
+
+Implemented behavior:
+- persistence rejects malformed root/nested structures and project invariant violations before active-session/recovery replacement while still allowing missing media for relink;
+- FFmpeg filter graphs are transported by unique staging file, preserving ProcessRunner ownership, atomic output and selection graph semantics;
+- ASS filter paths receive explicit option-value and filtergraph escaping instead of shell quoting;
+- preview playback is anchored to monotonic elapsed time and maps residual global time across scene boundaries;
+- Pause no longer shares Stop/reset semantics and Resume starts from the preserved position.
+
+This is **not yet a fully closed release-candidate gate**. Real Windows FFmpeg 100-scene rendering/ffprobe, drive-letter subtitle-path integration, 60-second audio drift measurement, and a fresh portable build from the patch SHA remain required before claiming final stability.
+
 Branch `main` contains maintenance and the completed **0.2 completion wave (#260)** created after frozen release `v0.1.1`. These capabilities have been verified in a fresh Windows portable **test build**, but they are still not part of the published `v0.1.1` GitHub Release.
 
 Current 0.2 completion source includes:
