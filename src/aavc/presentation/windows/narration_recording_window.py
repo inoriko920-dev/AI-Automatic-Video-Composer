@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from aavc.application.commands import SetNarrationAudio
 from aavc.bootstrap.composition_root import FoundationServices
@@ -25,6 +26,29 @@ def ensure_wav_suffix(path: str | Path) -> Path:
     if candidate.suffix.lower() != ".wav":
         candidate = candidate.with_suffix(".wav")
     return candidate.resolve()
+
+
+def narration_staging_path(destination: str | Path) -> Path:
+    """Return a same-directory temporary WAV path for one recording attempt."""
+
+    final_path = ensure_wav_suffix(destination)
+    return final_path.with_name(
+        f".{final_path.stem}.aavc-recording-{uuid4().hex}{final_path.suffix}"
+    )
+
+
+def finalize_narration_recording(
+    recorded_path: str | Path,
+    destination: str | Path,
+) -> Path:
+    """Atomically replace the final narration only after a valid recording exists."""
+
+    recorded = Path(recorded_path).expanduser().resolve()
+    final_path = ensure_wav_suffix(destination)
+    if not recorded.is_file() or recorded.stat().st_size <= 0:
+        raise ValueError("Rekaman audio sementara tidak valid")
+    recorded.replace(final_path)
+    return final_path
 
 
 def default_narration_recording_path(
@@ -90,6 +114,7 @@ def record_narration_dialog(parent: Any, output_path: str | Path) -> str | None:
         return None
 
     destination.parent.mkdir(parents=True, exist_ok=True)
+    staging = narration_staging_path(destination)
 
     dialog = QDialog(parent)
     dialog.setWindowTitle("Rekam Narasi")
@@ -137,7 +162,7 @@ def record_narration_dialog(parent: Any, output_path: str | Path) -> str | None:
     capture_session.setRecorder(recorder)
     recorder.setMediaFormat(media_format)
     recorder.setQuality(QMediaRecorder.Quality.HighQuality)
-    recorder.setOutputLocation(QUrl.fromLocalFile(str(destination)))
+    recorder.setOutputLocation(QUrl.fromLocalFile(str(staging)))
 
     result: dict[str, Any] = {
         "path": None,
@@ -148,15 +173,13 @@ def record_narration_dialog(parent: Any, output_path: str | Path) -> str | None:
 
     def cleanup_partial() -> None:
         with suppress(OSError):
-            if destination.is_file():
-                destination.unlink()
+            staging.unlink(missing_ok=True)
         actual = recorder.actualLocation().toLocalFile()
         if actual:
             actual_path = Path(actual).expanduser().resolve()
             if actual_path != destination:
                 with suppress(OSError):
-                    if actual_path.is_file():
-                        actual_path.unlink()
+                    actual_path.unlink(missing_ok=True)
 
     def finish_cancel() -> None:
         cleanup_partial()
@@ -191,13 +214,17 @@ def record_narration_dialog(parent: Any, output_path: str | Path) -> str | None:
             return
 
         actual = recorder.actualLocation().toLocalFile()
-        finalized = Path(actual).expanduser().resolve() if actual else destination
-        if not finalized.is_file() or finalized.stat().st_size <= 0:
+        recorded_candidate = Path(actual).expanduser().resolve() if actual else staging
+        if recorded_candidate == destination:
+            recorded_candidate = staging
+        try:
+            finalized = finalize_narration_recording(recorded_candidate, destination)
+        except (OSError, ValueError) as error:
             cleanup_partial()
             QMessageBox.critical(
                 dialog,
                 "Rekaman gagal",
-                "Qt Multimedia berhenti tanpa menghasilkan file audio yang valid.",
+                f"File rekaman tidak dapat diselesaikan dengan aman: {error}",
             )
             QDialog.reject(dialog)
             return
@@ -223,7 +250,7 @@ def record_narration_dialog(parent: Any, output_path: str | Path) -> str | None:
         result["error"] = None
         cleanup_partial()
         audio_input.setDevice(devices[index])
-        recorder.setOutputLocation(QUrl.fromLocalFile(str(destination)))
+        recorder.setOutputLocation(QUrl.fromLocalFile(str(staging)))
         recorder.record()
 
     def stop_recording() -> None:
