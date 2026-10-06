@@ -19,14 +19,14 @@ Current published maintenance release: **0.1.1**.
 
 Latest completed post-release source line: **0.2 stability-hardened test build verified** (not yet a published GitHub Release).
 
-- Stability-hardened runtime source: `ab2bd435abf090e26cbfb8188ebedeedb85c567e`
-- Post-merge CI run `37425086508`: **PASS**
-- Post-merge CodeQL run `37425086490`: **PASS**
-- Windows portable packaging run `37425405061`: **PASS**
-- Actions artifact ID: `11394412396`
-- Portable ZIP SHA-256: `6e9e41ae9953332b61a014dfad1c793a3fad9f88f152f11345690d6c1789d13e`
+- Stability-hardened runtime source: `3af29a8257a2cccb77615bd72521d4ba2a519249`
+- Post-merge CI run `37427840799`: **PASS**
+- Post-merge CodeQL run `37427840761`: **PASS**
+- Windows portable packaging run `37427863829`: **PASS**
+- Actions artifact ID: `11396560312`
+- Portable ZIP SHA-256: `7ee33c4e1c98eec1ec97988bb4ffb0148e7e076be80e01844d54944456df265e`
 - Portable smoke/content verification: **PASS**
-- Stability hardening includes atomic render output, tolerant external-process decoding, atomic narration replacement, future-schema rejection, malformed-DOCX error boundaries, and blocking application close while Render/Auto AI work is active.
+- Stability hardening includes atomic render output, tolerant external-process decoding, atomic narration replacement, future-schema rejection, malformed-DOCX error boundaries, blocking application close while Render/Auto AI work is active, and strict rejection of empty/malformed SRT imports.
 - Published `v0.1.1` remains frozen and unchanged.
 
 ## Official release 0.1.1
