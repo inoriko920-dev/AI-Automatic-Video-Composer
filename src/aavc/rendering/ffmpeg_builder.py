@@ -14,13 +14,41 @@ from aavc.domain.project.models import AnimationAssignment
 from .render_plan import RenderPlan, SceneRenderPlan
 
 
+def _escape_ffmpeg_chars(value: str, special: str) -> str:
+    return "".join(f"\\\\{char}" if char in special else char for char in value)
+
+
 def _esc_filter_path(path: str) -> str:
-    return (
-        str(Path(path).resolve())
-        .replace("\\", "/")
-        .replace(":", "\\:")
-        .replace("'", "\\'")
-    )
+    # FFmpeg parses an ass filename first as a filter-option value, then again as
+    # part of the filtergraph. Escape both layers; argv is passed directly to the
+    # process, so no shell-quoting layer belongs here.
+    normalized = str(Path(path).resolve()).replace("\\", "/")
+    option_value = _escape_ffmpeg_chars(normalized, "\\\\':")
+    return _escape_ffmpeg_chars(option_value, "\\\\'[],;")
+
+
+def externalize_filter_complex(
+    command: list[str],
+    script_path: str | Path,
+) -> tuple[list[str], str]:
+    """Move an inline canonical filter graph to FFmpeg's script-file transport."""
+
+    try:
+        option_index = command.index("-filter_complex")
+    except ValueError as exc:
+        raise ValueError("Command render canonical tidak memiliki -filter_complex") from exc
+    if option_index + 1 >= len(command):
+        raise ValueError("Command render canonical tidak memiliki isi filter graph")
+
+    graph = command[option_index + 1]
+    path = str(Path(script_path).resolve())
+    externalized = [
+        *command[:option_index],
+        "-filter_complex_script",
+        path,
+        *command[option_index + 2 :],
+    ]
+    return externalized, graph
 
 
 def _animation_at(
@@ -194,7 +222,8 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
     if plan.subtitle_ass:
         final_video = "vsub"
         filters.append(
-            f"[{concat_out}]ass='{_esc_filter_path(plan.subtitle_ass)}'[{final_video}]"
+            f"[{concat_out}]ass=filename={_esc_filter_path(plan.subtitle_ass)}"
+            f"[{final_video}]"
         )
 
     sharpen = max(0.0, min(1.0, plan.quality.sharpen_amount))
