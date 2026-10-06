@@ -1,7 +1,7 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-No implementation task is active.
+Maintenance task **#274** is active. It is a no-feature cleanup: retire unreferenced deferred source stubs, align architecture/data-flow docs with the actual runtime, and refresh the Windows test artifact from the cleaned source.
 
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 
@@ -18,13 +18,24 @@ Completed runtime work:
 - fresh Windows portable test build: PASS;
 - portable smoke/content verification: PASS.
 
-Build evidence:
-- completed application source `de07255fc2dee1d0a0804dc79f153c18b85ae1f3`;
-- packaging run `37416521197`;
-- Actions artifact ID `11391871118`;
-- portable ZIP SHA-256 `744d704325d6b96e34c408b99882687411ea7e763e7c3924653ca41f480cbfeb`.
+Latest verified pre-#274 build evidence:
+- application source `b1a98fa38684afc884510b9f525e8efac20cbe01`;
+- CI run `37418374428`: PASS;
+- CodeQL run `37418374423`: PASS;
+- packaging run `37418690461`: PASS;
+- Actions artifact ID `11392605021`;
+- portable ZIP SHA-256 `e9134653c5b40eb5c6ce681b7b5021d5731ecd1a68b0280ff41365d709dc875c`.
 
-Next action is direct user testing of the portable ZIP. New work should start only from a concrete defect or separately approved capability.
+### Final technical cleanup — #274
+Status: **IN PROGRESS**
+
+Scope:
+- remove source modules that contain only deferred-owner placeholders and have no runtime imports;
+- correct stale architecture/data-flow claims about bundled FFmpeg and proxy/PlaybackClock preview;
+- preserve all user-visible 0.2 behavior;
+- run CI/CodeQL and refresh Windows portable build after merge.
+
+After #274 completes, the next action returns to direct user testing. New capability work still requires explicit approval.
 
 
 ### REL-0.1.1-PUBLISH — Publish maintenance patch
