@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,6 +18,24 @@ class EditorShellParts:
     right_tabs: Any
     timeline: Any
     status_label: Any
+
+
+def remove_tabs_by_label(tab_widget: Any, labels: Collection[str]) -> tuple[str, ...]:
+    """Remove reference-only tabs from a live runtime surface."""
+
+    removed: list[str] = []
+    for index in range(tab_widget.count() - 1, -1, -1):
+        label = tab_widget.tabText(index)
+        if label not in labels:
+            continue
+        widget = tab_widget.widget(index)
+        tab_widget.removeTab(index)
+        if widget is not None:
+            widget.setParent(None)
+            widget.deleteLater()
+        removed.append(label)
+    removed.reverse()
+    return tuple(removed)
 
 
 def _asset_grid() -> Any:
