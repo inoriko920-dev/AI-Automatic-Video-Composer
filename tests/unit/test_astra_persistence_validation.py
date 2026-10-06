@@ -145,3 +145,95 @@ def test_failed_structural_recovery_preserves_project_backup_and_temp(
     assert project_path.read_bytes() == original_bytes
     assert backup.read_bytes() == b"existing-backup"
     assert list(tmp_path.glob(".*.aavc-restore-*.tmp")) == []
+
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected"),
+    [
+        (
+            lambda data: data["scenes"][0].update({"scene_number": 0}),
+            "scene_number harus lebih besar dari 0",
+        ),
+        (
+            lambda data: data["scenes"][0].update(
+                {
+                    "asset_ids": [
+                        data["scenes"][0]["asset_ids"][0],
+                        data["scenes"][0]["asset_ids"][0],
+                    ],
+                    "source_quotes": [
+                        data["scenes"][0]["source_quotes"][0],
+                        data["scenes"][0]["source_quotes"][0],
+                    ],
+                }
+            ),
+            "asset yang sama dua kali",
+        ),
+        (
+            lambda data: data.update({"scenes": []}),
+            "minimal satu Scene",
+        ),
+        (
+            lambda data: data["bindings"][0].update(
+                {"source_quote": "quote yang tidak cocok"}
+            ),
+            "source_quote binding tidak cocok",
+        ),
+        (
+            lambda data: data["bindings"][0].update(
+                {"status": "READY", "path": None}
+            ),
+            "READY harus memiliki path",
+        ),
+        (
+            lambda data: data["subtitle_style"].update({"font_family": 123}),
+            "subtitle_style.font_family harus berupa string",
+        ),
+        (
+            lambda data: data["subtitle_style"].update({"background_box": "false"}),
+            "subtitle_style.background_box harus berupa boolean",
+        ),
+        (
+            lambda data: data["subtitle_animation"].update(
+                {"enter_duration_ms": -1}
+            ),
+            "enter_duration_ms tidak boleh negatif",
+        ),
+        (
+            lambda data: data["render_quality"].update({"video_codec": ["libx264"]}),
+            "render_quality.video_codec harus berupa string",
+        ),
+    ],
+)
+def test_additional_astra_project_invariants_are_rejected(mutate, expected: str) -> None:
+    payload = _project().to_dict()
+    mutate(payload)
+
+    with pytest.raises(ValueError, match=expected):
+        loads_project(json.dumps(payload))
+
+
+def test_reused_asset_must_keep_same_quote_across_scenes() -> None:
+    payload = _project().to_dict()
+    duplicate = dict(payload["scenes"][0])
+    duplicate["scene_number"] = max(scene["scene_number"] for scene in payload["scenes"]) + 1
+    duplicate["source_quotes"] = ["different quote"]
+    duplicate["asset_ids"] = [payload["scenes"][0]["asset_ids"][0]]
+    payload["scenes"].append(duplicate)
+
+    with pytest.raises(ValueError, match="tidak konsisten antar Scene"):
+        loads_project(json.dumps(payload))
+
+
+def test_binding_not_referenced_by_any_scene_is_rejected() -> None:
+    payload = _project().to_dict()
+    extra = dict(payload["bindings"][0])
+    extra["asset_id"] = "A999"
+    extra["source_quote"] = "unused"
+    extra["status"] = "MISSING"
+    extra["path"] = "Z:/missing/A999.png"
+    payload["bindings"].append(extra)
+
+    with pytest.raises(ValueError, match="binding tidak dipakai oleh Scene"):
+        loads_project(json.dumps(payload))
