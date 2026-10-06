@@ -8,8 +8,14 @@ from aavc.application.services.export_service import ExportOptions, render_proje
 from aavc.application.services.selection_export_service import render_project_selection
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.domain.errors import RenderError
-from aavc.domain.project.models import ProjectState
-from aavc.platform.process_runner import ProcessResult, ProcessRunner
+from aavc.domain.project.models import AnimationAssignment, ProjectState
+from aavc.platform.process_runner import (
+    WINDOWS_COMMAND_LINE_LIMIT,
+    ProcessResult,
+    ProcessRunner,
+    windows_command_line_units,
+)
+from aavc.rendering import build_ffmpeg_command, build_render_plan
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 
@@ -17,6 +23,7 @@ FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 class FakeRunner(ProcessRunner):
     def __init__(self) -> None:
         self.commands: list[list[str]] = []
+        self.filter_graphs: list[str] = []
 
     def run(
         self,
@@ -27,6 +34,9 @@ class FakeRunner(ProcessRunner):
         del timeout_seconds
         command = list(argv)
         self.commands.append(command)
+        if "-filter_complex_script" in command:
+            graph_path = Path(command[command.index("-filter_complex_script") + 1])
+            self.filter_graphs.append(graph_path.read_text(encoding="utf-8"))
         Path(command[-1]).write_bytes(b"fake-mp4")
         return ProcessResult(0, "", "")
 
@@ -77,7 +87,11 @@ def test_render_project_maps_options_into_ffmpeg_command(tmp_path: Path) -> None
     assert command[command.index("-preset") + 1] == "slow"
     assert command[command.index("-crf") + 1] == "20"
     assert command[command.index("-r") + 1] == "60"
-    assert "s=1280x720" in command[command.index("-filter_complex") + 1]
+    assert "-filter_complex" not in command
+    assert "-filter_complex_script" in command
+    assert "s=1280x720" in runner.filter_graphs[0]
+    graph_path = Path(command[command.index("-filter_complex_script") + 1])
+    assert not graph_path.exists()
 
 
 def test_render_project_uses_temporary_subtitle_ass_without_clobbering_sidecar(
@@ -101,8 +115,8 @@ def test_render_project_uses_temporary_subtitle_ass_without_clobbering_sidecar(
         runner=runner,
     )
 
-    filters = runner.commands[0][runner.commands[0].index("-filter_complex") + 1]
-    assert "ass='" in filters
+    filters = runner.filter_graphs[0]
+    assert "ass=filename=" in filters
     assert ".aavc-subtitle-" in filters
     assert user_sidecar.read_text(encoding="utf-8") == "user-owned"
     assert list(tmp_path.glob(".*.aavc-subtitle-*.ass")) == []
@@ -152,7 +166,7 @@ def test_selection_export_also_cleans_subtitle_staging(tmp_path: Path) -> None:
         runner=runner,
     )
 
-    filters = runner.commands[0][runner.commands[0].index("-filter_complex") + 1]
+    filters = runner.filter_graphs[0]
     assert ".aavc-subtitle-" in filters
     assert user_sidecar.read_text(encoding="utf-8") == "selection-user-owned"
     assert list(tmp_path.glob(".*.aavc-subtitle-*.ass")) == []
@@ -166,3 +180,75 @@ def test_render_project_stops_on_preflight_error(tmp_path: Path) -> None:
         render_project(_project(), options, ffmpeg="fake-ffmpeg", runner=runner)
 
     assert runner.commands == []
+
+
+
+def test_large_filter_graph_is_removed_from_windows_command_line(tmp_path: Path) -> None:
+    base = _project()
+    source_scene = base.scenes[0]
+    asset_id = source_scene.asset_ids[0]
+    scenes = tuple(
+        replace(source_scene, scene_number=index + 1)
+        for index in range(100)
+    )
+    animations = tuple(
+        AnimationAssignment(
+            scene_number=index + 1,
+            asset_id=asset_id,
+            enter_effect="Rise",
+            exit_effect="Drift",
+            intensity=1.0,
+        )
+        for index in range(100)
+    )
+    project = replace(base, scenes=scenes, animations=animations)
+    output = tmp_path / "large.mp4"
+
+    inline = build_ffmpeg_command(build_render_plan(project, output), ffmpeg="fake-ffmpeg")
+    assert windows_command_line_units(inline) > WINDOWS_COMMAND_LINE_LIMIT
+
+    runner = FakeRunner()
+    render_project(
+        project,
+        ExportOptions(output_path=str(output), burn_subtitles=False),
+        ffmpeg="fake-ffmpeg",
+        runner=runner,
+    )
+
+    executed = runner.commands[0]
+    assert "-filter_complex_script" in executed
+    assert "-filter_complex" not in executed
+    assert windows_command_line_units(executed) < WINDOWS_COMMAND_LINE_LIMIT
+    assert len(runner.filter_graphs[0]) > 20_000
+    assert list(tmp_path.glob(".*.aavc-filter-*.txt")) == []
+
+
+def test_subtitle_filter_path_escapes_apostrophe_and_filtergraph_delimiters(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "Toni's video,[draft]"
+    output_dir.mkdir()
+    subtitle = tmp_path / "subtitle.srt"
+    subtitle.write_text(
+        "1\n00:00:00,000 --> 00:00:01,000\nHalo dunia\n",
+        encoding="utf-8",
+    )
+    project = replace(_project(), subtitle_source=str(subtitle))
+    runner = FakeRunner()
+
+    render_project(
+        project,
+        ExportOptions(output_path=str(output_dir / "video.mp4"), burn_subtitles=True),
+        ffmpeg="fake-ffmpeg",
+        runner=runner,
+    )
+
+    graph = runner.filter_graphs[0]
+    assert "ass=filename=" in graph
+    assert "Toni" in graph
+    assert "\\\'" in graph
+    assert "\\," in graph
+    assert "\\[" in graph
+    assert "\\]" in graph
+    assert list(output_dir.glob(".*.aavc-subtitle-*.ass")) == []
+    assert list(output_dir.glob(".*.aavc-filter-*.txt")) == []
