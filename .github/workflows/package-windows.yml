@@ -2,6 +2,9 @@ name: Package Windows Foundation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - astra-windows-verification-2026-10-06
 
 permissions:
   contents: read
@@ -9,7 +12,7 @@ permissions:
 jobs:
   package:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -25,6 +28,145 @@ jobs:
           python -m pip install -e .
       - name: Verify dependency graph
         run: python -m pip check
+      - name: Ensure FFmpeg and ffprobe
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg -y --no-progress
+          }
+          ffmpeg -version
+          ffprobe -version
+      - name: ASTRA Windows FFmpeg verification
+        shell: pwsh
+        run: |
+          @'
+          from dataclasses import replace
+          from pathlib import Path
+          import shutil
+          import tempfile
+
+          from PySide6.QtGui import QColor, QImage
+
+          from aavc.application.services.export_service import ExportOptions, render_project
+          from aavc.domain.project.models import AssetBinding, ProjectState, RenderQualitySettings, Scene
+
+          root = Path(tempfile.mkdtemp(prefix="aavc-astra-"))
+          asset = root / "asset.png"
+          image = QImage(96, 96, QImage.Format.Format_ARGB32)
+          image.fill(QColor("#336699"))
+          if not image.save(str(asset)):
+              raise RuntimeError("failed to create verification PNG")
+
+          ffmpeg = shutil.which("ffmpeg")
+          if not ffmpeg:
+              raise RuntimeError("ffmpeg unavailable after setup")
+
+          quality = RenderQualitySettings(
+              video_codec="libx264",
+              encoder_preset="ultrafast",
+              crf=30,
+              audio_bitrate_kbps=96,
+              scale_algorithm="bilinear",
+              sharpen_amount=0.0,
+          )
+          binding = AssetBinding(
+              asset_id="A001",
+              source_quote="verification",
+              path=str(asset),
+              status="READY",
+          )
+          scenes = tuple(
+              Scene(
+                  scene_number=index,
+                  asset_ids=("A001",),
+                  source_quotes=(f"scene {index}",),
+                  duration_seconds=0.10,
+              )
+              for index in range(1, 101)
+          )
+          project = ProjectState(
+              schema_version=2,
+              title="ASTRA 100 Scene Verification",
+              source_docx="verification.docx",
+              asset_directory=str(root),
+              scenes=scenes,
+              bindings=(binding,),
+              fps=10,
+              width=320,
+              height=180,
+              render_quality=quality,
+          )
+          output = root / "astra-100-scene.mp4"
+          result = render_project(
+              project,
+              ExportOptions(
+                  output_path=str(output),
+                  width=320,
+                  height=180,
+                  fps=10,
+                  encoder_preset="ultrafast",
+                  crf=30,
+                  sharpen_amount=0.0,
+                  burn_subtitles=False,
+              ),
+              ffmpeg=ffmpeg,
+          )
+          if not Path(result.output_path).is_file() or Path(result.output_path).stat().st_size <= 0:
+              raise RuntimeError("100-scene render output missing")
+
+          weird = root / "O'Brien_日本"
+          weird.mkdir()
+          subtitle = weird / "sub,title[1];final.srt"
+          subtitle.write_text(
+              "1\n00:00:00,000 --> 00:00:00,800\nPath subtitle OK\n",
+              encoding="utf-8",
+          )
+          subtitle_project = replace(
+              project,
+              title="ASTRA Subtitle Path Verification",
+              scenes=(scenes[0],),
+              subtitle_source=str(subtitle),
+          )
+          subtitle_output = weird / "Toni's_日本_video.mp4"
+          subtitle_result = render_project(
+              subtitle_project,
+              ExportOptions(
+                  output_path=str(subtitle_output),
+                  width=320,
+                  height=180,
+                  fps=10,
+                  encoder_preset="ultrafast",
+                  crf=30,
+                  sharpen_amount=0.0,
+                  burn_subtitles=True,
+              ),
+              ffmpeg=ffmpeg,
+          )
+          if not Path(subtitle_result.output_path).is_file() or Path(subtitle_result.output_path).stat().st_size <= 0:
+              raise RuntimeError("special-path subtitle render output missing")
+
+          print(f"ASTRA_100_SCENE_OUTPUT={output}")
+          print(f"ASTRA_SPECIAL_PATH_OUTPUT={subtitle_output}")
+          print("ASTRA_WINDOWS_RENDER_OK")
+          '@ | Set-Content -Path astra_windows_verify.py -Encoding utf8
+
+          python astra_windows_verify.py
+          $verifyRoot = Get-ChildItem $env:TEMP -Directory -Filter "aavc-astra-*" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $verifyRoot) { throw "ASTRA verification temp root not found" }
+
+          $hundred = Join-Path $verifyRoot.FullName "astra-100-scene.mp4"
+          $special = Join-Path $verifyRoot.FullName "O'Brien_日本\Toni's_日本_video.mp4"
+
+          $duration100 = & ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 $hundred
+          $durationSpecial = & ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 $special
+          if ([double]$duration100 -le 0) { throw "ffprobe rejected 100-scene output" }
+          if ([double]$durationSpecial -le 0) { throw "ffprobe rejected special-path subtitle output" }
+
+          Write-Host "ASTRA_100_SCENE_FFPROBE_DURATION=$duration100"
+          Write-Host "ASTRA_SPECIAL_PATH_FFPROBE_DURATION=$durationSpecial"
+          Write-Host "ASTRA_FFPROBE_OK"
       - name: Build onedir
         shell: pwsh
         run: ./scripts/package.ps1
