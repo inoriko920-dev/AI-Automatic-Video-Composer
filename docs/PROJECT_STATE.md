@@ -7,7 +7,8 @@
 - Git tag: `v0.1.1`
 - Frozen release source: `release/0.1.1` @ `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`
 - Canonical maintenance release workflow: `Maintenance Release Windows 0.1.1` run `#1` / `37181599863`
-- Maintenance line: `0.1.x`
+- Published maintenance line: `0.1.x`
+- Active source line: **0.2 completion candidate / not yet published**
 - Architecture: ARCH-AAVC-v1.0
 - Product Blueprint: PB-AAVC-v1.0
 - UI Freeze: UIF-AAVC-v1.0
@@ -28,16 +29,16 @@ FFmpeg and ffprobe remain external dependencies and are not redistributed by AAV
 
 ### Post-release maintenance on `main`
 
-Branch `main` contains maintenance and editor/runtime improvements created after the frozen `v0.1.1` release. These changes are source-state capabilities and must not be described as already present in the published `v0.1.1` binary until a later build/release is produced.
+Branch `main` contains maintenance and the explicitly approved **0.2 completion wave (#260)** created after frozen release `v0.1.1`. These source-state capabilities must not be described as already present in the published `v0.1.1` binary until a fresh Windows build/release is produced.
 
-Current post-release source includes secure Gemini credential management from PR #251:
-- menu **AI → Status Gemini…** reports only configured slot numbers/count;
-- **Simpan / Ganti API Key Gemini…** writes a selected slot through Windows Credential Manager;
-- **Hapus API Key Gemini…** removes a selected credential after confirmation;
-- deterministic credential slots `1–100` are supported;
-- raw API-key values are not stored in `ProjectState`, project files, logs, or status diagnostics and are not displayed back to the user;
-- no plaintext credential fallback is provided on unsupported platforms;
-- this credential-management layer does **not** yet make a live Gemini request or apply AI mutations to a project.
+Current 0.2 completion source includes:
+- secure Gemini credential management from PR #251 with deterministic slots `1–100`, Windows Credential Manager storage, and no plaintext fallback;
+- real microphone narration recording from PR #262, producing WAV and binding it to `narration_audio` through project history;
+- bounded live Gemini Auto (AI) from PR #264, restricted to validated native render-backed animation assignments and one-step Undo;
+- background render and Gemini execution from PR #266 using the canonical `JobManager`, with overlapping work rejected and stale Gemini results discarded;
+- completion cleanup from #267: unsupported GPU/Advanced export controls are not advertised, reference-only AI Agent/empty tabs are removed from live runtime surfaces, obsolete read-only subtitle actions are hidden, and Home/New Project no longer present fake project/history controls.
+
+Raw API-key values remain outside `ProjectState`, project files, logs, and status diagnostics. FFmpeg/ffprobe remain external dependencies.
 
 ## VERIFIED
 Official GitHub Release `v0.1.1` is published and targets frozen source commit `a6515ee7c4c9cda88a0c8aa93892c36eaf292d2e`.
@@ -79,14 +80,9 @@ No factory blocker remains. Before later patch releases, re-check compatibility 
 None known for normal `0.1.x` maintenance.
 
 ## ACTIVE TASK
-No release or feature task is currently active. `REL-0.1.0-PUBLISH` and `REL-0.1.1-PUBLISH` are complete.
+**#260 — 0.2 completion wave** is active. Runtime completion subtasks through #267 are complete once this cleanup merges.
 
 ## NEXT EXACT ACTION
-Wait for a concrete bug report, compatibility issue, security hardening need, packaging issue, or explicitly approved new capability.
+Run the full completion gates on the merged `main` line, then produce a **fresh Windows portable test build** for direct user testing. Keep frozen `v0.1.1` unchanged.
 
-Classify later changes under `MAINTENANCE.md` before implementation:
-- bug/compatibility/security/packaging fix -> patch `0.1.x`;
-- new compatible user-visible capability -> next minor release;
-- breaking schema/workflow change -> major-version planning.
-
-Do not restart completed STEP 09–15 work unless regression evidence requires it.
+Do not restart completed STEP 09–15 work unless regression evidence requires it, and do not expand this completion wave into the separate arbitrary-video/multitrack playback experiment.
