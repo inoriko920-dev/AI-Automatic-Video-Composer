@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -168,8 +169,6 @@ def test_future_schema_open_preserves_existing_session(tmp_path: Path) -> None:
     future = tmp_path / "future.aavcproj"
     payload = previous.to_dict()
     payload["schema_version"] = 99
-    import json
-
     future.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(ValueError, match="lebih baru"):
