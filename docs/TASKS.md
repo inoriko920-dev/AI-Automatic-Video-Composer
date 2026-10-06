@@ -1,7 +1,16 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, project license #27, and focused stability hardening issues #278/#280/#282/#285/#287/#289/#292/#295 are complete. The only remaining repository administration item is #20 (branch protection), which requires owner/admin access.
+ASTRA maintenance audit 2026-10-06 is **ACTIVE** on the 0.2 completion source.
+
+Active IDs:
+- AAVC-ASTRA-01 — persistence boundary validation / transactional open + recovery.
+- AAVC-ASTRA-02 — Windows-safe FFmpeg graph transport.
+- AAVC-ASTRA-03 — subtitle ASS path escaping.
+- AAVC-ASTRA-04 — monotonic preview clock.
+- AAVC-ASTRA-05 — Pause/Resume playhead preservation.
+
+The audit source of truth is `docs/audits/2026-10-06-astra/AUDIT_PLAN.md`. Implementation must preserve UI freeze, architecture, atomic staging/output and published `v0.1.1`.
 
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 
