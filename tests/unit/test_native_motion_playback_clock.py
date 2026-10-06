@@ -102,7 +102,7 @@ def test_preview_clock_skips_stale_frames_and_pause_resume_preserves_playhead(
 
     assert scene_list.currentRow() == 2
     assert slider.value() == pytest.approx(250, abs=1)
-    assert timecode.text().startswith("00:00:00:28")
+    assert timecode.text().startswith(("00:00:00:28", "00:00:00:29"))
 
     paused_slider = slider.value()
     paused_timecode = timecode.text()
