@@ -18,6 +18,7 @@ FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 class FakeRunner(ProcessRunner):
     def __init__(self) -> None:
         self.commands: list[list[str]] = []
+        self.filter_graphs: list[str] = []
 
     def run(
         self,
@@ -28,6 +29,9 @@ class FakeRunner(ProcessRunner):
         del timeout_seconds
         command = list(argv)
         self.commands.append(command)
+        if "-filter_complex_script" in command:
+            graph_path = Path(command[command.index("-filter_complex_script") + 1])
+            self.filter_graphs.append(graph_path.read_text(encoding="utf-8"))
         Path(command[-1]).write_bytes(b"selection-mp4")
         return ProcessResult(0, "", "")
 
@@ -75,7 +79,7 @@ def test_render_selection_adds_video_trim_and_output_duration(tmp_path: Path) ->
     assert result.output_path == str(output.resolve())
     assert output.read_bytes() == b"selection-mp4"
     command = runner.commands[0]
-    filters = command[command.index("-filter_complex") + 1]
+    filters = runner.filter_graphs[0]
     assert f"trim=start={start:.6f}:end={end:.6f}" in filters
     assert "setpts=PTS-STARTPTS[vselection]" in filters
     first_map = command.index("-map")
@@ -101,7 +105,7 @@ def test_render_selection_trims_audio_on_same_global_range(tmp_path: Path) -> No
     )
 
     command = runner.commands[0]
-    filters = command[command.index("-filter_complex") + 1]
+    filters = runner.filter_graphs[0]
     assert f"atrim=start={start:.6f}:end={end:.6f}" in filters
     assert "asetpts=PTS-STARTPTS[aselection]" in filters
     map_positions = [index for index, value in enumerate(command) if value == "-map"]
@@ -129,9 +133,9 @@ def test_render_selection_burns_subtitles_before_video_trim(tmp_path: Path) -> N
         runner=runner,
     )
 
-    filters = runner.commands[0][runner.commands[0].index("-filter_complex") + 1]
-    assert "ass='" in filters
-    assert filters.index("ass='") < filters.index("trim=start=")
+    filters = runner.filter_graphs[0]
+    assert "ass=filename=" in filters
+    assert filters.index("ass=filename=") < filters.index("trim=start=")
 
 
 def test_render_selection_rejects_invalid_range_before_execution(tmp_path: Path) -> None:

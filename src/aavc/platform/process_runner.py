@@ -12,6 +12,13 @@ class ProcessResult:
     stderr: str
 
 
+def windows_command_units(argv: Sequence[str]) -> int:
+    """Return CreateProcessW UTF-16 command units including the NUL terminator."""
+
+    rendered = subprocess.list2cmdline(list(argv))
+    return len(rendered.encode("utf-16-le")) // 2 + 1
+
+
 class ProcessRunner:
     """The only repository owner allowed to execute child processes."""
 

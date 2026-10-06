@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
 from aavc.domain.errors import RenderError
-from aavc.platform.process_runner import ProcessRunner
+from aavc.platform.process_runner import ProcessRunner, windows_command_units
 
 _WINDOWS_COMMAND_LIMIT = 32767
 
@@ -29,13 +28,6 @@ def _filter_graph_staging_path(output: Path) -> Path:
     return output.with_name(
         f".{output.stem}.aavc-filter-{uuid4().hex}.txt"
     )
-
-
-def windows_command_units(command: list[str]) -> int:
-    """Return CreateProcessW UTF-16 command units including the NUL terminator."""
-
-    rendered = subprocess.list2cmdline(command)
-    return len(rendered.encode("utf-16-le")) // 2 + 1
 
 
 def _externalize_filter_graph(command: list[str], graph_path: Path) -> list[str]:

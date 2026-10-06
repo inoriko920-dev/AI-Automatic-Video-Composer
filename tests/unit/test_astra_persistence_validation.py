@@ -45,7 +45,9 @@ def test_non_object_project_root_is_rejected(payload: str) -> None:
             "tepat 1 atau 2 aset",
         ),
         (
-            lambda data: data["scenes"].append(dict(data["scenes"][0])),
+            lambda data: data.update(
+                {"scenes": (*data["scenes"], dict(data["scenes"][0]))}
+            ),
             "scene_number harus unik",
         ),
         (
