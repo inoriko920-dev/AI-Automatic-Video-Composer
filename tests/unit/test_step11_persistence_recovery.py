@@ -152,6 +152,29 @@ def test_structurally_invalid_project_payloads_are_rejected() -> None:
             loads_project(json.dumps(payload))
 
 
+def test_nested_project_setting_types_are_rejected() -> None:
+    payload = _project().to_dict()
+    payload["subtitle_style"]["font_family"] = 123
+
+    with pytest.raises(ValueError, match="subtitle_style.font_family"):
+        loads_project(json.dumps(payload))
+
+    payload = _project().to_dict()
+    payload["render_quality"]["video_codec"] = ["libx264"]
+
+    with pytest.raises(ValueError, match="render_quality.video_codec"):
+        loads_project(json.dumps(payload))
+
+
+def test_ready_binding_requires_path_but_missing_binding_may_keep_old_path() -> None:
+    payload = _project().to_dict()
+    payload["bindings"][0]["path"] = None
+    payload["bindings"][0]["status"] = "READY"
+
+    with pytest.raises(ValueError, match="READY harus memiliki path"):
+        loads_project(json.dumps(payload))
+
+
 def test_missing_media_binding_remains_loadable_for_relink() -> None:
     payload = _project().to_dict()
     payload["bindings"][0]["path"] = "Z:/moved/A001.png"
