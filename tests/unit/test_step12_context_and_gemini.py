@@ -11,6 +11,7 @@ class FakeTransport:
         self.response = response
         self.last_url = ""
         self.last_body: Mapping[str, object] = {}
+        self.last_headers: Mapping[str, str] = {}
 
     def post_json(
         self,
@@ -20,9 +21,10 @@ class FakeTransport:
         headers: Mapping[str, str],
         timeout_seconds: float,
     ) -> JsonHttpResponse:
-        del headers, timeout_seconds
+        del timeout_seconds
         self.last_url = url
         self.last_body = body
+        self.last_headers = headers
         return self.response
 
 
@@ -73,7 +75,10 @@ def test_gemini_adapter_parses_text_and_usage_without_live_network() -> None:
     assert response.finish_reason == "STOP"
     assert response.input_tokens == 12
     assert response.output_tokens == 7
-    assert "synthetic-key" in transport.last_url
+    assert "synthetic-key" not in transport.last_url
+    assert "?" not in transport.last_url
+    assert transport.last_headers["x-goog-api-key"] == "synthetic-key"
+    assert transport.last_headers["Content-Type"] == "application/json"
     assert "systemInstruction" in transport.last_body
 
 
