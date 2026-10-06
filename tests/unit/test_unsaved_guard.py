@@ -1,4 +1,7 @@
-from aavc.presentation.windows.guarded_main_window import resolve_unsaved_choice
+from aavc.presentation.windows.guarded_main_window import (
+    background_work_blocks_close,
+    resolve_unsaved_choice,
+)
 from aavc.presentation.windows.subtitle_edit_window import (
     resolve_subtitle_working_copy_leave,
 )
@@ -27,3 +30,9 @@ def test_clean_subtitle_working_copy_never_blocks_leave() -> None:
 def test_dirty_subtitle_working_copy_requires_explicit_discard() -> None:
     assert not resolve_subtitle_working_copy_leave(True, discard_confirmed=False)
     assert resolve_subtitle_working_copy_leave(True, discard_confirmed=True)
+
+
+
+def test_background_work_blocks_application_close_until_consumed() -> None:
+    assert background_work_blocks_close(background_busy=True)
+    assert not background_work_blocks_close(background_busy=False)
