@@ -20,7 +20,7 @@ from aavc.presentation.scene_inspector import (
 from aavc.presentation.scene_preview import ScenePreviewPlan, build_scene_preview_plan
 from aavc.presentation.timeline_view import TimelinePlan, build_timeline_plan
 from aavc.presentation.widgets.common import make_primary_button, muted_label, section_title
-from aavc.presentation.widgets.editor_shell import create_editor_shell
+from aavc.presentation.widgets.editor_shell import create_editor_shell, remove_tabs_by_label
 
 
 def _scene_page(scenes: tuple[SceneView, ...]) -> Any:
@@ -338,6 +338,7 @@ def create_live_editor_overview(
     from PySide6.QtWidgets import QLabel, QPushButton, QSlider
 
     parts = create_editor_shell("overview")
+    remove_tabs_by_label(parts.right_tabs, {"Animasi", "AI Agent"})
     scenes = build_scene_views(project)
     assets = build_asset_views(project)
     summary = build_project_summary(project)
