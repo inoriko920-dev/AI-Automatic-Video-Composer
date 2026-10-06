@@ -13,6 +13,12 @@ from aavc.presentation.windows.main_window import MainWindow, ensure_project_suf
 UnsavedChoice = Literal["save", "discard", "cancel"]
 
 
+def background_work_blocks_close(*, background_busy: bool) -> bool:
+    """Return whether active long-running work must keep the UI event loop alive."""
+
+    return background_busy
+
+
 def resolve_unsaved_choice(
     is_dirty: bool,
     choice: UnsavedChoice,
@@ -124,6 +130,17 @@ class GuardedMainWindow(MainWindow):
                 if watched is owner.window and event.type() == QEvent.Type.Close:
                     if owner._allow_close:
                         return False
+                    busy_check = getattr(owner, "_background_busy", None)
+                    background_busy = bool(busy_check()) if callable(busy_check) else False
+                    if background_work_blocks_close(background_busy=background_busy):
+                        active_name = getattr(owner, "_background_name", "") or "Render/Auto AI"
+                        owner._show_project_notice(
+                            "Pekerjaan masih berjalan",
+                            f"{active_name} masih berjalan. Selesaikan pekerjaan tersebut "
+                            "sebelum menutup aplikasi agar proses tidak terputus.",
+                        )
+                        event.ignore()
+                        return True
                     if not owner._confirm_unsaved_changes("keluar dari aplikasi"):
                         event.ignore()
                         return True
