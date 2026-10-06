@@ -17,14 +17,16 @@ Windows desktop application for composing narrative/infographic videos from scen
 
 Current published maintenance release: **0.1.1**.
 
-Latest completed post-release source line: **0.2 completion test build verified** (not yet a published GitHub Release).
+Latest completed post-release source line: **0.2 stability-hardened test build verified** (not yet a published GitHub Release).
 
-- Final verified 0.2 application source: `2efd414b6a582b86d39c5b6d1f7d4ff7d0bb6897`
-- Gemini API-key transport hardening: **PASS** — raw key is sent in `x-goog-api-key`, not the request URL
-- Final Windows portable test packaging run `37420955954`: **PASS**
-- Final Actions artifact ID: `11392374584`
-- Final portable ZIP SHA-256: `a59737cd2cf5766eb3c2b7c76d2c549dbbb435f1db7ad84683efd3d7489d7802`
+- Stability-hardened runtime source: `ab2bd435abf090e26cbfb8188ebedeedb85c567e`
+- Post-merge CI run `37425086508`: **PASS**
+- Post-merge CodeQL run `37425086490`: **PASS**
+- Windows portable packaging run `37425405061`: **PASS**
+- Actions artifact ID: `11394412396`
+- Portable ZIP SHA-256: `6e9e41ae9953332b61a014dfad1c793a3fad9f88f152f11345690d6c1789d13e`
 - Portable smoke/content verification: **PASS**
+- Stability hardening includes atomic render output, tolerant external-process decoding, atomic narration replacement, future-schema rejection, malformed-DOCX error boundaries, and blocking application close while Render/Auto AI work is active.
 - Published `v0.1.1` remains frozen and unchanged.
 
 ## Official release 0.1.1
@@ -127,7 +129,7 @@ For release evidence, publication, rollback rules and maintenance policy, see:
 
 Current published release line: **0.1.1** on the compatible **0.1.x** maintenance line.
 
-Current post-release source state: **0.2 completion test build verified / not published as a GitHub Release**.
+Current post-release source state: **0.2 stability-hardened test build verified / automated gates PASS / not published as a GitHub Release**.
 
 
 ## License
