@@ -13,6 +13,8 @@ from aavc.domain.project.models import (
     SubtitleStyle,
 )
 
+CURRENT_SCHEMA_VERSION = 2
+
 
 def dumps_project(project: ProjectState) -> str:
     return json.dumps(project.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
@@ -20,8 +22,15 @@ def dumps_project(project: ProjectState) -> str:
 
 def loads_project(text: str) -> ProjectState:
     data = json.loads(text)
+    source_schema_version = int(data.get("schema_version", 1))
+    if source_schema_version > CURRENT_SCHEMA_VERSION:
+        raise ValueError(
+            "Versi project tidak didukung: "
+            f"schema {source_schema_version} lebih baru dari schema "
+            f"{CURRENT_SCHEMA_VERSION} yang didukung aplikasi ini"
+        )
     return ProjectState(
-        schema_version=max(2, int(data.get("schema_version", 1))),
+        schema_version=CURRENT_SCHEMA_VERSION,
         title=data["title"],
         source_docx=data["source_docx"],
         asset_directory=data["asset_directory"],
