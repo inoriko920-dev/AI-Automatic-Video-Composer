@@ -17,6 +17,7 @@ FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "step10"
 class FakeRunner(ProcessRunner):
     def __init__(self) -> None:
         self.commands: list[list[str]] = []
+        self.filter_graphs: list[str] = []
 
     def run(
         self,
@@ -27,6 +28,9 @@ class FakeRunner(ProcessRunner):
         del timeout_seconds
         command = list(argv)
         self.commands.append(command)
+        if "-filter_complex_script" in command:
+            graph_path = Path(command[command.index("-filter_complex_script") + 1])
+            self.filter_graphs.append(graph_path.read_text(encoding="utf-8"))
         Path(command[-1]).write_bytes(b"fake-mp4")
         return ProcessResult(0, "", "")
 
@@ -77,7 +81,8 @@ def test_render_project_maps_options_into_ffmpeg_command(tmp_path: Path) -> None
     assert command[command.index("-preset") + 1] == "slow"
     assert command[command.index("-crf") + 1] == "20"
     assert command[command.index("-r") + 1] == "60"
-    assert "s=1280x720" in command[command.index("-filter_complex") + 1]
+    assert "-filter_complex_script" in command
+    assert "s=1280x720" in runner.filter_graphs[0]
 
 
 def test_render_project_uses_temporary_subtitle_ass_without_clobbering_sidecar(
@@ -101,8 +106,8 @@ def test_render_project_uses_temporary_subtitle_ass_without_clobbering_sidecar(
         runner=runner,
     )
 
-    filters = runner.commands[0][runner.commands[0].index("-filter_complex") + 1]
-    assert "ass='" in filters
+    filters = runner.filter_graphs[0]
+    assert "ass=filename=" in filters
     assert ".aavc-subtitle-" in filters
     assert user_sidecar.read_text(encoding="utf-8") == "user-owned"
     assert list(tmp_path.glob(".*.aavc-subtitle-*.ass")) == []
@@ -152,7 +157,7 @@ def test_selection_export_also_cleans_subtitle_staging(tmp_path: Path) -> None:
         runner=runner,
     )
 
-    filters = runner.commands[0][runner.commands[0].index("-filter_complex") + 1]
+    filters = runner.filter_graphs[0]
     assert ".aavc-subtitle-" in filters
     assert user_sidecar.read_text(encoding="utf-8") == "selection-user-owned"
     assert list(tmp_path.glob(".*.aavc-subtitle-*.ass")) == []
