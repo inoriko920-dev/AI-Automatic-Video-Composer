@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 from typing import Any
 
 from aavc.domain.project.models import AnimationAssignment, ProjectState
@@ -278,8 +279,9 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     timer.setTimerType(Qt.TimerType.PreciseTimer)
     fps = max(1, int(project.fps))
     timer.setInterval(max(15, int(round(1000 / fps))))
-    frame_step = 1.0 / fps
     playback_seconds = 0.0
+    playback_anchor_global = 0.0
+    playback_anchor_monotonic = 0.0
     continuing_across_scene = False
     scene_durations = tuple(scene.duration_seconds for scene in project.scenes)
     total_project_seconds = sum(max(0.0, float(value)) for value in scene_durations)
@@ -360,6 +362,43 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
                 fraction = max(0.0, min(1.0, time_seconds / plan.duration_seconds))
                 progress_slider.setValue(int(round(fraction * 1000)))
 
+    def global_to_scene_position(global_seconds: float) -> tuple[int, float]:
+        if not scene_durations:
+            return 0, 0.0
+        remaining = max(0.0, min(global_seconds, total_project_seconds))
+        for index, duration in enumerate(scene_durations):
+            duration = max(0.0, float(duration))
+            if remaining <= duration or index == len(scene_durations) - 1:
+                return index, min(remaining, duration)
+            remaining -= duration
+        return len(scene_durations) - 1, max(0.0, scene_durations[-1])
+
+    def set_playback_anchor(global_seconds: float) -> None:
+        nonlocal playback_anchor_global, playback_anchor_monotonic
+        playback_anchor_global = max(
+            0.0,
+            min(float(global_seconds), total_project_seconds),
+        )
+        playback_anchor_monotonic = time.monotonic()
+
+    def current_playback_global() -> float:
+        if not timer.isActive():
+            return project_seconds(playback_seconds)
+        elapsed = max(0.0, time.monotonic() - playback_anchor_monotonic)
+        return min(total_project_seconds, playback_anchor_global + elapsed)
+
+    def render_global_position(global_seconds: float) -> None:
+        nonlocal continuing_across_scene, playback_seconds
+        row, local_seconds = global_to_scene_position(global_seconds)
+        if row != scene_list.currentRow():
+            continuing_across_scene = True
+            try:
+                scene_list.setCurrentRow(row)
+            finally:
+                continuing_across_scene = False
+        playback_seconds = local_seconds
+        render_frame(playback_seconds)
+
     def stop_playback(
         *,
         restore_static: bool = True,
@@ -370,45 +409,44 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         pause_audio()
         if reset_position:
             playback_seconds = 0.0
+            set_playback_anchor(project_seconds(0.0))
             seek_audio(0.0)
+        else:
+            set_playback_anchor(project_seconds(playback_seconds))
         play_button.setText("▶")
         if restore_static:
             render_frame(None)
         elif reset_position and progress_slider is not None:
             progress_slider.setValue(0)
 
+    def pause_playback() -> None:
+        if not timer.isActive():
+            return
+        global_seconds = current_playback_global()
+        timer.stop()
+        pause_audio()
+        render_global_position(global_seconds)
+        set_playback_anchor(global_seconds)
+        seek_audio(playback_seconds)
+        play_button.setText("▶")
+
     def tick() -> None:
-        nonlocal continuing_across_scene, playback_seconds
         plan = selected_plan()
         if plan is None:
             stop_playback(restore_static=False)
             return
-        playback_seconds += frame_step
-        if playback_seconds >= plan.duration_seconds:
-            target = preview_continuation_scene_index(
-                scene_list.currentRow(),
-                len(project.scenes),
-            )
-            if target is None:
-                timer.stop()
-                pause_audio()
-                playback_seconds = plan.duration_seconds
-                render_frame(playback_seconds)
-                seek_audio(playback_seconds)
-                play_button.setText("▶")
-                return
 
-            playback_seconds = 0.0
-            continuing_across_scene = True
-            try:
-                scene_list.setCurrentRow(target)
-            finally:
-                continuing_across_scene = False
-            seek_audio(0.0)
-            if media_player is not None:
-                media_player.play()
+        global_seconds = current_playback_global()
+        if global_seconds >= total_project_seconds:
+            timer.stop()
+            pause_audio()
+            render_global_position(total_project_seconds)
+            set_playback_anchor(total_project_seconds)
+            seek_audio(playback_seconds)
+            play_button.setText("▶")
             return
-        render_frame(playback_seconds)
+
+        render_global_position(global_seconds)
 
     def toggle_playback() -> None:
         nonlocal playback_seconds
@@ -416,10 +454,10 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
         if plan is None:
             return
         if timer.isActive():
-            stop_playback()
+            pause_playback()
             return
 
-        start_seconds = 0.0
+        start_seconds = playback_seconds
         if progress_slider is not None:
             start_seconds = preview_scrub_seconds(
                 progress_slider.value(),
@@ -430,6 +468,8 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
             start_seconds = 0.0
 
         playback_seconds = start_seconds
+        global_seconds = project_seconds(playback_seconds)
+        set_playback_anchor(global_seconds)
         play_button.setText("⏸")
         render_frame(playback_seconds)
         seek_audio(playback_seconds)
@@ -452,11 +492,13 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
             progress_slider.maximum(),
             plan.duration_seconds,
         )
+        set_playback_anchor(project_seconds(playback_seconds))
         render_frame(playback_seconds)
         seek_audio(playback_seconds)
 
     def scrub_started() -> None:
-        stop_playback(restore_static=False, reset_position=False)
+        if timer.isActive():
+            pause_playback()
         if progress_slider is not None:
             scrub_to_value(progress_slider.value())
 
@@ -476,8 +518,6 @@ def install_native_motion_preview(root: Any, project: ProjectState) -> bool:
     def scene_changed(row: int) -> None:
         if continuing_across_scene:
             update_transport_state(row)
-            update_timecode(0.0)
-            render_frame(0.0)
             return
         stop_playback(restore_static=False)
         update_transport_state(row)
