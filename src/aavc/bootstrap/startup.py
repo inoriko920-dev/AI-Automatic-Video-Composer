@@ -28,6 +28,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             marker.parent.mkdir(parents=True, exist_ok=True)
             marker.write_text(FOUNDATION_SMOKE_TOKEN, encoding="utf-8")
         print(FOUNDATION_SMOKE_TOKEN)
+        services.jobs.shutdown(wait=False)
         return 0
 
     try:
@@ -35,10 +36,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         from PySide6.QtGui import QFont, QFontDatabase
         from PySide6.QtWidgets import QApplication
 
-        from aavc.presentation.windows.ai_native_motion_window import (
-            create_ai_native_motion_main_window as create_main_window,
+        from aavc.presentation.windows.background_work_window import (
+            create_background_work_main_window as create_main_window,
         )
     except ModuleNotFoundError as exc:
+        services.jobs.shutdown(wait=False)
         print(f"Qt runtime belum terpasang: {exc}", file=sys.stderr)
         return 2
 
@@ -74,4 +76,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             app.quit()
 
         QTimer.singleShot(500, capture)
-    return int(app.exec())
+    try:
+        return int(app.exec())
+    finally:
+        services.jobs.shutdown(wait=False)

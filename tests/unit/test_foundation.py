@@ -4,6 +4,7 @@ from aavc import __version__
 from aavc.application.services.project_session import ProjectSession
 from aavc.bootstrap.composition_root import build_foundation_services
 from aavc.bootstrap.startup import FOUNDATION_SMOKE_TOKEN, main
+from aavc.jobs import JobManager
 
 
 def test_package_version_matches_maintenance_release() -> None:
@@ -12,9 +13,13 @@ def test_package_version_matches_maintenance_release() -> None:
 
 def test_composition_root_builds_without_qt() -> None:
     services = build_foundation_services()
-    assert services.app_name == "AI Automatic Video Composer"
-    assert isinstance(services.paths.executable_dir, Path)
-    assert isinstance(services.project_session, ProjectSession)
+    try:
+        assert services.app_name == "AI Automatic Video Composer"
+        assert isinstance(services.paths.executable_dir, Path)
+        assert isinstance(services.project_session, ProjectSession)
+        assert isinstance(services.jobs, JobManager)
+    finally:
+        services.jobs.shutdown(wait=False)
 
 
 def test_foundation_smoke_mode(capsys) -> None:
