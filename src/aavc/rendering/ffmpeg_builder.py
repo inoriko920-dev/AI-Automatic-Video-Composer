@@ -14,13 +14,22 @@ from aavc.domain.project.models import AnimationAssignment
 from .render_plan import RenderPlan, SceneRenderPlan
 
 
+def _escape_filter_level(value: str, special: str) -> str:
+    escaped: list[str] = []
+    for character in value:
+        if character in special:
+            escaped.append("\\" + character)
+        else:
+            escaped.append(character)
+    return "".join(escaped)
+
+
 def _esc_filter_path(path: str) -> str:
-    return (
-        str(Path(path).resolve())
-        .replace("\\", "/")
-        .replace(":", "\\:")
-        .replace("'", "\\'")
-    )
+    """Escape an ASS filename through option-value and filtergraph parsing."""
+
+    normalized = str(Path(path).resolve()).replace("\\", "/")
+    option_value = _escape_filter_level(normalized, "\\':")
+    return _escape_filter_level(option_value, "\\'[],;")
 
 
 def _animation_at(
@@ -194,7 +203,7 @@ def build_ffmpeg_command(plan: RenderPlan, ffmpeg: str = "ffmpeg") -> list[str]:
     if plan.subtitle_ass:
         final_video = "vsub"
         filters.append(
-            f"[{concat_out}]ass='{_esc_filter_path(plan.subtitle_ass)}'[{final_video}]"
+            f"[{concat_out}]ass=filename={_esc_filter_path(plan.subtitle_ass)}[{final_video}]"
         )
 
     sharpen = max(0.0, min(1.0, plan.quality.sharpen_amount))
