@@ -10,7 +10,6 @@ from aavc.presentation.motion_preview import (
     native_visual_preview_opacity,
     native_visual_preview_rotation,
     native_visual_preview_scale,
-    preview_continuation_scene_index,
     preview_narration_seconds,
     preview_neighbor_scene_index,
     preview_scrub_seconds,
