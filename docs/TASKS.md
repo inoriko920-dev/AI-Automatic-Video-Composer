@@ -1,24 +1,30 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
 ## Current queue
-**#260 — 0.2 completion wave: ACTIVE**
+No implementation task is active.
 
-Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The approved 0.2 source completion wave is being finished separately on `main`.
+Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 
 ### 0.2 completion wave — #260
-Status: **ACTIVE**
+Status: **COMPLETE**
 
 Completed runtime work:
 - project/File/Export action-state synchronization (#258/#259);
 - real microphone narration workflow (#261/#262);
 - bounded live Gemini Auto (AI) using secure credential slots (#263/#264);
 - responsive background render/Gemini work through canonical JobManager (#265/#266);
-- visible-placeholder cleanup and documentation synchronization (#267).
+- visible-placeholder cleanup and documentation synchronization (#267);
+- post-merge CI and CodeQL on completed `main`: PASS;
+- fresh Windows portable test build: PASS;
+- portable smoke/content verification: PASS.
 
-Next exact action after #267 merges:
-- run compile, Ruff, strict mypy, pytest, STEP09 screenshot verification, and CodeQL on merged `main`;
-- produce a fresh Windows portable **test build** from the completed source line;
-- verify that build before closing #260.
+Build evidence:
+- completed application source `de07255fc2dee1d0a0804dc79f153c18b85ae1f3`;
+- packaging run `37416521197`;
+- Actions artifact ID `11391871118`;
+- portable ZIP SHA-256 `744d704325d6b96e34c408b99882687411ea7e763e7c3924653ca41f480cbfeb`.
+
+Next action is direct user testing of the portable ZIP. New work should start only from a concrete defect or separately approved capability.
 
 
 ### REL-0.1.1-PUBLISH — Publish maintenance patch
