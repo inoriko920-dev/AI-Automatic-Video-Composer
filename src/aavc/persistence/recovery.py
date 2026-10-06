@@ -38,6 +38,11 @@ class RecoveryManager:
         recovery = self.recovery_path_for(project)
         if not recovery.is_file():
             raise FileNotFoundError(recovery)
+
+        # Validate the snapshot before touching the current project or backup.
+        # A truncated/corrupt/future-schema autosave must fail closed.
+        load_project(recovery)
+
         backup = project.with_suffix(project.suffix + ".pre-recovery.bak")
         if project.exists():
             shutil.copy2(project, backup)
