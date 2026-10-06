@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from aavc.domain.project.models import (
@@ -31,19 +31,19 @@ def _fail(field: str, message: str) -> None:
 def _object(value: Any, field: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         _fail(field, "harus object JSON")
-    return value
+    return cast(dict[str, Any], value)
 
 
 def _array(value: Any, field: str) -> list[Any]:
     if not isinstance(value, list):
         _fail(field, "harus array JSON")
-    return value
+    return cast(list[Any], value)
 
 
 def _string(value: Any, field: str) -> str:
     if not isinstance(value, str):
         _fail(field, "harus string")
-    return value
+    return cast(str, value)
 
 
 def _optional_string(value: Any, field: str) -> str | None:
@@ -57,7 +57,7 @@ def _integer(value: Any, field: str, *, positive: bool = False) -> int:
         _fail(field, "harus integer")
     if positive and value <= 0:
         _fail(field, "harus lebih dari 0")
-    return value
+    return cast(int, value)
 
 
 def _number(
@@ -82,7 +82,7 @@ def _number(
 def _bool(value: Any, field: str) -> bool:
     if not isinstance(value, bool):
         _fail(field, "harus boolean")
-    return value
+    return cast(bool, value)
 
 
 def _validate_settings_objects(data: dict[str, Any]) -> None:
