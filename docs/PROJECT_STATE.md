@@ -46,7 +46,7 @@ Implemented behavior:
 - preview playback is anchored to monotonic elapsed time and maps residual global time across scene boundaries;
 - Pause no longer shares Stop/reset semantics and Resume starts from the preserved position.
 
-This is **not yet a fully closed release-candidate gate**. Real Windows FFmpeg 100-scene rendering/ffprobe, drive-letter subtitle-path integration, 60-second audio drift measurement, and a fresh portable build from the patch SHA remain required before claiming final stability.
+The ASTRA maintenance gate is now **closed**. Real Windows FFmpeg 100-scene rendering/ffprobe, drive-letter subtitle-path integration, and a fresh portable build all passed. The remaining direct 60-second audio-drift observation was explicitly waived by the user on 2026-10-06 and is no longer a required acceptance item for this audit.
 
 Branch `main` contains maintenance and the completed **0.2 completion wave (#260)** created after frozen release `v0.1.1`. These capabilities have been verified in a fresh Windows portable **test build**, but they are still not part of the published `v0.1.1` GitHub Release.
 
@@ -142,10 +142,10 @@ Latest Windows stability test packaging:
 This is a **test build**, not a new published GitHub Release. Published `v0.1.1` remains frozen and unchanged.
 
 ## ACTIVE TASK
-No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, MIT licensing #27, and stability issues #278/#280/#282/#285/#287/#289/#292/#295 are complete. Remaining repository administration item #20 (branch protection) requires owner/admin access.
+No known technical implementation, ASTRA audit, or automated-stability task is active. Completion #260, cleanup #274, MIT licensing #27, ASTRA audit 2026-10-06, and stability issues #278/#280/#282/#285/#287/#289/#292/#295 are complete. Remaining repository administration item #20 (branch protection) requires owner/admin access.
 
 ## NEXT EXACT ACTION
-Run direct end-to-end testing of the stability-hardened Windows portable ZIP on the target Windows PC. Automated/build gates are green, but production stability cannot be proven without real runtime use. Any concrete runtime defect should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding product scope.
+ASTRA maintenance audit is closed. The next action is ordinary user testing of the generated Windows portable build. Any concrete runtime defect found later should be handled as a focused bug/compatibility task without reopening completed STEP 09–15 planning or expanding product scope.
 
 ## ASTRA WINDOWS RUNTIME VERIFICATION — 2026-10-06
 
@@ -168,5 +168,8 @@ Windows verification workflow-only branch:
 
 The runtime gate discovered and fixed one real compatibility issue: current FFmpeg no longer accepted `-filter_complex_script`; AAVC now uses the documented `-/filter_complex` file-argument syntax while retaining unique staging, ProcessRunner ownership, Windows command-length protection, and atomic output.
 
-One acceptance item remains intentionally open: a direct 60-second narration playback observation on a real Windows multimedia runtime with measured drift <= 100 ms. Automated monotonic-clock regressions pass, but that is not substituted for the physical multimedia observation.
+Acceptance closure:
+- direct 60-second narration playback/drift observation was explicitly waived by the user on 2026-10-06;
+- automated monotonic-clock regressions remain PASS;
+- ASTRA maintenance audit status is **COMPLETE** with no remaining technical gate.
 

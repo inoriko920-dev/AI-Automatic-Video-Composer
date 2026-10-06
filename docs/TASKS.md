@@ -15,16 +15,16 @@ Evidence for source commit `b7dedba446be4453c3871abaf9020156f4fee2c9`:
 - CodeQL run `37453359998`: **PASS**.
 - UI freeze remained intact under screenshot verification.
 
-Residual release-candidate gates remain **OPEN** and must not be inferred from the automated source gate:
-- real FFmpeg Windows render of the 100-scene animated fixture plus ffprobe verification;
-- real subtitle render on Windows drive-letter paths including apostrophe/Unicode;
-- 60-second playback/audio drift measurement on the target Windows runtime;
-- fresh Windows portable packaging/smoke built from the maintenance patch SHA.
+Release-candidate verification status:
+- real FFmpeg Windows 100-scene render + ffprobe: **PASS**;
+- real subtitle render on Windows drive-letter paths including apostrophe/Unicode: **PASS**;
+- fresh Windows portable packaging/smoke: **PASS**;
+- direct 60-second playback/audio drift observation: **WAIVED by user decision on 2026-10-06** and is not required for ASTRA audit closure.
 
 The audit source of truth is `docs/audits/2026-10-06-astra/AUDIT_PLAN.md`. Published `v0.1.1` remains frozen and unchanged.
 
 ### ASTRA Windows runtime verification — 2026-10-06
-Status: **PASS except direct 60-second multimedia drift observation**
+Status: **COMPLETE / PASS WITH USER-WAIVED DRIFT OBSERVATION**
 
 Canonical patched application source:
 - `main` @ `b9f5ef3547386c908622f62280a79bbf47c15333`
@@ -46,8 +46,10 @@ Fresh Windows runtime/portable verification was executed from workflow-only bran
 
 During this gate an actual compatibility defect was discovered: current FFmpeg rejects legacy `-filter_complex_script`. The application was corrected to the documented file-argument form `-/filter_complex <file>`, then all source and Windows runtime gates above passed.
 
-Residual acceptance:
-- direct 60-second preview + narration observation on a real Windows multimedia runtime, measuring final audio/timecode drift <= 100 ms.
+Final acceptance decision:
+- direct 60-second preview + narration drift observation was explicitly waived by the user on 2026-10-06;
+- the automated monotonic-clock regressions remain PASS;
+- no remaining ASTRA technical gate is open.
 
 Software Factory STEP 00–15 remains complete and published `v0.1.1` stays frozen. The explicitly approved 0.2 completion wave has completed its source and Windows test-build gate.
 
