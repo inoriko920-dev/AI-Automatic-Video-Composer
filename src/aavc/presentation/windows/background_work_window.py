@@ -33,8 +33,7 @@ class BackgroundWorkMainWindow(AiNativeMotionMainWindow):
         super().__init__(services, initial_state=initial_state)
 
     def _background_busy(self) -> bool:
-        call = self._background_call
-        return call is not None and not call.snapshot().done
+        return self._background_call is not None
 
     def _start_background_work(
         self,
@@ -53,7 +52,11 @@ class BackgroundWorkMainWindow(AiNativeMotionMainWindow):
             )
             return False
 
-        call: BackgroundCall[Any] = BackgroundCall(work)
+        call: BackgroundCall[Any] = BackgroundCall(
+            self.services.jobs,
+            work,
+            name=name,
+        )
         timer = QTimer(self.window)
         timer.setInterval(120)
         timer.timeout.connect(self._poll_background_work)
