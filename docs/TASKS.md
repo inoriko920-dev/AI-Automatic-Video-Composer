@@ -1,5 +1,18 @@
 # ACTIVE TASKS — Post Release 0.1.1
 
+## ASTRA maintenance audit — 2026-10-06
+Status: **IN PROGRESS** on branch `sol/astra-aavc-bugfix-2026-10-06`.
+
+Active findings:
+- AAVC-ASTRA-01 (P1): reject structurally invalid project/recovery payloads before state/file mutation.
+- AAVC-ASTRA-02 (P1): move large FFmpeg filter graph off the Windows command line and preflight argv length.
+- AAVC-ASTRA-03 (P2): make ASS subtitle path escaping robust for apostrophes and legal target paths.
+- AAVC-ASTRA-04 (P2): make preview timing follow a monotonic elapsed clock rather than callback count.
+- AAVC-ASTRA-05 (P2): split Pause from Stop/reset so pause/resume preserves playhead.
+
+Canonical implementation plan: `docs/audits/2026-10-06-astra/AUDIT_PLAN.md`.
+Do not mark these complete until their regression tests and environment-specific gates pass.
+
 ## Current queue
 No known technical implementation or automated-stability task is active. Completion #260, cleanup #274, project license #27, and focused stability hardening issues #278/#280/#282/#285/#287/#289/#292/#295 are complete. The only remaining repository administration item is #20 (branch protection), which requires owner/admin access.
 
