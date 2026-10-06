@@ -7,7 +7,9 @@ from aavc.presentation.motion_preview import (
     native_visual_preview_scale,
     preview_continuation_scene_index,
     preview_narration_seconds,
+    preview_elapsed_global_seconds,
     preview_neighbor_scene_index,
+    preview_scene_position_for_global_seconds,
     preview_scrub_seconds,
     preview_timecode,
 )
@@ -286,3 +288,38 @@ def test_short_scene_uses_half_duration_window() -> None:
 
     assert midpoint.x == pytest.approx(0.0)
     assert midpoint.y == pytest.approx(0.0)
+
+
+
+def test_elapsed_preview_clock_uses_monotonic_delta_not_callback_count() -> None:
+    assert preview_elapsed_global_seconds(
+        anchor_global_seconds=2.5,
+        anchor_monotonic_seconds=100.0,
+        now_monotonic_seconds=101.0,
+        total_duration_seconds=10.0,
+    ) == pytest.approx(3.5)
+
+    assert preview_elapsed_global_seconds(
+        anchor_global_seconds=9.75,
+        anchor_monotonic_seconds=100.0,
+        now_monotonic_seconds=105.0,
+        total_duration_seconds=10.0,
+    ) == pytest.approx(10.0)
+
+
+def test_global_preview_clock_preserves_residual_across_scene_boundaries() -> None:
+    durations = (0.4, 0.3, 1.0)
+
+    assert preview_scene_position_for_global_seconds(durations, 0.2) == pytest.approx(
+        (0, 0.2)
+    )
+    assert preview_scene_position_for_global_seconds(durations, 0.4) == pytest.approx(
+        (1, 0.0)
+    )
+    assert preview_scene_position_for_global_seconds(durations, 0.95) == pytest.approx(
+        (2, 0.25)
+    )
+    assert preview_scene_position_for_global_seconds(durations, 99.0) == pytest.approx(
+        (2, 1.0)
+    )
+    assert preview_scene_position_for_global_seconds((), 1.0) is None
