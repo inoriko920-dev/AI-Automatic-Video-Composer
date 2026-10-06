@@ -15,7 +15,7 @@ from .render_plan import RenderPlan, SceneRenderPlan
 
 
 def _escape_ffmpeg_chars(value: str, special: str) -> str:
-    return "".join(f"\\\\{char}" if char in special else char for char in value)
+    return "".join(f"\\{char}" if char in special else char for char in value)
 
 
 def _esc_filter_path(path: str) -> str:
