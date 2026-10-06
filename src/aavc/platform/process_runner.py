@@ -25,6 +25,7 @@ class ProcessRunner:
             list(argv),
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
             timeout=timeout_seconds,
         )
