@@ -1,7 +1,7 @@
 import json
+from pathlib import Path
 
 import pytest
-from pathlib import Path
 
 from aavc.application.services.vertical_slice import create_project_state
 from aavc.persistence.recovery import RecoveryManager
