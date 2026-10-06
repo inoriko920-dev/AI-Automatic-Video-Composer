@@ -57,6 +57,12 @@ def _integer(value: Any, field: str, *, positive: bool = False) -> int:
     return value
 
 
+def _boolean(value: Any, field: str) -> bool:
+    if type(value) is not bool:
+        raise ValueError(f"{field} harus berupa boolean")
+    return value
+
+
 def _finite_number(
     value: Any,
     field: str,
@@ -78,7 +84,11 @@ def _finite_number(
 
 def _deserialize_scene(raw: Any, index: int) -> Scene:
     data = _mapping(raw, f"scenes[{index}]")
-    scene_number = _integer(data.get("scene_number"), f"scenes[{index}].scene_number")
+    scene_number = _integer(
+        data.get("scene_number"),
+        f"scenes[{index}].scene_number",
+        positive=True,
+    )
     asset_ids_raw = _list(data.get("asset_ids"), f"scenes[{index}].asset_ids")
     quotes_raw = _list(data.get("source_quotes"), f"scenes[{index}].source_quotes")
     asset_ids = tuple(
@@ -96,6 +106,10 @@ def _deserialize_scene(raw: Any, index: int) -> Scene:
     if len(source_quotes) != len(asset_ids):
         raise ValueError(
             f"scenes[{index}].source_quotes harus cocok dengan jumlah asset_ids"
+        )
+    if len(set(asset_ids)) != len(asset_ids):
+        raise ValueError(
+            f"scenes[{index}].asset_ids tidak boleh memuat asset yang sama dua kali"
         )
     duration = _finite_number(
         data.get("duration_seconds", 3.0),
@@ -167,6 +181,9 @@ def _validated_settings(
 
 
 def _validate_project_invariants(project: ProjectState) -> None:
+    if not project.scenes:
+        raise ValueError("project harus memiliki minimal satu Scene")
+
     scene_numbers = [scene.scene_number for scene in project.scenes]
     if len(scene_numbers) != len(set(scene_numbers)):
         raise ValueError("scene_number harus unik")
@@ -175,15 +192,42 @@ def _validate_project_invariants(project: ProjectState) -> None:
     for binding in project.bindings:
         if binding.asset_id in bindings_by_id:
             raise ValueError(f"binding asset_id duplikat: {binding.asset_id}")
+        if binding.status == "READY" and binding.path is None:
+            raise ValueError(
+                f"binding READY harus memiliki path: {binding.asset_id}"
+            )
         bindings_by_id[binding.asset_id] = binding
 
+    expected_quotes: dict[str, str] = {}
     scenes_by_number = {scene.scene_number: scene for scene in project.scenes}
     for scene in project.scenes:
-        for asset_id in scene.asset_ids:
-            if asset_id not in bindings_by_id:
+        for asset_id, source_quote in zip(
+            scene.asset_ids,
+            scene.source_quotes,
+            strict=True,
+        ):
+            binding = bindings_by_id.get(asset_id)
+            if binding is None:
                 raise ValueError(
                     f"Scene {scene.scene_number} merujuk asset tanpa binding: {asset_id}"
                 )
+            previous_quote = expected_quotes.get(asset_id)
+            if previous_quote is not None and previous_quote != source_quote:
+                raise ValueError(
+                    f"source_quote asset {asset_id} tidak konsisten antar Scene"
+                )
+            expected_quotes[asset_id] = source_quote
+            if binding.source_quote != source_quote:
+                raise ValueError(
+                    "source_quote binding tidak cocok dengan Scene untuk asset "
+                    f"{asset_id}"
+                )
+
+    unused_bindings = sorted(set(bindings_by_id) - set(expected_quotes))
+    if unused_bindings:
+        raise ValueError(
+            "binding tidak dipakai oleh Scene: " + ", ".join(unused_bindings)
+        )
 
     seen_assignments: set[tuple[int, str]] = set()
     for assignment in project.animations:
@@ -270,6 +314,47 @@ def loads_project(text: str) -> ProjectState:
         ),
         metadata=metadata,
     )
+
+    for field, value in (
+        ("subtitle_style.preset_name", project.subtitle_style.preset_name),
+        ("subtitle_style.font_family", project.subtitle_style.font_family),
+        ("subtitle_style.fill_color", project.subtitle_style.fill_color),
+        ("subtitle_style.outline_color", project.subtitle_style.outline_color),
+        ("subtitle_animation.preset", project.subtitle_animation.preset),
+        ("subtitle_animation.highlight_color", project.subtitle_animation.highlight_color),
+        ("render_quality.preset_name", project.render_quality.preset_name),
+        ("render_quality.video_codec", project.render_quality.video_codec),
+        ("render_quality.encoder_preset", project.render_quality.encoder_preset),
+        ("render_quality.scale_algorithm", project.render_quality.scale_algorithm),
+    ):
+        _string(value, field)
+
+    for field, value in (
+        ("subtitle_style.font_size", project.subtitle_style.font_size),
+        ("subtitle_style.background_opacity", project.subtitle_style.background_opacity),
+        ("subtitle_style.alignment", project.subtitle_style.alignment),
+        ("subtitle_style.margin_v", project.subtitle_style.margin_v),
+        (
+            "subtitle_animation.enter_duration_ms",
+            project.subtitle_animation.enter_duration_ms,
+        ),
+        (
+            "subtitle_animation.exit_duration_ms",
+            project.subtitle_animation.exit_duration_ms,
+        ),
+        ("render_quality.crf", project.render_quality.crf),
+        ("render_quality.audio_bitrate_kbps", project.render_quality.audio_bitrate_kbps),
+    ):
+        _integer(value, field)
+
+    _boolean(
+        project.subtitle_style.background_box,
+        "subtitle_style.background_box",
+    )
+    if project.subtitle_animation.enter_duration_ms < 0:
+        raise ValueError("subtitle_animation.enter_duration_ms tidak boleh negatif")
+    if project.subtitle_animation.exit_duration_ms < 0:
+        raise ValueError("subtitle_animation.exit_duration_ms tidak boleh negatif")
 
     _finite_number(
         project.subtitle_style.outline_width,
