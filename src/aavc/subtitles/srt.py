@@ -52,23 +52,38 @@ def _validate_cue(cue: SubtitleCue) -> None:
 
 
 def parse_srt(path: str | Path) -> tuple[SubtitleCue, ...]:
-    text = Path(path).read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    text = (
+        Path(path)
+        .read_text(encoding="utf-8-sig")
+        .replace("\r\n", "\n")
+        .replace("\r", "\n")
+    )
     blocks = [block.strip() for block in text.split("\n\n") if block.strip()]
+    if not blocks:
+        raise ValueError("File SRT tidak memiliki cue subtitle yang valid")
+
     cues: list[SubtitleCue] = []
-    for block in blocks:
+    for block_number, block in enumerate(blocks, start=1):
         lines = block.splitlines()
         if len(lines) < 3:
-            continue
-        index = int(lines[0].strip())
-        start_raw, end_raw = [part.strip() for part in lines[1].split("-->", 1)]
-        cues.append(
-            SubtitleCue(
-                index=index,
-                start_seconds=parse_srt_timestamp(start_raw),
-                end_seconds=parse_srt_timestamp(end_raw),
-                text="\\N".join(line.strip() for line in lines[2:] if line.strip()),
+            raise ValueError(
+                f"Blok SRT #{block_number} tidak lengkap; minimal index, timing, dan teks"
             )
+
+        index = int(lines[0].strip())
+        timing_parts = [part.strip() for part in lines[1].split("-->", 1)]
+        if len(timing_parts) != 2:
+            raise ValueError(f"Timing blok SRT #{block_number} tidak valid")
+
+        cue = SubtitleCue(
+            index=index,
+            start_seconds=parse_srt_timestamp(timing_parts[0]),
+            end_seconds=parse_srt_timestamp(timing_parts[1]),
+            text="\\N".join(line.strip() for line in lines[2:] if line.strip()),
         )
+        _validate_cue(cue)
+        cues.append(cue)
+
     return tuple(cues)
 
 
